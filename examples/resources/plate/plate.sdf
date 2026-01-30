@@ -43,7 +43,19 @@
 
 
 
-      <link name="link_x"/>
+      <link name="link_x">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-6</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-6</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-6</izz>
+          </inertia>
+        </inertial>
+      </link>
       <joint name="plate_x" type="prismatic">
         <parent>world</parent>
         <child>link_x</child>
@@ -58,7 +70,19 @@
         </axis>
       </joint>
 
-      <link name="link_y"/>
+      <link name="link_y">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-6</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-6</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-6</izz>
+          </inertia>
+        </inertial>
+      </link>
       <joint name="plate_y" type="prismatic">
         <parent>link_x</parent>
         <child>link_y</child>
@@ -73,7 +97,19 @@
         </axis>
       </joint>
 
-      <link name="link_z"/>
+      <link name="link_z">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-6</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-6</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-6</izz>
+          </inertia>
+        </inertial>
+      </link>
       <joint name="plate_z" type="prismatic">
         <parent>link_y</parent>
         <child>link_z</child>
@@ -88,7 +124,19 @@
         </axis>
       </joint>
 
-      <link name="link_roll"/>
+      <link name="link_roll">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-6</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-6</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-6</izz>
+          </inertia>
+        </inertial>
+      </link>
       <joint name="plate_roll" type="revolute">
         <parent>link_z</parent>
         <child>link_roll</child>
