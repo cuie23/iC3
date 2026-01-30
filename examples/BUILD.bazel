@@ -42,6 +42,7 @@ cc_binary(
     ],
     data = [
         ":example_data",
+        "@drake_models//:franka_description",
     ],
     deps = [
         "//core:c3",
