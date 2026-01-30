@@ -15,6 +15,8 @@ struct C3Options {
       true;  // Use results of current admm iteration as warm start for next
   std::optional<bool> penalize_input_change =
       true;  // Penalize change in input between iterations
+  std::optional<bool> penalize_snap =
+      false;  // Penalize change in input between iterations
   bool end_on_qp_step =
       true;  // If false, Run a half step calculating the state using the LCS
   bool scale_lcs =
@@ -34,6 +36,7 @@ struct C3Options {
   int admm_iter = 3;  // total number of ADMM iterations
 
   // See comments below for how we parse the .yaml into the cost matrices
+  std::optional<double> snap_scaling = 0;
   double gamma;          // scaling factor for state and input the cost matrices
   float rho_scale = 10;  // scaling of rho parameter (/rho = rho_scale * /rho)
   Eigen::MatrixXd Q;
@@ -90,6 +93,8 @@ struct C3Options {
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(warm_start));
     a->Visit(DRAKE_NVP(penalize_input_change));
+    a->Visit(DRAKE_NVP(penalize_snap));
+    a->Visit(DRAKE_NVP(snap_scaling));
 
     a->Visit(DRAKE_NVP(end_on_qp_step));
     a->Visit(DRAKE_NVP(scale_lcs));

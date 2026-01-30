@@ -107,7 +107,7 @@ iC3::iC3(
       gravity = VectorXd::Zero(7);
     } else {
       gravity = VectorXd::Zero(5);
-      gravity[2] = 5.88;
+      gravity[2] = 5;
     }
     vector<VectorXd> u_nominal(N_, gravity);
     vector<VectorXd> u_sol_for_penalization(N_, gravity);
@@ -220,10 +220,10 @@ iC3::iC3(
         // Plate position constraints
         lower_bound[0] = -0.2;
         lower_bound[1] = -0.2;
-        lower_bound[2] = -0.1; 
+        lower_bound[2] = -0.2; 
         upper_bound[0] = 0.2;
         upper_bound[1] = 0.2;
-        upper_bound[2] = 0.5;
+        upper_bound[2] = 0.3;
         
         // Plate rotation constraints
         lower_bound[3] = -0.5;
@@ -241,12 +241,12 @@ iC3::iC3(
         // Actuation limits
         // A_u(0, 0) = 0;
         // A_u(1, 1) = 0;
-        // A_u(2, 2) = 1;
+        A_u(2, 2) = 1;
         A_u(3, 3) = 1;
         A_u(4, 4) = 1;
 
-        lower_bound_u << 0, 0, 0, -5, -5;
-        upper_bound_u << 0, 0, 0, 5, 5; // plate + block is ~5.5 N 
+        lower_bound_u << 0, 0, 0, -2, -2;
+        upper_bound_u << 0, 0, 15, 2, 2; // plate + block is ~5.5 N 
       }
       
 
@@ -286,17 +286,21 @@ iC3::iC3(
         c3_->UpdateInputTarget(u_nominal);
 
         u_sol_for_penalization_copy = u_sol_for_penalization;
-        if (i == 0 && iter == 0) {
-            // On first iteration just use init values
-        } else if (i == 0) { 
-          // Take from previous iC3 iteration
-          vector<VectorXd> u_sol_keep = u_sol_for_penalization;
-          c3_->set_u_sol(u_sol_keep);
-          u_sol_for_penalization.clear();
-        } else {
-          vector<VectorXd> u_sol_keep(u_sol.begin() + segment_length, u_sol.end());
-          c3_->set_u_sol(u_sol_keep);
-        } 
+
+        if (controller_options_.c3_options.penalize_input_change) {
+          if (i == 0 && iter == 0) {
+              // On first iteration just use init values
+          } else if (i == 0) { 
+            // Take from previous iC3 iteration
+            vector<VectorXd> u_sol_keep = u_sol_for_penalization;
+            c3_->set_u_sol(u_sol_keep);
+            u_sol_for_penalization.clear();
+          } else {
+            vector<VectorXd> u_sol_keep(u_sol.begin() + segment_length, u_sol.end());
+            c3_->set_u_sol(u_sol_keep);
+          } 
+        }
+        
 
 
         if (ic3_options_.add_position_constraints) {
@@ -455,7 +459,7 @@ iC3::iC3(
           //std::cout << "u cost " << i << ": " << (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev) << std::endl;;
         } 
 
-        // std::cout << "x cost: " << x_cost << std::endl;
+        std::cout << "x cost: " << x_cost << std::endl;
         std::cout << "cube position cost: " << cube_pos_cost << std::endl;
         std::cout << "plate position cost: " << plate_pos_cost << std::endl;
         std::cout << "rotation cost: " << rot_cost << std::endl;
@@ -468,7 +472,7 @@ iC3::iC3(
           int matched_count = 0;
           vector<int> quat_idxs = controller_options_.quaternion_indices;
 
-          for (int s = (int)(0.8 * N_); s < x_hat.cols(); s++) {
+          for (int s = (int)(0.6 * N_); s < x_hat.cols(); s++) {
 
             for (int r = 0; r < quat_idxs.size(); r++) {
               VectorXd v_curr = x_hat.col(s).segment(quat_idxs[r], 4).normalized(); 
@@ -486,7 +490,7 @@ iC3::iC3(
           }
           // Random heuristic for stopping condition
           std::cout << "matched count: " << matched_count << std::endl;
-          if (matched_count >= 0.6 * (0.2 * N_)) {
+          if (matched_count > 0.6 * (0.4 * N_)) {
             iter = 99999;
           }
         }

@@ -15,6 +15,7 @@
 #include "drake/solvers/moby_lcp_solver.h"
 #include "drake/solvers/osqp_solver.h"
 #include "drake/solvers/solve.h"
+#include <drake/common/symbolic/expression.h>
 
 namespace c3 {
 
@@ -334,6 +335,37 @@ void C3::Solve(const VectorXd& x0) {
               (w_sol * u_sol_->at(i) + w_des * u_desired_.at(i)));;
     }
   }
+
+  // EXPERIMENTAL
+  if (options_.penalize_snap) {
+    // (u[i] - u[i+1])' R (u[i] - u[i+1]) = u[i]' R u[i] - 2u[i]' R u[i+1] + u[i+1]' R u[i+1]
+    
+    for (int i = 0; i < N_-1; ++i) {
+
+      prog_.AddQuadraticCost(
+          2 * (*options_.snap_scaling) * cost_matrices_.R.at(i), 
+          Eigen::VectorXd::Zero(n_u_),
+          u_.at(i)
+      );
+      prog_.AddQuadraticCost(
+          2 * (*options_.snap_scaling) * cost_matrices_.R.at(i), 
+          Eigen::VectorXd::Zero(n_u_),
+          u_.at(i+1)
+      );
+
+      // Add bilinear term
+      drake::symbolic::Expression cost_expr(0.0);
+      for (int j = 0; j < n_u_; j++) {
+        for (int k = 0; k < n_u_; k++) {
+            cost_expr += (-4 * (*options_.snap_scaling) * 
+              cost_matrices_.R.at(i)(j,k) * u_.at(i)(j) * u_.at(i+1)(k));
+        }
+      }
+      prog_.AddQuadraticCost(cost_expr);
+    }
+  }
+
+
   VectorXd delta_init = VectorXd::Zero(n_z_);
   if (options_.delta_option == 1) {
     delta_init.head(n_x_) = x0;
