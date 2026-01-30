@@ -339,7 +339,6 @@ void C3::Solve(const VectorXd& x0) {
   // EXPERIMENTAL
   if (options_.penalize_snap) {
     // (u[i] - u[i+1])' R (u[i] - u[i+1]) = u[i]' R u[i] - 2u[i]' R u[i+1] + u[i+1]' R u[i+1]
-    
     for (int i = 0; i < N_-1; ++i) {
 
       prog_.AddQuadraticCost(

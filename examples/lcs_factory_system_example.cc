@@ -1307,14 +1307,15 @@ int RunFrankaTestiC3(drake::lcm::DrakeLcm& lcm) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  
   const std::string franka_file_lcs = "examples/resources/plate/panda_arm.urdf";
+  //const std::string franka_file_lcs = "package://drake_models/franka_description/urdf/panda_arm.urdf";
 	const std::string plate_file_lcs = "examples/resources/plate/plate_end_effector.sdf";	
   const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
+  //ModelInstanceIndex franka_index = parser_for_lcs.AddModelsFromUrl(franka_file_lcs)[0];
   ModelInstanceIndex franka_index = parser_for_lcs.AddModels(franka_file_lcs)[0];
   ModelInstanceIndex end_effector_index = parser_for_lcs.AddModels(plate_file_lcs)[0];
-  // parser_for_lcs.AddModels(cube_file_lcs);
+  parser_for_lcs.AddModels(cube_file_lcs);
 
   RigidTransform<double> X_WI = RigidTransform<double>::Identity();
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
@@ -1334,23 +1335,23 @@ int RunFrankaTestiC3(drake::lcm::DrakeLcm& lcm) {
   auto plant_diagram = plant_builder.Build();
 
   // Retrieve collision geometries for relevant bodies.
-  // drake::geometry::GeometryId plate_collision_geom =
-  //     plant_for_lcs.GetCollisionGeometriesForBody(
-  //         plant_for_lcs.GetBodyByName("plate"))[0];
+  drake::geometry::GeometryId plate_collision_geom =
+      plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("plate"))[0];
 
-	// std::vector<drake::geometry::GeometryId> cube_collision_geoms;
-  // for (int i = 1; i <= 8; i++) {
-	// 	cube_collision_geoms.push_back(
-	// 		plant_for_lcs.GetCollisionGeometriesForBody(
-  //         plant_for_lcs.GetBodyByName("cube"))[i]);
-	// }
+	std::vector<drake::geometry::GeometryId> cube_collision_geoms;
+  for (int i = 1; i <= 8; i++) {
+		cube_collision_geoms.push_back(
+			plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("cube"))[i]);
+	}
 
   // Define contact pairs for the LCS system.
   std::vector<SortedPair<GeometryId>> contact_pairs;
 
-	// for (GeometryId geom_id : cube_collision_geoms) {
-	// 	contact_pairs.emplace_back(plate_collision_geom, geom_id);
-	// }
+	for (GeometryId geom_id : cube_collision_geoms) {
+		contact_pairs.emplace_back(plate_collision_geom, geom_id);
+	}
 
 	for (const auto& pname : plant_for_lcs.GetPositionNames()) {
 		std::cout << pname << std::endl;
@@ -1389,7 +1390,6 @@ int RunFrankaTestiC3(drake::lcm::DrakeLcm& lcm) {
 
   auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, true);
   
-  contact_pairs.clear();
   vector<vector<MatrixXd>> ic3_trajs = 
     ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
   vector<MatrixXd> x_traj = ic3_trajs[0];

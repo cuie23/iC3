@@ -162,17 +162,17 @@ iC3::iC3(
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_x_, n_x_);
         for (int joint = 0; joint < 7; joint++) {
           A(joint) = 1;
-          //A(joint + 14) = 1;
+          // A(joint + 14) = 1;
         }
 
         // Joint limits
-        lower_bound[0] = -165 * M_PI;
-        lower_bound[1] = -105 * M_PI;
-        lower_bound[2] = -165 * M_PI; 
-        lower_bound[3] = -176 * M_PI;
-        lower_bound[4] = -165 * M_PI;
-        lower_bound[5] = 25 * M_PI;
-        lower_bound[6] = -175 * M_PI;
+        lower_bound[0] = -165 * M_PI / 180;
+        lower_bound[1] = -105 * M_PI / 180;
+        lower_bound[2] = -165 * M_PI / 180; 
+        lower_bound[3] = -176 * M_PI / 180;
+        lower_bound[4] = -165 * M_PI / 180;
+        lower_bound[5] = 25 * M_PI / 180;
+        lower_bound[6] = -175 * M_PI / 180;
 
         upper_bound[0] = 165 * M_PI / 180;
         upper_bound[1] = 105 * M_PI / 180;
@@ -183,28 +183,22 @@ iC3::iC3(
         upper_bound[6] = 175 * M_PI / 180;
 
         // Joint velocity limits
-        lower_bound[14] = -150 * M_PI / 180;
-        lower_bound[15] = -150 * M_PI / 180;
-        lower_bound[16] = -150 * M_PI / 180; 
-        lower_bound[17] = -150 * M_PI / 180;
-        lower_bound[18] = -301 * M_PI / 180;
-        lower_bound[19] = -301 * M_PI / 180;
-        lower_bound[20] = -301 * M_PI / 180;
+        // lower_bound[14] = -150 * M_PI / 180;
+        // lower_bound[15] = -150 * M_PI / 180;
+        // lower_bound[16] = -150 * M_PI / 180; 
+        // lower_bound[17] = -150 * M_PI / 180;
+        // lower_bound[18] = -301 * M_PI / 180;
+        // lower_bound[19] = -301 * M_PI / 180;
+        // lower_bound[20] = -301 * M_PI / 180;
 
-        upper_bound[14] = 150 * M_PI / 180;
-        upper_bound[15] = 150 * M_PI / 180;
-        upper_bound[16] = 150 * M_PI / 180;
-        upper_bound[17] = 150 * M_PI / 180;
-        upper_bound[18] = 301 * M_PI / 180;
-        upper_bound[19] = 301 * M_PI / 180;
-        upper_bound[20] = 301 * M_PI / 180;
+        // upper_bound[14] = 150 * M_PI / 180;
+        // upper_bound[15] = 150 * M_PI / 180;
+        // upper_bound[16] = 150 * M_PI / 180;
+        // upper_bound[17] = 150 * M_PI / 180;
+        // upper_bound[18] = 301 * M_PI / 180;
+        // upper_bound[19] = 301 * M_PI / 180;
+        // upper_bound[20] = 301 * M_PI / 180;
         
-
-        // A_u(0, 0) = 0;
-        // A_u(1, 1) = 0;
-        // A_u(2, 2) = 1;
-        // A_u(3, 3) = 1;
-        // A_u(4, 4) = 1;
 
       } else {
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(23, 23);
@@ -304,7 +298,8 @@ iC3::iC3(
 
 
         if (ic3_options_.add_position_constraints) {
-
+          // std::cout << "lb: " << lower_bound.transpose() << std::endl;
+          // std::cout << "ub: " << upper_bound.transpose() << std::endl;
           c3_->AddLinearConstraint(A, lower_bound, upper_bound,
                                             ConstraintVariable::STATE);
         }
@@ -376,6 +371,7 @@ iC3::iC3(
         double cube_pos_cost = 0;
         double plate_pos_cost = 0;
         double rot_cost = 0;
+        double v_cost = 0;
         double u_cost = 0;
 
         double pos_cost_rollout = 0;
@@ -404,7 +400,12 @@ iC3::iC3(
 
           rot_cost += (x_curr.segment(quat_idx, 4) - xd.segment(quat_idx, 4)).transpose() * 
               Q_[i].block(quat_idx, quat_idx, 4, 4) * (x_curr.segment(quat_idx, 4) - xd.segment(quat_idx, 4));
-         
+
+          VectorXd v_curr = x_curr.tail(n_v_);    
+          VectorXd vd = xd.tail(n_v_);    
+
+          v_cost += (v_curr - vd).transpose() * Q_[i].bottomRightCorner(n_v_, n_v_) * (v_curr - vd);
+
           // std::cout << "i: " << i << ", rot cost: " << (x_curr.segment(5, 4) - xd.segment(5, 4)).transpose() * 
           //     Q_[i].block(5, 5, 4, 4) * (x_curr.segment(5, 4) - xd.segment(5, 4)) << std::endl;
 
@@ -430,6 +431,10 @@ iC3::iC3(
               Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - xd.segment(0, 3));
 
           int cube_pos_idx = 9;
+          if (is_franka_) {
+            cube_pos_idx = 11;
+          }
+
           cube_pos_cost += (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3)).transpose() * 
               Q_[i].block(cube_pos_idx, cube_pos_idx, 3, 3) * (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3));
 
@@ -446,7 +451,7 @@ iC3::iC3(
                  
 
           VectorXd u_curr = u_hat.col(i);
-          if (i < 5) {
+          if (i < 5 && !is_franka_) {
             std::cout << "u_" << i << ": " << u_curr.transpose() << std::endl;
           }
           if (*controller_options_.c3_options.penalize_input_change){
@@ -461,10 +466,13 @@ iC3::iC3(
 
         std::cout << "x cost: " << x_cost << std::endl;
         std::cout << "cube position cost: " << cube_pos_cost << std::endl;
-        std::cout << "plate position cost: " << plate_pos_cost << std::endl;
+        if (!is_franka_) {
+          std::cout << "plate position cost: " << plate_pos_cost << std::endl;
+        }
         std::cout << "rotation cost: " << rot_cost << std::endl;
         std::cout << "position rollout cost: " << pos_cost_rollout << std::endl;
         std::cout << "avg rotation angle diff: " << rot_angle_diff_rollout / N_ << std::endl;
+        std::cout << "v cost " << v_cost << std::endl;
         std::cout << "u cost " << u_cost << std::endl;
 
         // terminate early if rotation goal met
