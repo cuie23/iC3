@@ -90,6 +90,29 @@ const VectorXd LCS::Simulate(VectorXd& x_init, VectorXd& u,
   return x_final;
 }
 
+const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init, VectorXd& u,
+                             bool regularized) const {
+  VectorXd x_final;
+  VectorXd force;
+  int flag;
+  drake::solvers::MobyLCPSolver<double> LCPSolver;
+  if (regularized) {
+    flag = LCPSolver.SolveLcpLemkeRegularized(
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
+  } else {
+    flag = LCPSolver.SolveLcpLemke(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
+  }
+
+  if (flag == 0) {
+    std::cout << "LCP failed: returning x_init" << std::endl;
+    return std::make_pair(x_final, VectorXd::Zero(F_[0].cols()));
+  }
+
+  x_final = A_[0] * x_init + B_[0] * u + D_[0] * force + d_[0];
+
+  return std::make_pair(x_final, force);
+}
+
 const VectorXd LCS::SimulateAtTimestep(VectorXd& x_init, VectorXd& u,
                              bool regularized, int k) const {
   VectorXd x_final;

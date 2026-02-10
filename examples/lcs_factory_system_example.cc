@@ -40,7 +40,10 @@
 #include "systems/manual_input.h"
 #include "lcm/lcm_trajectory.h"
 
+#include "core/lcs.h"
+
 #include "c3/lcmt_timestamped_saved_traj.hpp"
+#include "c3/lcmt_lqr_output.hpp"
 #include "c3/lcmt_saved_traj.hpp"
 #include "c3/lcmt_trajectory_block.hpp"
 
@@ -194,6 +197,78 @@ class TrajToLcmSystem : public drake::systems::LeafSystem<double> {
 
   std::vector<MatrixXd> traj_set_;
 };
+
+class ValueFunctionToLCMSystem : public drake::systems::LeafSystem<double> {
+ public:
+  ValueFunctionToLCMSystem(vector<MatrixXd> H, vector<VectorXd> g, 
+      vector<MatrixXd> K, vector<VectorXd> k_ff)
+      : H_(H),
+        g_(g),
+        K_(K),
+        k_ff_(k_ff) {
+    this->DeclareAbstractOutputPort(
+        "traj_message",
+        &ValueFunctionToLCMSystem::CalcMessage);
+  }
+
+ private:
+  void CalcMessage(
+      const drake::systems::Context<double>& context,
+      lcmt_lqr_output* msg) const {
+
+      LcmTrajectory lcm_traj;
+
+      c3::LcmTrajectory::Trajectory traj;
+      traj.traj_name = "lqr_output";
+
+      int N = K_.size();
+      int n_x = g_[0].size();
+      int n_u = k_ff_[0].size();
+
+      std::cout << "N: " << N << std::endl;
+      std::cout << "n_x: " << n_x << std::endl;
+      std::cout << "n_u: " << n_u << std::endl;
+
+      msg->num_timesteps_x = N + 1;
+      msg->num_timesteps_u = N;
+      msg->n_x = n_x;
+      msg->n_u = n_u;
+
+      msg->H = vector<vector<vector<double>>>(N+1, vector<vector<double>>(n_x, vector<double>(n_x)));
+      msg->g = vector<vector<double>>(N+1, vector<double>(n_x));
+      msg->K = vector<vector<vector<double>>>(N, vector<vector<double>>(n_x, vector<double>(n_x)));
+      msg->k_ff = vector<vector<double>>(N, vector<double>(n_x));
+
+      for (int k = 0; k < N + 1; k++) {
+        for (int i = 0; i < n_x; ++i) {
+          VectorXd tempRow = H_[k].row(i);
+          memcpy(msg->H[k][i].data(), tempRow.data(),
+                sizeof(double) * n_x);
+          
+          if (k < N) {
+            tempRow = K_[k].row(i);
+            memcpy(msg->K[k][i].data(), tempRow.data(),
+                  sizeof(double) * n_u);
+          }
+        }
+        memcpy(msg->g[k].data(), g_[k].data(),
+                sizeof(double) * n_x);  
+
+        if (k < N) {
+          memcpy(msg->k_ff[k].data(), k_ff_[k].data(),
+                sizeof(double) * n_u);  
+        }
+        
+      }
+
+  }
+
+  vector<MatrixXd> H_;
+  vector<VectorXd> g_;
+  vector<MatrixXd> K_;
+  vector<VectorXd> k_ff_;
+};
+
 
 std::pair<vector<MatrixXd>, vector<MatrixXd>> UpdateQuaternionCosts(
   C3ControllerOptions options, MatrixXd x_hat, const Eigen::VectorXd& x_des) {
@@ -1147,7 +1222,7 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
   plant.Finalize();
 
   // Load controller options and cost matrices.
-  C3ControllerOptions options = drake::yaml::LoadYamlFile<C3ControllerOptions>(
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
       "examples/resources/plate/c3_controller_plate_options.yaml");
   iC3Options ic3_options = drake::yaml::LoadYamlFile<iC3Options>(
       "examples/resources/plate/iC3_options.yaml");
@@ -1165,12 +1240,9 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
 
   auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, false);
   
-  vector<vector<MatrixXd>> ic3_trajs = 
+  auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
     ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
-  vector<MatrixXd> x_traj = ic3_trajs[0];
-  vector<MatrixXd> u_traj = ic3_trajs[1];
-  vector<MatrixXd> c3_x_traj = ic3_trajs[2];
-  vector<MatrixXd> x_real_traj = ic3_trajs[3];
+  std::cout << "computed traj" << std::endl;
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
   auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);
@@ -1181,6 +1253,9 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
   traj_source_c3_x->set_name("traj_source_c3_x");
   auto traj_source_x_real = builder.AddSystem<TrajToLcmSystem>(x_real_traj);
   traj_source_x_real->set_name("traj_source_x_real");
+
+  auto traj_source_value_function = builder.AddSystem<ValueFunctionToLCMSystem>(H, g, K, k_ff);
+  traj_source_value_function->set_name("traj_source_value_function");
 
   auto traj_publisher_x = builder.AddSystem(
       LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
@@ -1202,6 +1277,11 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
           "iC3_TRAJECTORY_X_REAL", &lcm,
           TriggerTypeSet({TriggerType::kForced})));
 
+  auto traj_publisher_lqr_value_function = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_lqr_output>(
+          "iC3_LQR", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
   builder.Connect(traj_source_x->get_output_port(),
                     traj_publisher_x->get_input_port());
   builder.Connect(traj_source_u->get_output_port(),
@@ -1210,7 +1290,9 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
                     traj_publisher_c3_x->get_input_port());
   builder.Connect(traj_source_x_real->get_output_port(),
                     traj_publisher_x_real->get_input_port());
-            
+  builder.Connect(traj_source_value_function->get_output_port(),
+                    traj_publisher_lqr_value_function->get_input_port());       
+
 	// Eigen::Vector4d q_vec = xd.segment(5, 4);
 	// Eigen::Quaterniond q(q_vec(0), q_vec(1), q_vec(2), q_vec(3));
 	// q.normalize();
@@ -1390,12 +1472,8 @@ int RunFrankaTestiC3(drake::lcm::DrakeLcm& lcm) {
 
   auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, true);
   
-  vector<vector<MatrixXd>> ic3_trajs = 
+  auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
     ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
-  vector<MatrixXd> x_traj = ic3_trajs[0];
-  vector<MatrixXd> u_traj = ic3_trajs[1];
-  vector<MatrixXd> c3_x_traj = ic3_trajs[2];
-  vector<MatrixXd> x_real_traj = ic3_trajs[3];
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
   auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);

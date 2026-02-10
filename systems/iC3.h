@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <tuple>
 
 #include <drake/common/yaml/yaml_io.h>
 
@@ -19,6 +20,7 @@
 
 using std::vector;
 using std::pair;
+using std::tuple;
 using drake::systems::BasicVector;
 using drake::systems::Context;
 using drake::multibody::MultibodyPlant;
@@ -64,7 +66,18 @@ public:
     C3ControllerOptions controller_options, iC3Options ic3_options, 
     bool is_franka);
 
-  vector<vector<MatrixXd>> ComputeTrajectory(
+
+  // Outputs
+  // 0: x_hat for each iC3 iteration
+  // 1: u_hat for each iC3 iteration
+  // 2: C3's x solution for each iC3 iteration
+  // 3: x's simulated with drake for each iC3 iteration
+  // 4: Quadratic term for LQR value function 
+  // 5: Linear term for LQR value function
+  // 6: LQR feedback gain
+  // 7: LQR feedforward gain
+  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>,
+    vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     const vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms);
@@ -72,17 +85,29 @@ public:
 private:
   
   // Given an initial x and u trajectory, return x rollout out using lcs
-  pair<LCS, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory);
-  pair<LCS, MatrixXd> DoLCSRolloutLastIter(VectorXd x0, MatrixXd u_hat, LCS last_lcs, LCSFactory factory);
+  // returns LCS, x_hat, lambda_hat
+  tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory);
  
   MatrixXd RolloutUHat(VectorXd x0, MatrixXd u_hat);
   MatrixXd RolloutUHatFranka(VectorXd x0, MatrixXd u_hat);
+
+  // For affine time-varying LQR problem get value function
+  // min  Σ (x[k]'Q[k]x[k] + u[k]'R[k]u[k]) + x[f]'Q[f]x[f]
+  // s.t. x[k+1] = A[k]x[k] + B[k]u[k] + (D[k]λ[k] + d[k])
+  // where λ[k] is fixed, denote c[k] = D[k]λ[k] + d[k] 
+  //
+  // Value function of form
+  // V(x,k) = (1/2)(x'H[k]x) + g[k]'x
+  // 
+  // Returns H, g, K, k_ff (gains for debugging)
+  std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
+    ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, 
+      MatrixXd lambda_hat, VectorXd xd, VectorXd ud, LCS lcs);
 
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory);
 
   // removes num_timesteps_to_remove timesteps from the front of the LCS
   LCS ShortenLCSFront(LCS lcs, int num_timesteps_to_remove);
-
 
   C3::CostMatrices ShortenCostsFront(int num_timesteps_to_remove);
 
