@@ -109,7 +109,11 @@ struct C3ControllerOptions {
 
 inline C3ControllerOptions LoadC3ControllerOptions(
     const std::string& filename) {
-  auto options = drake::yaml::LoadYamlFile<C3ControllerOptions>(filename);
+  auto options = drake::yaml::LoadYamlFile<C3ControllerOptions>(
+      filename, std::nullopt, std::nullopt,
+      drake::yaml::LoadYamlOptions{.allow_yaml_with_no_cpp = false,
+                                   .allow_cpp_with_no_yaml = true,
+                                   .retain_map_defaults = true});
   return options;
 }
 }  // namespace systems

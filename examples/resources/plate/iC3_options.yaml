@@ -3,7 +3,7 @@ add_position_constraints: true
 add_input_constraints: true
 early_termination: false
 
-num_segments: 8
+num_segments: 12
 N_penalize_input_change: 0
 
 print_costs: true

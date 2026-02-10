@@ -13,10 +13,11 @@ struct C3Options {
   // Hyperparameters
   bool warm_start =
       true;  // Use results of current admm iteration as warm start for next
-  std::optional<bool> penalize_input_change =
-      true;  // Penalize change in input between iterations
-  std::optional<bool> penalize_snap =
+  bool penalize_input_change =
       false;  // Penalize change in input between iterations
+  bool penalize_snap;  // Penalize change in input between adjacent u's
+  double snap_scaling;
+
   bool end_on_qp_step =
       true;  // If false, Run a half step calculating the state using the LCS
   bool scale_lcs =
@@ -36,7 +37,6 @@ struct C3Options {
   int admm_iter = 3;  // total number of ADMM iterations
 
   // See comments below for how we parse the .yaml into the cost matrices
-  std::optional<double> snap_scaling = 0;
   double gamma;          // scaling factor for state and input the cost matrices
   float rho_scale = 10;  // scaling of rho parameter (/rho = rho_scale * /rho)
   Eigen::MatrixXd Q;

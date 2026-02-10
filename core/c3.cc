@@ -135,6 +135,7 @@ C3::C3(const LCS& lcs, const CostMatrices& costs,
                 {x_.at(i), lambda_.at(i), u_.at(i), x_.at(i + 1)})
             .evaluator()
             .get();
+    dynamics_constraints_[i]->set_description("dynamics_constraint_" + std::to_string(i));
   }
 
   // Setup QP costs
@@ -337,17 +338,19 @@ void C3::Solve(const VectorXd& x0) {
   }
 
   // EXPERIMENTAL
+
   if (options_.penalize_snap) {
+    std::cout << "PENALIZING SNAP???" << std::endl;
     // (u[i] - u[i+1])' R (u[i] - u[i+1]) = u[i]' R u[i] - 2u[i]' R u[i+1] + u[i+1]' R u[i+1]
     for (int i = 0; i < N_-1; ++i) {
 
       prog_.AddQuadraticCost(
-          2 * (*options_.snap_scaling) * cost_matrices_.R.at(i), 
+          2 * (options_.snap_scaling) * cost_matrices_.R.at(i), 
           Eigen::VectorXd::Zero(n_u_),
           u_.at(i)
       );
       prog_.AddQuadraticCost(
-          2 * (*options_.snap_scaling) * cost_matrices_.R.at(i), 
+          2 * (options_.snap_scaling) * cost_matrices_.R.at(i), 
           Eigen::VectorXd::Zero(n_u_),
           u_.at(i+1)
       );
@@ -356,12 +359,13 @@ void C3::Solve(const VectorXd& x0) {
       drake::symbolic::Expression cost_expr(0.0);
       for (int j = 0; j < n_u_; j++) {
         for (int k = 0; k < n_u_; k++) {
-            cost_expr += (-4 * (*options_.snap_scaling) * 
+            cost_expr += (-2 * (options_.snap_scaling) * 
               cost_matrices_.R.at(i)(j,k) * u_.at(i)(j) * u_.at(i+1)(k));
         }
       }
       prog_.AddQuadraticCost(cost_expr);
     }
+    std::cout << "PENALIZING SNAP???" << std::endl;
   }
 
 
@@ -373,6 +377,19 @@ void C3::Solve(const VectorXd& x0) {
   std::vector<VectorXd> w(N_, VectorXd::Zero(n_z_));
   vector<MatrixXd> G = cost_matrices_.G;
 
+  for (size_t i = 0; i < delta.size(); ++i) {
+      if (!(delta[i].allFinite())) {
+          drake::log()->error("delta[{}] contains NaN or Inf", i);
+      }
+  }
+
+  for (size_t i = 0; i < w.size(); ++i) {
+      if (!(w[i].allFinite())) {
+          drake::log()->error("w[{}] contains NaN or Inf", i);
+      }
+  }
+  
+
   for (int iter = 0; iter < options_.admm_iter; iter++) {
     ADMMStep(x0, &delta, &w, &G, iter);
   }
@@ -381,7 +398,6 @@ void C3::Solve(const VectorXd& x0) {
   for (int i = 0; i < N_; ++i) {
     WD.at(i) = delta.at(i) - w.at(i);
   }
-
   *z_fin_ = SolveQP(x0, G, WD, options_.admm_iter, true);
 
   *w_sol_ = w;
@@ -416,6 +432,7 @@ void C3::Solve(const VectorXd& x0) {
 void C3::ADMMStep(const VectorXd& x0, vector<VectorXd>* delta,
                   vector<VectorXd>* w, vector<MatrixXd>* G,
                   int admm_iteration) {
+
   vector<VectorXd> WD(N_, VectorXd::Zero(n_z_));
 
   for (int i = 0; i < N_; ++i) {
@@ -428,6 +445,7 @@ void C3::ADMMStep(const VectorXd& x0, vector<VectorXd>* delta,
   for (int i = 0; i < N_; ++i) {
     ZW[i] = w->at(i) + z[i];
   }
+
 
   if (cost_matrices_.U[0].isZero(0)) {
     *delta = SolveProjection(*G, ZW, admm_iteration);
@@ -473,6 +491,9 @@ void C3::StoreQPResults(const MathematicalProgramResult& result,
     z_sol_->at(i).segment(0, n_x_) = result.GetSolution(x_[i]);
     z_sol_->at(i).segment(n_x_, n_lambda_) = result.GetSolution(lambda_[i]);
     z_sol_->at(i).segment(n_x_ + n_lambda_, n_u_) = result.GetSolution(u_[i]);
+
+    //std::cout << result.GetSolution(x_[i]).transpose() << std::endl;
+
   }
 
   if (!warm_start_)
@@ -489,7 +510,7 @@ void C3::StoreQPResults(const MathematicalProgramResult& result,
 
 vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
                              const vector<VectorXd>& WD, int admm_iteration,
-                             bool is_final_solve) {
+                             bool is_final_solve) {                    
   // Add or update augmented costs
   if (augmented_costs_.size() == 0) {
     for (int i = 0; i < N_; ++i)
@@ -506,14 +527,59 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
 
   SetInitialGuessQP(x0, admm_iteration);
 
+
+  for (int i = 0; i < N_; i++) {
+    if (!(lcs_.A()[i].allFinite())) {
+      drake::log()->error("A[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.B()[i].allFinite())) {
+      drake::log()->error("B[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.D()[i].allFinite())) {
+      drake::log()->error("D[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.d()[i].allFinite())) {
+      drake::log()->error("d[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.E()[i].allFinite())) {
+      drake::log()->error("E[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.F()[i].allFinite())) {
+      drake::log()->error("F[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.H()[i].allFinite())) {
+      drake::log()->error("H[{}] contains NaN or Inf", i);
+    }
+    if (!(lcs_.c()[i].allFinite())) {
+      drake::log()->error("c[{}] contains NaN or Inf", i);
+    }
+    if (!(cost_matrices_.Q[i].allFinite())) {
+      drake::log()->error("Q[{}] contains NaN or Inf", i);
+    }
+    if (!(cost_matrices_.R[i].allFinite())) {
+      drake::log()->error("R[{}] contains NaN or Inf", i);
+    }
+    if (!(cost_matrices_.G[i].allFinite())) {
+      drake::log()->error("G[{}] contains NaN or Inf", i);
+    }
+    if (!(cost_matrices_.U[i].allFinite())) {
+      drake::log()->error("U[{}] contains NaN or Inf", i);
+    }
+  }
+  if (!(cost_matrices_.Q[N_].allFinite())) {
+    drake::log()->error("Q[{}] contains NaN or Inf", N_);
+  }
+  std::cout << "Before solve osqp" << std::endl;
   MathematicalProgramResult result = osqp_.Solve(prog_);
 
-  if (!result.is_success()) {
+  if (true || !result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
       
       drake::log()->warn("OSQP Status: {}", details.status_val); 
       drake::log()->warn("Iterations: {}", details.iter);
-      
+      drake::log()->warn("Primal Res: {}", details.primal_res);
+      drake::log()->warn("Dual Res: {}", details.dual_res);
+
   }
 
   StoreQPResults(result, admm_iteration, is_final_solve);

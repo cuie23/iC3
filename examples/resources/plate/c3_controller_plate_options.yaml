@@ -41,13 +41,15 @@ lcs_factory_options:
   spring_stiffness: 0
   mu: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
   #mu: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-  N: 32
+  N: 60
   dt: 0.01
 
 c3_options:
   penalize_input_change: false # Currently combines u-u_prev and u-u_des
-  penalize_snap: true
-  snap_scaling: 0.55 # If too big, can cause non-convexity
+
+  # EXPERIMENTAL
+  penalize_snap: false
+  snap_scaling: 0.5 # If too big, can cause non-convexity
 
   warm_start: false
   end_on_qp_step: true

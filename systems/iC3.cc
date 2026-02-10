@@ -83,7 +83,8 @@ iC3::iC3(
 
 }
 
-  vector<vector<MatrixXd>> iC3::ComputeTrajectory(
+  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>,
+    vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> iC3::ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     const std::vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms) {
@@ -99,6 +100,7 @@ iC3::iC3(
     MatrixXd u_hat(Eigen::MatrixXd::Zero(n_u_, N_));
     MatrixXd c3_xs = MatrixXd::Zero(n_x_, N_);
     MatrixXd x_real = MatrixXd::Zero(n_x_, N_);
+    MatrixXd lambda_hat = MatrixXd::Zero(n_lambda_, N_);
 
     // Set initial guess to something kinda reasonable
     // TODO: make this a yaml option or use drake slerp
@@ -217,7 +219,7 @@ iC3::iC3(
         lower_bound[2] = -0.2; 
         upper_bound[0] = 0.2;
         upper_bound[1] = 0.2;
-        upper_bound[2] = 0.3;
+        upper_bound[2] = 0.2;
         
         // Plate rotation constraints
         lower_bound[3] = -0.5;
@@ -275,13 +277,16 @@ iC3::iC3(
         c3_ = std::make_unique<C3Plus>(shortened_lcs, shortened_costs, shortened_targets,
                                  controller_options_.c3_options);
 
-        int N_penalize = std::max(0, ic3_options_.N_penalize_input_change - i * segment_length);
-        c3_->SetNPenalizeInputChange(N_penalize);
+        if (controller_options_.c3_options.penalize_input_change) {
+          int N_penalize = std::max(0, ic3_options_.N_penalize_input_change - i * segment_length);
+          c3_->SetNPenalizeInputChange(N_penalize);
+        }
+
         c3_->UpdateInputTarget(u_nominal);
 
         u_sol_for_penalization_copy = u_sol_for_penalization;
 
-        if (controller_options_.c3_options.penalize_input_change) {
+        if ((controller_options_.c3_options.penalize_input_change)) {
           if (i == 0 && iter == 0) {
               // On first iteration just use init values
           } else if (i == 0) { 
@@ -307,8 +312,9 @@ iC3::iC3(
           c3_->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
                                     ConstraintVariable::INPUT);
         }
-                     
+        std::cout << "Before c3 solve" << std::endl;
         c3_->Solve(x_start);
+        std::cout << "After c3 solve" << std::endl;         
 
         x_sol = c3_->GetStateSolution();
         u_sol = c3_->GetInputSolution();
@@ -323,6 +329,8 @@ iC3::iC3(
         if (i < ic3_options_.num_segments - 1) {
           x_start = x_sol[segment_length];
         }
+        std::cout << x_sol.size() << ", " << segment_length << std::endl;
+        std::cout << "x start: " << x_start.transpose() << std::endl;
       }
       for (int i = indexer; i < N_; i++) {
         c3_xs.col(i) = x_sol[i - indexer];
@@ -342,10 +350,10 @@ iC3::iC3(
         
       }
 
-      auto output = DoLCSRollout(x0, u_hat, lcs_factory);
-      //auto output = DoLCSRolloutLastIter(x0, u_hat, lcs, lcs_factory);
-      lcs = output.first;
-      x_hat = output.second;
+      auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
+      lcs = lcs_out;
+      x_hat = x_hat_out;
+      lambda_hat = lambda_hat_out;
 
       if (is_franka_) {
         x_real = RolloutUHatFranka(x0, u_hat);
@@ -454,7 +462,7 @@ iC3::iC3(
           if (i < 5 && !is_franka_) {
             std::cout << "u_" << i << ": " << u_curr.transpose() << std::endl;
           }
-          if (*controller_options_.c3_options.penalize_input_change){
+          if (controller_options_.c3_options.penalize_input_change){
             VectorXd u_prev = u_sol_for_penalization_copy[i];
             u_cost += (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev);
           } else {
@@ -507,28 +515,25 @@ iC3::iC3(
       
 
     }
-    std::cout << "returned all_x_hats" << std::endl;
-    for (int i = 0; i < 10; i++) {
-      std::cout << "x_hat " << i << ": " << x_hat.col(i).transpose() << std::endl;
-    }
+
     std::cout << std::endl;
-    for (int i = 0; i < N_; i++) {
+    for (int i = 0; i < 10; i++) {
       std::cout << "u_hat " << i << ": " << u_hat.col(i).transpose() << std::endl;
     }
+
+    for (int i = 0; i < N_-1; i++) {
+      std::cout << "accel: " << ((x_hat.col(i+1).tail(11) - x_hat.col(i).tail(11)) / dt_).transpose() << std::endl;
+    }
   
-    
+    UpdateQuaternionCosts(x_hat, xd, c3_quat_norms);
+    std::cout << "Before compute lqr value function" << std::endl;
+    auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, xd, u_nominal[0], lcs);
 
-    vector<vector<MatrixXd>> outputs;
-    outputs.push_back(all_x_hats);
-    outputs.push_back(all_u_hats);
-    outputs.push_back(all_c3_x);
-    outputs.push_back(all_x_real);
-
-    return outputs;
+    return std::make_tuple(all_x_hats, all_u_hats, all_c3_x, all_x_real, H, g, K, k_ff);
   }
 
 
-  pair<LCS, MatrixXd> iC3::DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory) {
+  tuple<LCS, MatrixXd, MatrixXd> iC3::DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory) {
 
     // Set up time varying LCS
     vector<Eigen::MatrixXd> A;
@@ -549,6 +554,7 @@ iC3::iC3(
     c.clear();
 
     MatrixXd x_hat(x0.size(), N_+1);
+    MatrixXd lambda_hat(n_lambda_, N_);
     x_hat.col(0) = x0;
     VectorXd x_curr = x0;
     VectorXd x_next;
@@ -571,62 +577,19 @@ iC3::iC3(
       VectorXd u_k = u_hat.col(k);
 
       //std::cout << "lcs simulate timestep " << k << std::endl;
-      x_next = lcs.Simulate(x_curr, u_k, true);
+      auto pair = lcs.SimulateAndReturnForce(x_curr, u_k, true);
+      x_next = pair.first;
+      lambda_hat.col(k) = pair.second;
 
       x_hat.col(k+1) = x_next;
       x_curr = x_next;
     }
 
     LCS output_lcs = LCS(A, B, D, d, E, F, H, c, dt_);
-    return std::make_pair(output_lcs, x_hat);
+    return {output_lcs, x_hat, lambda_hat};
 
   }
 
-  pair<LCS, MatrixXd> iC3::DoLCSRolloutLastIter(VectorXd x0, MatrixXd u_hat, LCS last_lcs, LCSFactory factory) {
-
-    // Set up time varying LCS
-    vector<Eigen::MatrixXd> A;
-    vector<Eigen::MatrixXd> B;
-    vector<Eigen::MatrixXd> D;
-    vector<Eigen::VectorXd> d;
-    vector<Eigen::MatrixXd> E;
-    vector<Eigen::MatrixXd> F;
-    vector<Eigen::MatrixXd> H;
-    vector<Eigen::VectorXd> c;
-    A.clear();
-    B.clear();
-    D.clear();
-    d.clear();
-    E.clear();
-    F.clear();
-    H.clear();
-    c.clear();
-
-    MatrixXd x_hat(x0.size(), N_+1);
-    x_hat.col(0) = x0;
-    VectorXd x_curr = x0;
-    VectorXd x_next;
-
-    for (int k = 0; k < N_; k++) {
-
-      // Linearize about current point
-      LCS curr_lcs = ShortenLCSFront(last_lcs, k);
-      std::cout << k << std::endl;
-
-      // Do one rollout step
-      VectorXd u_k = u_hat.col(k);
-
-      std::cout << "lcs simulate timestep " << k << std::endl;
-      x_next = curr_lcs.Simulate(x_curr, u_k, false);
-
-      x_hat.col(k+1) = x_next;
-      x_curr = x_next;
-    }
-
-    LCS output_lcs = MakeTimeVaryingLCS(x_hat, u_hat, factory);
-    return std::make_pair(output_lcs, x_hat);
-
-  }
 
    MatrixXd iC3::RolloutUHat(VectorXd x0, MatrixXd u_hat) {
     DiagramBuilder<double> builder;
@@ -728,6 +691,52 @@ iC3::iC3(
 
   }
 
+  std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
+    iC3::ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, 
+        MatrixXd lambda_hat, VectorXd xd, VectorXd ud, LCS lcs) {
+    
+    vector<MatrixXd> A = lcs.A();
+    vector<MatrixXd> B = lcs.B();
+    vector<MatrixXd> D = lcs.D();
+    vector<VectorXd> d = lcs.d();
+    vector<MatrixXd> Q = Q_;
+    vector<MatrixXd> R = R_;
+
+    vector<VectorXd> c; // Bias term from contact forces
+    for (int i = 0; i < N_; i++) {
+      c.push_back(D[i] * lambda_hat.col(i) + d[i]);
+    }
+
+    // Solve time-varying affine LQR about nominal trajectory
+    vector<MatrixXd> H(N_+1, MatrixXd::Zero(n_x_, n_x_));
+    vector<VectorXd> g(N_+1, VectorXd::Zero(n_x_));
+    vector<MatrixXd> K(N_, MatrixXd::Zero(n_u_, n_x_));
+    vector<VectorXd> k_ff(N_, VectorXd::Zero(n_u_));    
+
+    H[N_] = Q[N_]; // terminal condition
+    for (int k = N_-1; k >= 0; k--) {
+      VectorXd x_k = x_hat.col(k);
+      VectorXd u_k = u_hat.col(k);
+
+      MatrixXd Q_xx = Q[k] + A[k].transpose() * H[k+1] * A[k];
+      MatrixXd Q_uu = R[k] + B[k].transpose() * H[k+1] * B[k];
+      MatrixXd Q_ux = B[k].transpose() * H[k+1] * A[k];
+      VectorXd Q_x = Q[k] * (x_k - xd) + A[k].transpose() * g[k+1]; 
+      VectorXd Q_u = R[k] * (u_k - ud) + B[k].transpose() * g[k+1];
+
+      MatrixXd Q_uu_inv = Q_uu.inverse();
+      K[k] = -Q_uu_inv * Q_ux;
+      k_ff[k] = -Q_uu_inv * (B[k].transpose() * H[k+1] * c[k] + Q_u);
+
+      H[k] = Q_xx + 2 * K[k].transpose() * Q_ux.transpose() + K[k].transpose() * Q_uu * K[k];
+      g[k] = Q_x.transpose() + K[k].transpose() * Q_u + K[k].transpose() * B[k] * H[k+1] * c[k] + 
+              A[k] * H[k+1] * c[k] + K[k].transpose() * Q_uu * k_ff[k] + Q_ux.transpose() * k_ff[k];
+
+    }
+
+    return std::make_tuple(H, g, K, k_ff);
+  }
+
 
   LCS iC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory) {
     vector<Eigen::MatrixXd> A;
@@ -783,6 +792,10 @@ iC3::iC3(
   void iC3::UpdateQuaternionCosts(
     MatrixXd x_hat, const Eigen::VectorXd& x_des, vector<VectorXd> c3_quat_norms) {
     
+    // std::cout << x_hat.rows() << ", " << x_hat.cols() << std::endl;
+    // std::cout << "xd: " << x_des.transpose() << std::endl;
+    // std::cout << c3_quat_norms.size() << std::endl;
+
     Q_.clear();
     R_.clear();
     G_.clear();

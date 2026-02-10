@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <Eigen/Dense>
+#include "drake/common/text_logging.h"
 
 #include "c3_options.h"
 #include "lcs.h"
@@ -135,6 +136,16 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
       delta_proj.segment(n_x_, n_lambda_).cwiseMax(0);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
       delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(0);
+
+  // if (admm_iteration == 0) {
+  //   if (U.array().isNaN().any()) drake::log()->error("NaN found in U");
+  //   if (delta_c.array().isNaN().any()) drake::log()->error("NaN found in delta_c");
+  //   if (E.array().isNaN().any()) drake::log()->error("NaN found in E");
+  //   if (F.array().isNaN().any()) drake::log()->error("NaN found in F");
+  //   if (H.array().isNaN().any()) drake::log()->error("NaN found in H");
+  //   if (c.array().isNaN().any()) drake::log()->error("NaN found in c");    
+  //   std::cout << "delta proj: " << delta_proj.transpose() << std::endl;
+  // }
 
   return delta_proj;
 }

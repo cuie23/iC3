@@ -32,7 +32,11 @@ struct LCSFactoryOptions {
 };
 
 inline LCSFactoryOptions LoadLCSFactoryOptions(const std::string& filename) {
-  auto options = drake::yaml::LoadYamlFile<LCSFactoryOptions>(filename);
+  auto options = drake::yaml::LoadYamlFile<LCSFactoryOptions>(
+      filename, std::nullopt, std::nullopt,
+      drake::yaml::LoadYamlOptions{.allow_yaml_with_no_cpp = false,
+                                   .allow_cpp_with_no_yaml = true,
+                                   .retain_map_defaults = false});
   return options;
 }
 
