@@ -175,6 +175,10 @@ class LCSFactory {
    */
   static int GetNumContactVariables(const LCSFactoryOptions options);
 
+  void SetNewDt(double dt) {
+    dt_ = dt;
+  }
+
  private:
   /**
    * @brief Formulates the contact dynamics for the frictionless spring contact

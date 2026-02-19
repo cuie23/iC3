@@ -338,7 +338,7 @@ void C3::Solve(const VectorXd& x0) {
   }
 
   // EXPERIMENTAL
-
+  /*
   if (options_.penalize_snap) {
     std::cout << "PENALIZING SNAP???" << std::endl;
     // (u[i] - u[i+1])' R (u[i] - u[i+1]) = u[i]' R u[i] - 2u[i]' R u[i+1] + u[i+1]' R u[i+1]
@@ -367,7 +367,7 @@ void C3::Solve(const VectorXd& x0) {
     }
     std::cout << "PENALIZING SNAP???" << std::endl;
   }
-
+  */
 
   VectorXd delta_init = VectorXd::Zero(n_z_);
   if (options_.delta_option == 1) {
@@ -569,10 +569,9 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
   if (!(cost_matrices_.Q[N_].allFinite())) {
     drake::log()->error("Q[{}] contains NaN or Inf", N_);
   }
-  std::cout << "Before solve osqp" << std::endl;
   MathematicalProgramResult result = osqp_.Solve(prog_);
 
-  if (true || !result.is_success()) {
+  if (!result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
       
       drake::log()->warn("OSQP Status: {}", details.status_val); 

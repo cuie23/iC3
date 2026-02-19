@@ -15,8 +15,9 @@ struct C3Options {
       true;  // Use results of current admm iteration as warm start for next
   bool penalize_input_change =
       false;  // Penalize change in input between iterations
-  bool penalize_snap;  // Penalize change in input between adjacent u's
-  double snap_scaling;
+
+  // bool penalize_snap;  // Penalize change in input between adjacent u's
+  // double snap_scaling;
 
   bool end_on_qp_step =
       true;  // If false, Run a half step calculating the state using the LCS
@@ -93,8 +94,8 @@ struct C3Options {
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(warm_start));
     a->Visit(DRAKE_NVP(penalize_input_change));
-    a->Visit(DRAKE_NVP(penalize_snap));
-    a->Visit(DRAKE_NVP(snap_scaling));
+    // a->Visit(DRAKE_NVP(penalize_snap));
+    // a->Visit(DRAKE_NVP(snap_scaling));
 
     a->Visit(DRAKE_NVP(end_on_qp_step));
     a->Visit(DRAKE_NVP(scale_lcs));
