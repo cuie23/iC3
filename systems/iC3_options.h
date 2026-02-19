@@ -16,6 +16,7 @@ struct iC3Options {
 
   bool print_costs;
 
+  int rollout_dt_scaling;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -26,6 +27,7 @@ struct iC3Options {
     a->Visit(DRAKE_NVP(early_termination));
     a->Visit(DRAKE_NVP(num_segments));
     a->Visit(DRAKE_NVP(print_costs));
+    a->Visit(DRAKE_NVP(rollout_dt_scaling));
 
   }
 };
