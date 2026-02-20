@@ -32,13 +32,13 @@ iC3::iC3(
     drake::multibody::MultibodyPlant<double>& plant,
     drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad,
     C3::CostMatrices& costs, 
-    C3ControllerOptions controller_options, iC3Options ic3_options, bool is_franka)
+    C3ControllerOptions controller_options, iC3Options ic3_options, bool is_plate)
     : plant_(plant),
       plant_ad_(plant_ad),
       controller_options_(controller_options),
       ic3_options_(ic3_options),
       N_(controller_options_.lcs_factory_options.N),
-      is_franka_(is_franka) {
+      is_plate_(is_plate) {
   this->set_name("iC3");
 
   // Initialize dimensions
@@ -105,12 +105,13 @@ iC3::iC3(
     // Set initial guess to something kinda reasonable
     // TODO: make this a yaml option or use drake slerp
     VectorXd gravity;
-    if (is_franka_) {
-      gravity = VectorXd::Zero(7);
-    } else {
+    if (is_plate_) {
       gravity = VectorXd::Zero(5);
       gravity[2] = 5;
+    } else {
+
     }
+  
     vector<VectorXd> u_nominal(N_, gravity);
     vector<VectorXd> u_sol_for_penalization(N_, gravity);
     vector<VectorXd> u_sol_for_penalization_copy(N_, VectorXd::Zero(n_u_));
@@ -158,89 +159,41 @@ iC3::iC3(
       VectorXd lower_bound_u(VectorXd::Zero(n_u_));
       VectorXd upper_bound_u(VectorXd::Zero(n_u_));
 
-      if (is_franka_) {
-        // Add actuation/position limits
-        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_x_, n_x_);
-        for (int joint = 0; joint < 7; joint++) {
-          A(joint) = 1;
-          // A(joint + 14) = 1;
-        }
-
-        // Joint limits
-        lower_bound[0] = -165 * M_PI / 180;
-        lower_bound[1] = -105 * M_PI / 180;
-        lower_bound[2] = -165 * M_PI / 180; 
-        lower_bound[3] = -176 * M_PI / 180;
-        lower_bound[4] = -165 * M_PI / 180;
-        lower_bound[5] = 25 * M_PI / 180;
-        lower_bound[6] = -175 * M_PI / 180;
-
-        upper_bound[0] = 165 * M_PI / 180;
-        upper_bound[1] = 105 * M_PI / 180;
-        upper_bound[2] = 165 * M_PI / 180;
-        upper_bound[3] = -7 * M_PI / 180;
-        upper_bound[4] = 165 * M_PI / 180;
-        upper_bound[5] = 265 * M_PI / 180;
-        upper_bound[6] = 175 * M_PI / 180;
-
-        // Joint velocity limits
-        // lower_bound[14] = -150 * M_PI / 180;
-        // lower_bound[15] = -150 * M_PI / 180;
-        // lower_bound[16] = -150 * M_PI / 180; 
-        // lower_bound[17] = -150 * M_PI / 180;
-        // lower_bound[18] = -301 * M_PI / 180;
-        // lower_bound[19] = -301 * M_PI / 180;
-        // lower_bound[20] = -301 * M_PI / 180;
-
-        // upper_bound[14] = 150 * M_PI / 180;
-        // upper_bound[15] = 150 * M_PI / 180;
-        // upper_bound[16] = 150 * M_PI / 180;
-        // upper_bound[17] = 150 * M_PI / 180;
-        // upper_bound[18] = 301 * M_PI / 180;
-        // upper_bound[19] = 301 * M_PI / 180;
-        // upper_bound[20] = 301 * M_PI / 180;
-        
-
-      } else {
+      if (is_plate_) {
+        // Plate position constraints
         A(0, 0) = 1;
         A(1, 1) = 1;
         A(2, 2) = 1;
         A(3, 3) = 1;
         A(4, 4) = 1;
-        // A(9, 9) = 1;
-        // A(10, 10) = 1;
-        //A(11, 11) = 1;
 
-        // Plate position constraints
         lower_bound[0] = -0.2;
         lower_bound[1] = -0.2;
         lower_bound[2] = -0.2; 
+        lower_bound[3] = -0.6;
+        lower_bound[4] = -0.6;
+
         upper_bound[0] = 0.2;
         upper_bound[1] = 0.2;
         upper_bound[2] = 0.2;
-        
-        // Plate rotation constraints
-        lower_bound[3] = -0.6;
-        lower_bound[4] = -0.6;
         upper_bound[3] = 0.6;
         upper_bound[4] = 0.6;
 
-        // lower_bound[9] = -0.4;
-        // lower_bound[10] = -0.4;
-        // lower_bound[11] = -0.2; 
-        // upper_bound[9] = 0.4;
-        // upper_bound[10] = 0.4;
-        // upper_bound[11] = 1;
-
         // Actuation limits
-        // A_u(0, 0) = 0;
-        // A_u(1, 1) = 0;
         A_u(2, 2) = 1;
         A_u(3, 3) = 1;
         A_u(4, 4) = 1;
 
-        lower_bound_u << 0, 0, 0, -1, -1;
-        upper_bound_u << 0, 0, 15, 1, 1; // plate + block is ~5.5 N 
+        lower_bound_u[2] = 0;
+        lower_bound_u[3] = -1;
+        lower_bound_u[4] = -1;
+
+        upper_bound_u[2] = 15;
+        upper_bound_u[3] = 1;
+        upper_bound_u[4] = 1;
+
+      } else {
+        
       }
       
 
@@ -347,10 +300,9 @@ iC3::iC3(
       x_hat = x_hat_out;
       lambda_hat = lambda_hat_out;
 
-      if (is_franka_) {
-        x_real = RolloutUHatFranka(x0, u_hat);
+      if (is_plate_) {
+        x_real = RolloutUHatPlate(x0, u_hat);
       } else {
-        x_real = RolloutUHat(x0, u_hat);
       }
 
       // normalize xhat quaternions
@@ -431,9 +383,9 @@ iC3::iC3(
               Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - xd.segment(0, 3));
 
           int cube_pos_idx = 9;
-          if (is_franka_) {
-            cube_pos_idx = 11;
-          }
+          // if (is_franka_) {
+          //   cube_pos_idx = 11;
+          // }
 
           cube_pos_cost += (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3)).transpose() * 
               Q_[i].block(cube_pos_idx, cube_pos_idx, 3, 3) * (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3));
@@ -451,9 +403,9 @@ iC3::iC3(
                  
 
           VectorXd u_curr = u_hat.col(i);
-          if (i < 5 && !is_franka_) {
-            std::cout << "u_" << i << ": " << u_curr.transpose() << std::endl;
-          }
+          // if (i < 5 && !is_franka_) {
+          //   std::cout << "u_" << i << ": " << u_curr.transpose() << std::endl;
+          // }
           if (controller_options_.c3_options.penalize_input_change){
             VectorXd u_prev = u_sol_for_penalization_copy[i];
             u_cost += (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev);
@@ -466,9 +418,9 @@ iC3::iC3(
 
         std::cout << "x cost: " << x_cost << std::endl;
         std::cout << "cube position cost: " << cube_pos_cost << std::endl;
-        if (!is_franka_) {
-          std::cout << "plate position cost: " << plate_pos_cost << std::endl;
-        }
+        // if (!is_franka_) {
+        //   std::cout << "plate position cost: " << plate_pos_cost << std::endl;
+        // }
         std::cout << "rotation cost: " << rot_cost << std::endl;
         std::cout << "position rollout cost: " << pos_cost_rollout << std::endl;
         std::cout << "avg rotation angle diff: " << rot_angle_diff_rollout / N_ << std::endl;
@@ -604,7 +556,7 @@ iC3::iC3(
   }
 
 
-  MatrixXd iC3::RolloutUHat(VectorXd x0, MatrixXd u_hat) {
+  MatrixXd iC3::RolloutUHatPlate(VectorXd x0, MatrixXd u_hat) {
     DiagramBuilder<double> builder;
     auto [plant_sim, scene_graph] =
         drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.00001);
@@ -646,34 +598,22 @@ iC3::iC3(
 
   }
 
-  MatrixXd iC3::RolloutUHatFranka(VectorXd x0, MatrixXd u_hat) {
+  MatrixXd iC3::RolloutUHatHand(VectorXd x0, MatrixXd u_hat) {
     DiagramBuilder<double> builder;
     auto [plant_sim, scene_graph] =
         drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.0001);
     Parser parser(&plant_sim, &scene_graph);
 
     
-    const std::string franka_file_lcs = "examples/resources/plate/panda_arm.urdf";
-    const std::string plate_file_lcs = "examples/resources/plate/plate_end_effector.sdf";	
-    const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
+    // const std::string franka_file_lcs = "examples/resources/plate/panda_arm.urdf";
+    // const std::string plate_file_lcs = "examples/resources/plate/plate_end_effector.sdf";	
+    // const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
-    parser.AddModels(franka_file_lcs);
-    ModelInstanceIndex end_effector_index = parser.AddModels(plate_file_lcs)[0];
-    parser.AddModels(cube_file_lcs);
+    // parser.AddModels(franka_file_lcs);
+    // ModelInstanceIndex end_effector_index = parser.AddModels(plate_file_lcs)[0];
+    // parser.AddModels(cube_file_lcs);
 
-    RigidTransform<double> X_WI = RigidTransform<double>::Identity();
-    plant_sim.WeldFrames(plant_sim.world_frame(),
-                         plant_sim.GetFrameByName("panda_link0"), X_WI);
-
-    Eigen::Vector3d tool_attachment_frame(0, 0, 0.107);
-    RigidTransform<double> T_EE_W =
-        RigidTransform<double>(drake::math::RotationMatrix<double>(),
-                              tool_attachment_frame);
-    plant_sim.WeldFrames(
-        plant_sim.GetFrameByName("panda_link7"),
-        plant_sim.GetFrameByName("plate", end_effector_index), T_EE_W);
-
-    plant_sim.Finalize();
+    // plant_sim.Finalize();
 
 
     auto* broadcaster = builder.AddSystem<InputSource>(u_hat, dt_, N_);
@@ -749,12 +689,6 @@ iC3::iC3(
 
       H[k] = Q_xx - Q_ux.transpose() * solver.solve(Q_ux) + reg * MatrixXd::Identity(n_x_, n_x_);
       g[k] = Q_x  - Q_ux.transpose() * solver.solve(Q_u);     
-   
-
-      // H[k] = (1/2)*(Q_xx + K[k].transpose()*Q_ux + Q_ux.transpose()*K[k] + K[k].transpose()*Q_uu*K[k]) + 
-      //           regularization_constant * MatrixXd::Identity(n_x_, n_x_);
-      // g[k] = Q_ux.transpose()*k_ff[k] + Q_uu*k_ff[k] + Q_xc*c[k] + K[k].transpose()*Q_uc*c[k]
-      //         + Q_x + K[k].transpose() * Q_u + K[k].transpose() * k_ff[k];
 
     }
 

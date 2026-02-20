@@ -1,9 +1,0 @@
-num_iters: 10
-add_position_constraints: false
-add_input_constraints: false
-early_termination: false
-
-num_segments: 1
-N_penalize_input_change: 60
-
-print_costs: true
