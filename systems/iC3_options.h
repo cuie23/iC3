@@ -1,5 +1,7 @@
 #pragma once
 
+using Eigen::VectorXd;
+
 namespace c3 {
 
 namespace systems {

@@ -64,7 +64,7 @@ public:
     drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad,
     C3::CostMatrices& costs, 
     C3ControllerOptions controller_options, iC3Options ic3_options, 
-    bool is_franka);
+    bool is_plate);
 
 
   // Outputs
@@ -88,8 +88,8 @@ private:
   // returns LCS, x_hat, lambda_hat
   tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory);
  
-  MatrixXd RolloutUHat(VectorXd x0, MatrixXd u_hat);
-  MatrixXd RolloutUHatFranka(VectorXd x0, MatrixXd u_hat);
+  MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd u_hat);
+  MatrixXd RolloutUHatHand(VectorXd x0, MatrixXd u_hat);
 
   // For affine time-varying LQR problem get value function
   // min  Σ (x[k]'Q[k]x[k] + u[k]'R[k]u[k]) + x[f]'Q[f]x[f]
@@ -140,7 +140,7 @@ private:
   mutable std::vector<Eigen::MatrixXd> U_;  ///< Constraint matrices.
 
   int N_;  ///< Horizon length.
-  bool is_franka_;
+  bool is_plate_;
 
 };
 
