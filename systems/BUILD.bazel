@@ -79,8 +79,21 @@ cc_library( name = "iC3",
         "//core:lcs",
         "//core:options",
         "//systems:ic3_options",
+        "//systems:PdInputSource",
         "//multibody:lcs_factory",
         "//systems:quaternion_error_hessian",
+        "@drake//:drake_shared_library",
+    ],
+)
+
+cc_library( name = "PdInputSource",
+    srcs = [
+        "PdInputSource.cc",
+    ],
+    hdrs = [
+        "PdInputSource.h",
+    ],
+    deps = [
         "@drake//:drake_shared_library",
     ],
 )

@@ -1,0 +1,17 @@
+num_iters: 6
+add_position_constraints: true
+add_input_constraints: false
+early_termination: false
+
+num_segments: 8 
+N_penalize_input_change: 0
+
+rollout_dt_scaling: 10
+
+print_costs: true
+
+# rollout_Kp: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+# rollout_Kd: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+
+rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

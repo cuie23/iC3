@@ -24,6 +24,8 @@
 #include <drake/lcm/drake_lcm.h>
 #include <drake/systems/primitives/vector_log_sink.h>
 #include <drake/common/find_resource.h>
+#include <drake/math/rotation_matrix.h>
+#include <drake/math/roll_pitch_yaw.h>
 
 #include <gflags/gflags.h>
 
@@ -90,6 +92,7 @@ using drake::systems::TriggerType;
 using drake::systems::TriggerTypeSet;
 using drake::math::RigidTransform;
 using drake::math::RotationMatrix;
+using drake::math::RollPitchYaw;
 
 class TimedGravityCompGate final : public drake::systems::LeafSystem<double> {
  public:
@@ -1004,7 +1007,7 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
       plant_for_lcs, plant_diagram_context.get());
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
-  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, false);
+  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, 0);
   
   auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
     ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
@@ -1149,6 +1152,879 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
 }
 
 
+int RunHandTestiC3(drake::lcm::DrakeLcm& lcm) {
+
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder;
+  auto [plant_for_lcs, scene_graph_for_lcs] =
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+  Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
+
+  const std::string hand_file_lcs = "examples/resources/multifinger_hand/allegro_hand_description_right.urdf";
+	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube.sdf";
+	const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser_for_lcs.AddModels(hand_file_lcs);
+  parser_for_lcs.AddModels(cube_file_lcs);
+  parser_for_lcs.AddModels(ground_file_lcs);
+
+  RigidTransform<double> X_G_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+  RotationMatrix<double> R_lcs =
+      RollPitchYaw<double>(0.0, (5.0 / 8) * M_PI, 0.0).ToRotationMatrix();
+  RigidTransform<double> X_H_lcs = RigidTransform<double>(R_lcs, {-0.04, 0, 0.17});
+
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("hand_root"), X_H_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("ground"), X_G_lcs);
+
+  plant_for_lcs.Finalize();
+
+  std::cout << "=== Positions ===" << std::endl;
+  int pos_idx = 0;
+	for (const auto& pname : plant_for_lcs.GetPositionNames()) {
+		std::cout << "position " << pos_idx << ": " << pname << std::endl;
+    pos_idx++;
+	}
+  std::cout << "\n=== Velocities ===" << std::endl;
+  int vel_idx = 0;
+	for (const auto& vname : plant_for_lcs.GetVelocityNames()) {
+		std::cout << "velocity " << vel_idx << ": " << vname << std::endl;
+    vel_idx++;
+	}
+  std::cout << "\n=== Actuators ===" << std::endl;
+  int u_idx = 0;
+  	for (const auto& vname : plant_for_lcs.GetActuatorNames()) {
+		std::cout << "actuator " << u_idx << ": " << vname << std::endl;
+    u_idx++;
+	}
+
+
+  // Build the plant diagram.
+  auto plant_diagram = plant_builder.Build();
+
+  // Retrieve collision geometries for relevant bodies.
+  GeometryId ground_collision_geom = 
+    plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("ground"))[0];
+
+  std::vector<GeometryId> fingertip_collision_geoms;
+  // Index, middle, ring, thumb
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("link_3_tip"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("link_7_tip"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("link_11_tip"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("link_15_tip"))[0]);  
+
+	std::vector<GeometryId> cube_collision_geoms;
+  for (int i = 0; i <= 8; i++) {
+		cube_collision_geoms.push_back(
+			plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("cube"))[i]);
+	}
+
+  // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs;
+
+  // fingertip-cube contact pairs
+	for (auto geom_id : fingertip_collision_geoms) {
+		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
+  }
+
+  // cube-ground contact pairs
+  for (int i = 1; i < cube_collision_geoms.size(); i++) {
+		contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+  }
+  
+
+  // Build the main diagram.
+  DiagramBuilder<double> builder;
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  Parser parser(&plant, &scene_graph);
+
+  const std::string hand_file = "examples/resources/multifinger_hand/allegro_hand_description_right.urdf";
+	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser.AddModels(hand_file);
+  parser.AddModels(cube_file);
+  parser.AddModels(ground_file);
+
+  RigidTransform<double> X_G = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
+
+  RotationMatrix<double> R =
+      RollPitchYaw<double>(0.0, (5.0 / 8) * M_PI, 0.0).ToRotationMatrix();
+  RigidTransform<double> X_H = RigidTransform<double>(R, {-0.04, 0, 0.17});
+
+  plant.WeldFrames(plant.world_frame(),
+                  plant.GetFrameByName("hand_root"), X_H);
+  plant.WeldFrames(plant.world_frame(),
+                  plant.GetFrameByName("ground"), X_G);
+
+  plant.Finalize();
+
+
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
+      "examples/resources/multifinger_hand/c3_controller_hand_options.yaml");
+  iC3Options ic3_options = drake::yaml::LoadYamlFile<iC3Options>(
+      "examples/resources/multifinger_hand/hand_iC3_options.yaml");
+  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
+      options.c3_options, options.lcs_factory_options.N);
+  
+  // Create contexts for the plant and LCS factory system.
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
+      plant_diagram->CreateDefaultContext();
+  auto plant_autodiff =
+      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
+  auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
+      plant_for_lcs, plant_diagram_context.get());
+  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
+
+  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, 1);
+  
+
+  auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
+    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
+  std::cout << "computed traj" << std::endl;
+
+  // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
+  auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);
+  traj_source_x->set_name("traj_source_x");
+  auto traj_source_u = builder.AddSystem<TrajToLcmSystem>(u_traj);
+  traj_source_u->set_name("traj_source_u");
+  auto traj_source_c3_x = builder.AddSystem<TrajToLcmSystem>(c3_x_traj);
+  traj_source_c3_x->set_name("traj_source_c3_x");
+  auto traj_source_x_real = builder.AddSystem<TrajToLcmSystem>(x_real_traj);
+  traj_source_x_real->set_name("traj_source_x_real");
+
+  auto traj_source_value_function = builder.AddSystem<ValueFunctionToLCMSystem>(H, g, K, k_ff);
+  traj_source_value_function->set_name("traj_source_value_function");
+
+  auto traj_publisher_x = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_X", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_u = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_U", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_c3_x = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_C3", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_x_real = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_X_REAL", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_lqr_value_function = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_lqr_output>(
+          "iC3_LQR", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  builder.Connect(traj_source_x->get_output_port(),
+                    traj_publisher_x->get_input_port());
+  builder.Connect(traj_source_u->get_output_port(),
+                    traj_publisher_u->get_input_port());
+  builder.Connect(traj_source_c3_x->get_output_port(),
+                    traj_publisher_c3_x->get_input_port());
+  builder.Connect(traj_source_x_real->get_output_port(),
+                    traj_publisher_x_real->get_input_port());
+  builder.Connect(traj_source_value_function->get_output_port(),
+                    traj_publisher_lqr_value_function->get_input_port());       
+
+  //Visualization
+  // auto meshcat = std::make_shared<drake::geometry::Meshcat>();
+  // drake::geometry::MeshcatVisualizerParams params;
+
+  // drake::geometry::MeshcatVisualizer<double>::AddToBuilder(
+  //     &builder, scene_graph, meshcat, std::move(params));
+
+  // drake::multibody::meshcat::ContactVisualizer<double>::AddToBuilder(
+  //     &builder, plant, meshcat,
+  //     drake::multibody::meshcat::ContactVisualizerParams());
+
+
+  // Build the diagram.
+  auto diagram = builder.Build();
+
+  if (!FLAGS_diagram_path.empty())
+    c3::systems::common::DrawAndSaveDiagramGraph(*diagram, FLAGS_diagram_path);
+
+  // Create a default context for the diagram.
+  auto diagram_context = diagram->CreateDefaultContext();
+
+  // Set the initial state of the system.
+  Eigen::VectorXd x0(45);
+
+  // x0 << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  std::vector<double> x_init = *options.x_init;
+  x0 = Eigen::Map<Eigen::VectorXd>(x_init.data(), x_init.size());
+	//std::cout << "x0: " << x0.transpose() << std::endl;
+
+	auto& plant_context =
+      diagram->GetMutableSubsystemContext(plant, diagram_context.get());
+  plant.SetPositionsAndVelocities(&plant_context, x0);
+
+
+  // drake::systems::Simulator<double> simulator(*diagram,
+  //                                             std::move(diagram_context));
+  // simulator.set_target_realtime_rate(0.01); 
+  // simulator.Initialize();
+  // simulator.AdvanceTo(1.0);  
+
+  std::signal(SIGINT, SigIntHandler);
+  auto output = diagram->AllocateOutput();
+
+  const std::chrono::milliseconds period(10);
+  while (g_run.load()) {
+    diagram->CalcOutput(*diagram_context, output.get()); 
+    diagram->ForcedPublish(*diagram_context);
+    std::this_thread::sleep_for(period);
+  }
+  return 0;
+}
+
+int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
+  
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder;
+  auto [plant_for_lcs, scene_graph_for_lcs] =
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+  Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
+
+  const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
+	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+	const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser_for_lcs.AddModels(hand_file_lcs);
+  parser_for_lcs.AddModels(cube_file_lcs);
+  parser_for_lcs.AddModels(ground_file_lcs);
+
+  RigidTransform<double> X_G_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+
+  // RigidTransform<double> X_1_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+  // RigidTransform<double> X_2_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  // RigidTransform<double> X_3_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+  // RigidTransform<double> X_4_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+
+  RigidTransform<double> X_1_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+  RigidTransform<double> X_2_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  RigidTransform<double> X_3_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
+  RigidTransform<double> X_4_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_1"), X_1_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_2"), X_2_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_3"), X_3_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_4"), X_4_lcs);                                                  
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("ground"), X_G_lcs);
+
+  plant_for_lcs.Finalize();
+
+  std::cout << "=== Positions ===" << std::endl;
+  int pos_idx = 0;
+	for (const auto& pname : plant_for_lcs.GetPositionNames()) {
+		std::cout << "position " << pos_idx << ": " << pname << std::endl;
+    pos_idx++;
+	}
+  std::cout << "\n=== Velocities ===" << std::endl;
+  int vel_idx = 0;
+	for (const auto& vname : plant_for_lcs.GetVelocityNames()) {
+		std::cout << "velocity " << vel_idx << ": " << vname << std::endl;
+    vel_idx++;
+	}
+  std::cout << "\n=== Actuators ===" << std::endl;
+  int u_idx = 0;
+  	for (const auto& vname : plant_for_lcs.GetActuatorNames()) {
+		std::cout << "actuator " << u_idx << ": " << vname << std::endl;
+    u_idx++;
+	}
+
+
+  // Build the plant diagram.
+  auto plant_diagram = plant_builder.Build();
+
+  // Retrieve collision geometries for relevant bodies.
+  GeometryId ground_collision_geom = 
+    plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("ground"))[0];
+
+  std::vector<GeometryId> fingertip_collision_geoms;
+  // Index, middle, ring, thumb
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_1"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_2"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_3"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_4"))[0]); 
+
+	std::vector<GeometryId> cube_collision_geoms;
+  for (int i = 0; i <= 8; i++) {
+		cube_collision_geoms.push_back(
+			plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("cube"))[i]);
+	}
+
+  // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs;
+
+  // fingertip-cube contact pairs
+	for (auto geom_id : fingertip_collision_geoms) {
+		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
+  }
+
+  for (auto geom_id : fingertip_collision_geoms) {
+		contact_pairs.emplace_back(geom_id, ground_collision_geom);
+  }
+  // cube-ground contact pairs
+  for (int i = 1; i < cube_collision_geoms.size(); i++) {
+		contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+  }
+
+
+  // Build the main diagram.
+  DiagramBuilder<double> builder;
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  Parser parser(&plant, &scene_graph);
+
+  const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
+	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser.AddModels(hand_file);
+  parser.AddModels(cube_file);
+  parser.AddModels(ground_file);
+
+  RigidTransform<double> X_G = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+
+  // RigidTransform<double> X_1 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+  // RigidTransform<double> X_2 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  // RigidTransform<double> X_3 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+  // RigidTransform<double> X_4 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+
+  RigidTransform<double> X_1 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+  RigidTransform<double> X_2 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  RigidTransform<double> X_3 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
+  RigidTransform<double> X_4 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_1"), X_1);
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_2"), X_2);
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_3"), X_3);
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_4"), X_4);                                                  
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("ground"), X_G);
+
+  plant.Finalize();
+
+
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
+      "examples/resources/multifinger_hand/c3_controller_point_hand_options.yaml");
+  iC3Options ic3_options = drake::yaml::LoadYamlFile<iC3Options>(
+      "examples/resources/multifinger_hand/point_hand_iC3_options.yaml");
+  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
+      options.c3_options, options.lcs_factory_options.N);
+  
+  // Create contexts for the plant and LCS factory system.
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
+      plant_diagram->CreateDefaultContext();
+  auto plant_autodiff =
+      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
+  auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
+      plant_for_lcs, plant_diagram_context.get());
+  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
+
+  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, 2);
+  
+
+  auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
+    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
+  std::cout << "computed traj" << std::endl;
+
+  // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
+  auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);
+  traj_source_x->set_name("traj_source_x");
+  auto traj_source_u = builder.AddSystem<TrajToLcmSystem>(u_traj);
+  traj_source_u->set_name("traj_source_u");
+  auto traj_source_c3_x = builder.AddSystem<TrajToLcmSystem>(c3_x_traj);
+  traj_source_c3_x->set_name("traj_source_c3_x");
+  auto traj_source_x_real = builder.AddSystem<TrajToLcmSystem>(x_real_traj);
+  traj_source_x_real->set_name("traj_source_x_real");
+
+  auto traj_source_value_function = builder.AddSystem<ValueFunctionToLCMSystem>(H, g, K, k_ff);
+  traj_source_value_function->set_name("traj_source_value_function");
+
+  auto traj_publisher_x = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_X", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_u = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_U", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_c3_x = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_C3", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_x_real = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_X_REAL", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_lqr_value_function = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_lqr_output>(
+          "iC3_LQR", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  builder.Connect(traj_source_x->get_output_port(),
+                    traj_publisher_x->get_input_port());
+  builder.Connect(traj_source_u->get_output_port(),
+                    traj_publisher_u->get_input_port());
+  builder.Connect(traj_source_c3_x->get_output_port(),
+                    traj_publisher_c3_x->get_input_port());
+  builder.Connect(traj_source_x_real->get_output_port(),
+                    traj_publisher_x_real->get_input_port());
+  builder.Connect(traj_source_value_function->get_output_port(),
+                    traj_publisher_lqr_value_function->get_input_port());       
+
+  //Visualization
+  // auto meshcat = std::make_shared<drake::geometry::Meshcat>();
+  // drake::geometry::MeshcatVisualizerParams params;
+
+  // drake::geometry::MeshcatVisualizer<double>::AddToBuilder(
+  //     &builder, scene_graph, meshcat, std::move(params));
+
+  // drake::multibody::meshcat::ContactVisualizer<double>::AddToBuilder(
+  //     &builder, plant, meshcat,
+  //     drake::multibody::meshcat::ContactVisualizerParams());
+
+
+  // Build the diagram.
+  auto diagram = builder.Build();
+
+  if (!FLAGS_diagram_path.empty())
+    c3::systems::common::DrawAndSaveDiagramGraph(*diagram, FLAGS_diagram_path);
+
+  // Create a default context for the diagram.
+  auto diagram_context = diagram->CreateDefaultContext();
+
+  // Set the initial state of the system.
+  Eigen::VectorXd x0(37);
+
+  // x0 << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  std::vector<double> x_init = *options.x_init;
+  x0 = Eigen::Map<Eigen::VectorXd>(x_init.data(), x_init.size());
+	//std::cout << "x0: " << x0.transpose() << std::endl;
+
+	auto& plant_context =
+      diagram->GetMutableSubsystemContext(plant, diagram_context.get());
+  plant.SetPositionsAndVelocities(&plant_context, x0);
+
+
+  // drake::systems::Simulator<double> simulator(*diagram,
+  //                                             std::move(diagram_context));
+  // simulator.set_target_realtime_rate(0.01); 
+  // simulator.Initialize();
+  // simulator.AdvanceTo(1.0);  
+
+  std::signal(SIGINT, SigIntHandler);
+  auto output = diagram->AllocateOutput();
+
+  const std::chrono::milliseconds period(10);
+  while (g_run.load()) {
+    diagram->CalcOutput(*diagram_context, output.get()); 
+    diagram->ForcedPublish(*diagram_context);
+    std::this_thread::sleep_for(period);
+  }
+  return 0;
+}
+
+int RunPointHandMPC() {
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder;
+  auto [plant_for_lcs, scene_graph_for_lcs] =
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+  Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
+
+  const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
+	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+	const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser_for_lcs.AddModels(hand_file_lcs);
+  parser_for_lcs.AddModels(cube_file_lcs);
+  parser_for_lcs.AddModels(ground_file_lcs);
+
+  RigidTransform<double> X_G_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+
+  // RigidTransform<double> X_1_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+  // RigidTransform<double> X_2_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  // RigidTransform<double> X_3_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+  // RigidTransform<double> X_4_lcs = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+
+  RigidTransform<double> X_1_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+  RigidTransform<double> X_2_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  RigidTransform<double> X_3_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
+  RigidTransform<double> X_4_lcs = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_1"), X_1_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_2"), X_2_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_3"), X_3_lcs);
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("base_link_4"), X_4_lcs);                                                  
+  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+                          plant_for_lcs.GetFrameByName("ground"), X_G_lcs);
+
+  plant_for_lcs.Finalize();
+
+  std::cout << "=== Positions ===" << std::endl;
+  int pos_idx = 0;
+	for (const auto& pname : plant_for_lcs.GetPositionNames()) {
+		std::cout << "position " << pos_idx << ": " << pname << std::endl;
+    pos_idx++;
+	}
+  std::cout << "\n=== Velocities ===" << std::endl;
+  int vel_idx = 0;
+	for (const auto& vname : plant_for_lcs.GetVelocityNames()) {
+		std::cout << "velocity " << vel_idx << ": " << vname << std::endl;
+    vel_idx++;
+	}
+  std::cout << "\n=== Actuators ===" << std::endl;
+  int u_idx = 0;
+  	for (const auto& vname : plant_for_lcs.GetActuatorNames()) {
+		std::cout << "actuator " << u_idx << ": " << vname << std::endl;
+    u_idx++;
+	}
+
+
+  // Build the plant diagram.
+  auto plant_diagram = plant_builder.Build();
+
+  // Retrieve collision geometries for relevant bodies.
+  GeometryId ground_collision_geom = 
+    plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("ground"))[0];
+
+  std::vector<GeometryId> fingertip_collision_geoms;
+  // Index, middle, ring, thumb
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_1"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_2"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_3"))[0]);
+  fingertip_collision_geoms.push_back(
+    plant_for_lcs.GetCollisionGeometriesForBody(
+        plant_for_lcs.GetBodyByName("fingertip_4"))[0]); 
+
+	std::vector<GeometryId> cube_collision_geoms;
+  for (int i = 0; i <= 8; i++) {
+		cube_collision_geoms.push_back(
+			plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("cube"))[i]);
+	}
+
+  // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs;
+
+  // fingertip-cube contact pairs
+	for (auto geom_id : fingertip_collision_geoms) {
+		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
+  }
+
+  for (auto geom_id : fingertip_collision_geoms) {
+		contact_pairs.emplace_back(geom_id, ground_collision_geom);
+  }
+  // cube-ground contact pairs
+  for (int i = 1; i < cube_collision_geoms.size(); i++) {
+		contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+  }
+
+  // Build the main diagram.
+  DiagramBuilder<double> builder;
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  Parser parser(&plant, &scene_graph);
+
+  const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
+	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser.AddModels(hand_file);
+  parser.AddModels(cube_file);
+  parser.AddModels(ground_file);
+
+  RigidTransform<double> X_G = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+
+  // RigidTransform<double> X_1 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+  // RigidTransform<double> X_2 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  // RigidTransform<double> X_3 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+  // RigidTransform<double> X_4 = RigidTransform<double>(
+  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+
+  RigidTransform<double> X_1 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+  RigidTransform<double> X_2 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+  RigidTransform<double> X_3 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
+  RigidTransform<double> X_4 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_1"), X_1);
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_2"), X_2);
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_3"), X_3);
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("base_link_4"), X_4);                                                  
+  plant.WeldFrames(plant.world_frame(),
+                   plant.GetFrameByName("ground"), X_G);
+
+  plant.Finalize();
+
+  std::cout << "plant x " << plant.num_positions() + plant.num_velocities() << std::endl;
+  std::cout << "plant u " << plant.num_actuators() << std::endl;
+
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = drake::yaml::LoadYamlFile<C3ControllerOptions>(
+      "examples/resources/multifinger_hand/c3_controller_point_hand_options_mpc.yaml");
+
+  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
+      options.c3_options, options.lcs_factory_options.N);
+
+  // Create contexts for the plant and LCS factory system.
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
+      plant_diagram->CreateDefaultContext();
+  auto plant_autodiff =
+      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
+  auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
+      plant_for_lcs, plant_diagram_context.get());
+  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext();
+
+  // Add the LCS factory system.
+  auto lcs_factory_system = builder.AddSystem<LCSFactorySystem>(
+      plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
+      *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
+
+
+	std::cout << "Before add C3 controller" << std::endl;
+
+  // Add the C3 controller.
+  auto c3_controller =
+      builder.AddSystem<C3Controller>(plant_for_lcs, cost, options);
+  c3_controller->set_name("c3_controller");
+
+	std::cout << "After add C3 controller" << std::endl;
+
+  // Add linear constraints to the controller.
+  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(37, 37);
+  
+  Eigen::VectorXd lower_bound(VectorXd::Zero(37));
+  Eigen::VectorXd upper_bound(VectorXd::Zero(37));
+
+  for (int i = 0; i < 4; i++) {
+    A(3*i, 3*i) = 1;
+    A(3*i + 1, 3*i + 1) = 1;
+    A(3*i + 2, 3*i + 2) = 1;
+
+    lower_bound(3*i) = -0.04;
+    lower_bound(3*i+1) = -0.04;
+    lower_bound(3*i+2) = -0.04;
+    upper_bound(3*i) = 0.04;
+    upper_bound(3*i+1) = 0.04;
+    upper_bound(3*i+2) = 0.04;
+  }
+  c3_controller->AddLinearConstraint(A, lower_bound, upper_bound,
+                                     ConstraintVariable::STATE);
+
+  Eigen::VectorXd xd(37);
+  //xd << 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	xd << 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+  std::vector<double> x_des = *options.x_des;
+  xd = Eigen::Map<Eigen::VectorXd>(x_des.data(), x_des.size()); 
+
+	std::cout << "xd: " << xd.transpose() << std::endl;
+
+  auto xdes =
+      builder.AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
+
+  // Add a vector-to-timestamped-vector converter.
+  auto vector_to_timestamped_vector =
+      builder.AddSystem<Vector2TimestampedVector>(37);
+  builder.Connect(plant.get_state_output_port(),
+                  vector_to_timestamped_vector->get_input_port_state());
+
+  // Connect controller inputs.
+  builder.Connect(
+      vector_to_timestamped_vector->get_output_port_timestamped_state(),
+      c3_controller->get_input_port_lcs_state());
+
+  builder.Connect(lcs_factory_system->get_output_port_lcs(),
+                  c3_controller->get_input_port_lcs());
+  builder.Connect(xdes->get_output_port(),
+                  c3_controller->get_input_port_target());
+
+  // Add and connect the C3 solution input system.
+  auto c3_input = builder.AddSystem<C3Solution2Input>(12);
+  builder.Connect(c3_controller->get_output_port_c3_solution(),
+                  c3_input->get_input_port_c3_solution());
+
+	builder.Connect(c3_input->get_output_port_c3_input(),
+									plant.get_actuation_input_port());
+
+  // Add a ZeroOrderHold system for state updates.
+  auto input_zero_order_hold =
+      builder.AddSystem<drake::systems::ZeroOrderHold<double>>(
+          1 / options.publish_frequency, 12);
+  builder.Connect(c3_input->get_output_port_c3_input(),
+                  input_zero_order_hold->get_input_port());
+  builder.Connect(
+      vector_to_timestamped_vector->get_output_port_timestamped_state(),
+      lcs_factory_system->get_input_port_lcs_state());
+  builder.Connect(input_zero_order_hold->get_output_port(),
+                  lcs_factory_system->get_input_port_lcs_input());
+
+
+
+	Eigen::Vector4d q_vec = xd.segment(12, 4);
+	Eigen::Quaterniond q(q_vec(0), q_vec(1), q_vec(2), q_vec(3));
+	q.normalize();
+  RotationMatrixd R_target(q);
+	RigidTransformd X_WF(R_target, xd.segment(16, 3));
+
+  // Set up Meshcat visualizer.
+  auto meshcat = std::make_shared<drake::geometry::Meshcat>();
+  drake::geometry::MeshcatVisualizerParams params;
+
+  drake::geometry::MeshcatVisualizer<double>::AddToBuilder(
+      &builder, scene_graph, meshcat, std::move(params));
+
+  drake::multibody::meshcat::ContactVisualizer<double>::AddToBuilder(
+      &builder, plant, meshcat,
+      drake::multibody::meshcat::ContactVisualizerParams());
+
+	const double axis_len = 0.2;
+	const double radius = 0.01;
+
+	meshcat->SetObject("target_pose/x_axis", drake::geometry::Cylinder(radius, axis_len), drake::geometry::Rgba(1, 0, 0, 1));
+	RigidTransformd X_FX(
+		RotationMatrixd::MakeYRotation(-M_PI / 2.0),
+		Eigen::Vector3d(axis_len / 2.0, 0, 0));
+	meshcat->SetTransform("target_pose/x_axis", X_WF * X_FX);
+
+	meshcat->SetObject("target_pose/y_axis", drake::geometry::Cylinder(radius, axis_len), drake::geometry::Rgba(0, 1, 0, 1));
+	RigidTransformd X_FY(
+		RotationMatrixd::MakeXRotation(M_PI / 2.0),
+		Eigen::Vector3d(0, axis_len / 2.0, 0));
+	meshcat->SetTransform("target_pose/y_axis", X_WF * X_FY);
+
+	meshcat->SetObject("target_pose/z_axis", drake::geometry::Cylinder(radius, axis_len), drake::geometry::Rgba(0, 0, 1, 1));
+	RigidTransformd X_FZ(
+		RotationMatrixd::Identity(),
+		Eigen::Vector3d(0, 0, axis_len / 2.0));
+	meshcat->SetTransform("target_pose/z_axis", X_WF * X_FZ);
+
+
+  // Build the diagram.
+  auto diagram = builder.Build();
+
+  if (!FLAGS_diagram_path.empty())
+    c3::systems::common::DrawAndSaveDiagramGraph(*diagram, FLAGS_diagram_path);
+
+  // Create a default context for the diagram.
+  auto diagram_context = diagram->CreateDefaultContext();
+
+  // Set the initial state of the system.
+  Eigen::VectorXd x0(37);
+
+  std::vector<double> x_init = *options.x_init;
+  x0 = Eigen::Map<Eigen::VectorXd>(x_init.data(), x_init.size());
+	std::cout << "x0: " << x0.transpose() << std::endl;
+
+	auto& plant_context =
+      diagram->GetMutableSubsystemContext(plant, diagram_context.get());
+  plant.SetPositionsAndVelocities(&plant_context, x0);
+
+  // Create and configure the simulator.
+  drake::systems::Simulator<double> simulator(*diagram,
+                                              std::move(diagram_context));
+  simulator.set_target_realtime_rate(1.0);  // Run simulation at real-time speed.
+  simulator.Initialize();
+  simulator.AdvanceTo(120.0);  // Run simulation for 10 seconds.
+
+  return 0;
+}
+
+
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   drake::lcm::DrakeLcm lcm(FLAGS_lcm_url);
@@ -1165,8 +2041,17 @@ int main(int argc, char* argv[]) {
     std::cout << "Running Plate Test..." << std::endl;
     return RunPlateTest();
   } else if (FLAGS_experiment_type == "iC3") {
-    std::cout << "Running iC3 Test..." << std::endl;
+    std::cout << "Running iC3 plate Test..." << std::endl;
     return RunPlateTestiC3(lcm);
+  } else if (FLAGS_experiment_type == "iC3_hand") {
+    std::cout << "Running iC3 hand Test..." << std::endl;
+    return RunHandTestiC3(lcm);
+  } else if (FLAGS_experiment_type == "iC3_point_hand") {
+    std::cout << "Running iC3 point hand Test..." << std::endl;
+    return RunPointHandTestiC3(lcm);
+  } else if (FLAGS_experiment_type == "point_hand_mpc") {
+    std::cout << "Running iC3 point hand MPC Test..." << std::endl;
+    return RunPointHandMPC();
   } else {
     std::cerr
         << "Unknown experiment type: " << FLAGS_experiment_type

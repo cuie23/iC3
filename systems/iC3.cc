@@ -16,6 +16,8 @@
 using drake::multibody::ModelInstanceIndex;
 using drake::systems::BasicVector;
 using drake::systems::Context;
+using drake::systems::BasicVector;
+using drake::multibody::MultibodyPlant;
 using drake::systems::DiscreteValues;
 using drake::systems::DiagramBuilder;
 using drake::math::RigidTransform;
@@ -23,22 +25,22 @@ using drake::multibody::Parser;
 using Eigen::MatrixXd;
 using Eigen::MatrixXf;
 using Eigen::VectorXd;
+using Eigen::Vector3d;
 using Eigen::VectorXf;
+using drake::math::RotationMatrix;
+using drake::math::RollPitchYaw;
 
 namespace c3 {
 namespace systems {
 
-iC3::iC3(
-    drake::multibody::MultibodyPlant<double>& plant,
-    drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad,
-    C3::CostMatrices& costs, 
-    C3ControllerOptions controller_options, iC3Options ic3_options, bool is_plate)
+iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
+    C3::CostMatrices& costs, C3ControllerOptions controller_options, iC3Options ic3_options, int example_idx)
     : plant_(plant),
       plant_ad_(plant_ad),
       controller_options_(controller_options),
       ic3_options_(ic3_options),
       N_(controller_options_.lcs_factory_options.N),
-      is_plate_(is_plate) {
+      example_idx_(example_idx) {
   this->set_name("iC3");
 
   // Initialize dimensions
@@ -105,16 +107,22 @@ iC3::iC3(
     // Set initial guess to something kinda reasonable
     // TODO: make this a yaml option or use drake slerp
     VectorXd gravity;
-    if (is_plate_) {
+    if (example_idx_ == 0) {
       gravity = VectorXd::Zero(5);
       gravity[2] = 5;
-    } else {
+    } else if (example_idx_ == 1) {
+      gravity = VectorXd::Zero(16);
+    } else if (example_idx_ == 2) {
+      gravity = VectorXd::Zero(12);
+      gravity[2] = 1.96;
+      gravity[5] = 1.96;
+      gravity[8] = 1.96;
+      gravity[11] = 1.96;
 
     }
   
     vector<VectorXd> u_nominal(N_, gravity);
     vector<VectorXd> u_sol_for_penalization(N_, gravity);
-    vector<VectorXd> u_sol_for_penalization_copy(N_, VectorXd::Zero(n_u_));
 
     VectorXd x_diff = xd - x0;
     for (int k = 0; k < N_+1; k++) {
@@ -138,7 +146,7 @@ iC3::iC3(
 
     vector<VectorXd> c3_quat_norms;
     for (int index : controller_options_.quaternion_indices) {
-      c3_quat_norms.push_back(VectorXd::Ones(N_));
+      c3_quat_norms.push_back(VectorXd::Ones(N_ + 1));
     }
 
     int num_iters = ic3_options_.num_iters;
@@ -159,7 +167,7 @@ iC3::iC3(
       VectorXd lower_bound_u(VectorXd::Zero(n_u_));
       VectorXd upper_bound_u(VectorXd::Zero(n_u_));
 
-      if (is_plate_) {
+      if (example_idx_ == 0) {
         // Plate position constraints
         A(0, 0) = 1;
         A(1, 1) = 1;
@@ -167,51 +175,168 @@ iC3::iC3(
         A(3, 3) = 1;
         A(4, 4) = 1;
 
-        lower_bound[0] = -0.2;
-        lower_bound[1] = -0.2;
-        lower_bound[2] = -0.2; 
-        lower_bound[3] = -0.6;
-        lower_bound[4] = -0.6;
+        lower_bound(0) = -0.2;
+        lower_bound(1) = -0.2;
+        lower_bound(2) = -0.2; 
+        lower_bound(3) = -0.6;
+        lower_bound(4) = -0.6;
 
-        upper_bound[0] = 0.2;
-        upper_bound[1] = 0.2;
-        upper_bound[2] = 0.2;
-        upper_bound[3] = 0.6;
-        upper_bound[4] = 0.6;
+        upper_bound(0) = 0.2;
+        upper_bound(1) = 0.2;
+        upper_bound(2) = 0.2;
+        upper_bound(3) = 0.6;
+        upper_bound(4) = 0.6;
 
         // Actuation limits
         A_u(2, 2) = 1;
         A_u(3, 3) = 1;
         A_u(4, 4) = 1;
 
-        lower_bound_u[2] = 0;
-        lower_bound_u[3] = -1;
-        lower_bound_u[4] = -1;
+        lower_bound_u(2) = 0;
+        lower_bound_u(3) = -1;
+        lower_bound_u(4) = -1;
 
-        upper_bound_u[2] = 15;
-        upper_bound_u[3] = 1;
-        upper_bound_u[4] = 1;
+        upper_bound_u(2) = 15;
+        upper_bound_u(3) = 1;
+        upper_bound_u(4) = 1;
 
-      } else {
+      } else if (example_idx_ == 1) {
+        for (int i = 0; i < 16; i++) {
+          A(i, i) = 1;
+        }
+        // non-thumb joint limits
+        for (int i = 0; i < 3; i++) {
+          lower_bound(4*i) = -0.47;
+          lower_bound(4*i + 1) = -0.2;
+          lower_bound(4*i + 2) = -0.17;
+          lower_bound(4*i + 3) = -0.23;
+
+          upper_bound(4*i) = 0.47;
+          upper_bound(4*i + 1) = 1.61;
+          upper_bound(4*i + 2) = 1.71;
+          upper_bound(4*i + 3) = 1.62;
+        }
+
+        lower_bound(12) = 0.36;
+        lower_bound(13) = -0.2;
+        lower_bound(14) = -0.17;
+        lower_bound(15) = -0.23;
+
+        upper_bound(12) = 1.50;
+        upper_bound(13) = 1.26;
+        upper_bound(14) = 1.71;
+        upper_bound(15) = 1.62;      
+    } else if (example_idx_ == 2) {
+      for (int i = 0; i < 4; i++) {
+        A(3*i, 3*i) = 1;
+        A(3*i+1, 3*i+1) = 1;
+        A(3*i+2, 3*i+2) = 1;
+
+        lower_bound(3*i) = -0.2;
+        lower_bound(3*i+1) = -0.2;
+        lower_bound(3*i+2) = -0.02;
         
-      }
-      
+        upper_bound(3*i) = 0.2;
+        upper_bound(3*i+1) = 0.2;
+        upper_bound(3*i+2) = 0.1;
 
+        A_u(3*i, 3*i) = 1;
+        A_u(3*i+1, 3*i+1) = 1;
+        
+        lower_bound_u(3*i) = -20;
+        lower_bound_u(3*i+1) = -20;
+        //lower_bound_u(3*i+2) = 0;
+        
+        upper_bound_u(3*i) = 20;
+        upper_bound_u(3*i+1) = 20;
+        //upper_bound_u(3*i+2) = 4;
+      }
+
+    }
+    
       vector<Eigen::VectorXd> x_sol;
       vector<Eigen::VectorXd> u_sol;
+      vector<Eigen::VectorXd> z_sol;
         
       std::vector<VectorXd> target =
         std::vector<VectorXd>(N_ + 1, xd);
 
-
+      std::cout << ic3_options_.num_segments << std::endl;
       int segment_length = N_ / ic3_options_.num_segments;
       VectorXd x_start = x_hat.col(0);
       int indexer = 0;
+
+      vector<VectorXd> u_sol_prev_iter = u_sol_for_penalization;
 
       for (int i = 0; i < ic3_options_.num_segments; i++) {
         LCS shortened_lcs = ShortenLCSFront(lcs, i * segment_length);
         C3::CostMatrices shortened_costs = ShortenCostsFront(i * segment_length);
         std::vector<VectorXd> shortened_targets;
+
+        // DEBUGGING
+        for (int w = 0; w < shortened_lcs.A().size(); w++) {
+          if ((shortened_lcs.A()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in A " << w << std::endl;
+          }
+          if ((shortened_lcs.B()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in B " << w << std::endl;
+          }
+          if ((shortened_lcs.D()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in D " << w << std::endl;
+          }
+          if ((shortened_lcs.d()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in d " << w << std::endl;
+          }
+          if ((shortened_lcs.E()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in E " << w << std::endl;
+          }
+          if ((shortened_lcs.F()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in F " << w << std::endl;
+          }
+          if ((shortened_lcs.H()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in H " << w << std::endl;
+          }
+          if ((shortened_lcs.c()[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in c " << w << std::endl;
+          }
+
+          if ((shortened_costs.Q[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in Q " << w << std::endl;
+          }
+          if ((shortened_costs.R[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in R " << w << std::endl;
+          }
+          if ((shortened_costs.G[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in G " << w << std::endl;
+          }
+          if ((shortened_costs.U[w].array().isNaN()).any()) {
+            std::cout << "NaN detected in U " << w << std::endl;
+          }
+          Eigen::LLT<Eigen::MatrixXd> llt_Q(shortened_costs.Q[w]);
+          if (llt_Q.info() != Eigen::Success) {
+            std::cout << "Q not PSD " << w << std::endl;
+          }
+          Eigen::LLT<Eigen::MatrixXd> llt_R(shortened_costs.R[w]);
+          if (llt_R.info() != Eigen::Success) {
+            std::cout << "R not PSD " << w << std::endl;
+          }
+          Eigen::LLT<Eigen::MatrixXd> llt_G(shortened_costs.G[w]);
+          if (llt_G.info() != Eigen::Success) {
+            std::cout << "G not PSD " << w << std::endl;
+          }
+          Eigen::LLT<Eigen::MatrixXd> llt_U(shortened_costs.U[w]);
+          if (llt_U.info() != Eigen::Success) {
+            std::cout << "U not PSD " << w << std::endl;
+          }
+        }
+        if (!shortened_costs.Q[shortened_lcs.A().size()].allFinite()) {
+          std::cout << "NaN detected in Q " << shortened_lcs.A().size() << std::endl;
+        }
+        Eigen::LLT<Eigen::MatrixXd> llt(shortened_costs.Q[shortened_lcs.A().size()]);
+        if (llt.info() != Eigen::Success) {
+            std::cout << "Q not PSD " << shortened_lcs.A().size() << std::endl;
+        }
+
 
         // Scale quaternions in target based on previous iteration
         for (int k = i * segment_length; k < N_+1; k++) {
@@ -233,22 +358,24 @@ iC3::iC3(
           c3_->SetNPenalizeInputChange(N_penalize);
         }
 
-        c3_->UpdateInputTarget(u_nominal);
-
-        u_sol_for_penalization_copy = u_sol_for_penalization;
+        vector<VectorXd> u_nominal_short(u_nominal.begin() + i * segment_length, u_nominal.end());
+        c3_->UpdateInputTarget(u_nominal_short);
 
         if ((controller_options_.c3_options.penalize_input_change)) {
-          if (i == 0 && iter == 0) {
-              // On first iteration just use init values
-          } else if (i == 0) { 
+          vector<VectorXd> u_sol_keep;
+          if (i == 0) { 
             // Take from previous iC3 iteration
-            vector<VectorXd> u_sol_keep = u_sol_for_penalization;
-            c3_->set_u_sol(u_sol_keep);
+            std::cout << "u for penal size i=0: " << u_sol_for_penalization.size() << std::endl;
+            u_sol_keep = u_sol_for_penalization;
             u_sol_for_penalization.clear();
           } else {
-            vector<VectorXd> u_sol_keep(u_sol.begin() + segment_length, u_sol.end());
-            c3_->set_u_sol(u_sol_keep);
+            //std::cout << "u sol size " << u_sol.size() << std::endl;
+            //u_sol_keep = std::vector<VectorXd>(u_sol.begin() + segment_length, u_sol.end()); 
+            u_sol_keep = std::vector<VectorXd>(u_sol_prev_iter.begin() + i * segment_length, 
+                                              u_sol_prev_iter.end());            
           } 
+          c3_->set_u_sol(u_sol_keep);
+
         }
         
 
@@ -261,10 +388,24 @@ iC3::iC3(
           c3_->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
                                     ConstraintVariable::INPUT);
         }
+        //std::cout << "Before c3 solve segment " << i << std::endl;
         c3_->Solve(x_start);
+        if (i % 5 == 0) {
+          std::cout << "after c3 solve segment " << i << std::endl;
+        }
 
-        x_sol = c3_->GetStateSolution();
-        u_sol = c3_->GetInputSolution();
+        z_sol = c3_->GetFullSolution();
+
+        x_sol.clear();
+        u_sol.clear();
+
+        for (int r = 0; r < z_sol.size(); r++) {
+          x_sol.push_back(z_sol[r].segment(0, n_x_));
+          u_sol.push_back(z_sol[r].segment(n_x_ + n_lambda_, n_u_));
+
+          // std::cout << "x sol " << r << " " << x_sol[r].segment(0, 16).transpose() << std::endl;
+        }
+
 
         // Only keep segment_length x's and u's
         for (int j = 0; j < segment_length; j++) {
@@ -274,8 +415,22 @@ iC3::iC3(
           u_sol_for_penalization.push_back(u_sol[j]);
         }
         if (i < ic3_options_.num_segments - 1) {
-          x_start = x_sol[segment_length];
+          if (example_idx_ == 2) {
+            MatrixXd segment_x_hat(MatrixXd::Zero(n_x_, x_sol.size()));
+            MatrixXd segment_u_hat(MatrixXd::Zero(n_u_, u_sol.size()));
+            for (int w = 0; w < u_sol.size(); w++) {
+              segment_x_hat.col(w) = x_sol[w];
+              segment_u_hat.col(w) = u_sol[w];
+            }
+
+            // auto [x_out, lambda_out] = RolloutUHatPointHand(x_start, segment_x_hat, segment_u_hat, contact_geoms);
+            // x_start = x_out.col(x_out.cols()-1);
+            x_start = x_sol[segment_length];
+          } else {
+            x_start = x_sol[segment_length];
+          }
         }
+        //std::cout << "After keeping stuff" << std::endl;
       }
       for (int i = indexer; i < N_; i++) {
         c3_xs.col(i) = x_sol[i - indexer];
@@ -286,7 +441,7 @@ iC3::iC3(
       // Update norms of c3 quaternion outputs
       c3_quat_norms.clear();
       for (int index : controller_options_.quaternion_indices) {
-        VectorXd c3_norm(N_+1);
+        VectorXd c3_norm(VectorXd::Ones(N_+1));
         for (int i = 0; i < N_; i++) {
           c3_norm(i) = c3_xs.col(i).segment(index, 4).norm();
         } 
@@ -295,14 +450,43 @@ iC3::iC3(
         
       }
 
-      auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
-      lcs = lcs_out;
-      x_hat = x_hat_out;
-      lambda_hat = lambda_hat_out;
+      // auto lcs_start = std::chrono::high_resolution_clock::now();
+      // auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
+      // auto lcs_end = std::chrono::high_resolution_clock::now();
+      // std::chrono::duration<double> lcs_elapsed = lcs_end - lcs_start;
+      // std::cout << "LCS rollout time: " << lcs_elapsed.count() << " seconds\n";
+      if (example_idx_ == 0) {
+        auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
+        x_hat = x_hat_out;
+        lambda_hat = lambda_hat_out;
+        lcs = lcs_out;
+      } else if (example_idx_ == 1) {
+        auto [x_hat_out, lambda_hat_out] = RolloutUHatHand(x0, c3_xs, u_hat, contact_geoms);
+        x_hat = x_hat_out;
+        lambda_hat = lambda_hat_out;
+        lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
+      } else if (example_idx_ == 2) {
+        auto rollout_start = std::chrono::high_resolution_clock::now();
+        auto [x_hat_out, lambda_hat_out] = RolloutUHatPointHand(x0, c3_xs, u_hat, contact_geoms);
+        auto rollout_end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> rollout_elapsed = rollout_end - rollout_start;
+        std::cout << "Rollout time: " << rollout_elapsed.count() << " seconds\n";
 
-      if (is_plate_) {
-        x_real = RolloutUHatPlate(x0, u_hat);
-      } else {
+
+        x_hat = x_hat_out;
+        lambda_hat = lambda_hat_out;       
+        lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory); 
+      }
+
+     
+
+      if (example_idx_ == 0) {
+        x_real = RolloutUHatPlate(x0, c3_xs, u_hat);
+      } else if (example_idx_ == 1) {
+        // x_real = RolloutUHatHand(x0, u_hat);
+        x_real = x_hat;
+      } else if (example_idx_ == 2) {
+        x_real = x_hat;
       }
 
       // normalize xhat quaternions
@@ -317,12 +501,20 @@ iC3::iC3(
       all_c3_x.push_back(c3_xs);
       all_x_real.push_back(x_real);
 
+
       // Print costs
+      // Assumes Q is diagonal
       if (ic3_options_.print_costs) {
         double x_cost = 0;
         double cube_pos_cost = 0;
         double plate_pos_cost = 0;
+        double thumb_pos_cost = 0;
+        double index_pos_cost = 0;
+        double middle_pos_cost = 0;
+        double ring_pos_cost = 0;
+
         double rot_cost = 0;
+        double rot_cost_rollout = 0;
         double v_cost = 0;
         double u_cost = 0;
 
@@ -340,7 +532,7 @@ iC3::iC3(
            xds.push_back(target_k);
         }
 
-
+        // Since for all examples there's only one object
         int quat_idx = controller_options_.quaternion_indices[0];
         for (int i = 0; i < N_; i++) {
           VectorXd x_curr = c3_xs.col(i);
@@ -348,18 +540,16 @@ iC3::iC3(
           VectorXd xd = xds[i];
 
           x_cost += (x_curr - xd).transpose() * Q_[i] * (x_curr - xd);
-         // std::cout << "i: " << i << ", cost: " << (x_curr - xd).transpose() * Q_[i] * (x_curr - xd) << std::endl;
 
           rot_cost += (x_curr.segment(quat_idx, 4) - xd.segment(quat_idx, 4)).transpose() * 
               Q_[i].block(quat_idx, quat_idx, 4, 4) * (x_curr.segment(quat_idx, 4) - xd.segment(quat_idx, 4));
+          rot_cost_rollout += (x_rollout.segment(quat_idx, 4) - xd.segment(quat_idx, 4)).transpose() * 
+              Q_[i].block(quat_idx, quat_idx, 4, 4) * (x_rollout.segment(quat_idx, 4) - xd.segment(quat_idx, 4));
 
           VectorXd v_curr = x_curr.tail(n_v_);    
           VectorXd vd = xd.tail(n_v_);    
 
           v_cost += (v_curr - vd).transpose() * Q_[i].bottomRightCorner(n_v_, n_v_) * (v_curr - vd);
-
-          // std::cout << "i: " << i << ", rot cost: " << (x_curr.segment(5, 4) - xd.segment(5, 4)).transpose() * 
-          //     Q_[i].block(5, 5, 4, 4) * (x_curr.segment(5, 4) - xd.segment(5, 4)) << std::endl;
 
           Eigen::Vector4d v_des = xd.segment<4>(quat_idx).normalized();
           Eigen::Vector4d v_rollout = x_rollout.segment<4>(quat_idx).normalized();
@@ -368,7 +558,7 @@ iC3::iC3(
 
           double dot = quat_des.dot(quat_rollout);
           double angle_diff = 2.0 * std::acos(std::min(1.0, std::abs(dot)));
-          // Convert to degrees if needed
+
           double angle_diff_deg = angle_diff * 180.0 / M_PI;
           rot_angle_diff_rollout += angle_diff_deg;
 
@@ -377,15 +567,39 @@ iC3::iC3(
           Eigen::AngleAxisd angle_axis(q_des * q_curr.inverse());
           double angle = angle_axis.angle();
 
-          //std::cout << "angle: " << angle << std::endl;
 
           plate_pos_cost += (x_curr.segment(0, 3) - xd.segment(0, 3)).transpose() * 
               Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - xd.segment(0, 3));
 
-          int cube_pos_idx = 9;
-          // if (is_franka_) {
-          //   cube_pos_idx = 11;
-          // }
+          if (example_idx_ == 1) {
+            index_pos_cost += (x_curr.segment(0, 4) - xd.segment(0, 4)).transpose() * 
+                Q_[i].block(0, 0, 4, 4) * (x_curr.segment(0, 4) - xd.segment(0, 4));
+            middle_pos_cost += (x_curr.segment(4, 4) - xd.segment(4, 4)).transpose() * 
+                Q_[i].block(4, 4, 4, 4) * (x_curr.segment(4, 4) - xd.segment(4, 4));
+            ring_pos_cost += (x_curr.segment(8, 4) - xd.segment(8, 4)).transpose() * 
+                Q_[i].block(8, 8, 4, 4) * (x_curr.segment(8, 4) - xd.segment(8, 4));
+            thumb_pos_cost += (x_curr.segment(12, 4) - xd.segment(12, 4)).transpose() * 
+                Q_[i].block(12, 12, 4, 4) * (x_curr.segment(12, 4) - xd.segment(12, 4));
+          } else if (example_idx_ == 2) {
+            index_pos_cost += (x_curr.segment(0, 3) - xd.segment(0, 3)).transpose() * 
+                Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - xd.segment(0, 3));
+            middle_pos_cost += (x_curr.segment(3, 3) - xd.segment(3, 3)).transpose() * 
+                Q_[i].block(3, 3, 3, 3) * (x_curr.segment(3, 3) - xd.segment(3, 3));
+            ring_pos_cost += (x_curr.segment(6, 3) - xd.segment(6, 3)).transpose() * 
+                Q_[i].block(6, 6, 3, 3) * (x_curr.segment(6, 3) - xd.segment(6, 3));
+            thumb_pos_cost += (x_curr.segment(9, 3) - xd.segment(9, 3)).transpose() * 
+                Q_[i].block(9, 9, 3, 3) * (x_curr.segment(9, 3) - xd.segment(9, 3));
+          }
+
+
+          int cube_pos_idx;
+          if (example_idx_ == 0) {
+            cube_pos_idx = 9;
+          } else if (example_idx_ == 1) {
+            cube_pos_idx = 20;
+          } else if (example_idx_ == 2) {
+            cube_pos_idx = 16;
+          }
 
           cube_pos_cost += (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3)).transpose() * 
               Q_[i].block(cube_pos_idx, cube_pos_idx, 3, 3) * (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3));
@@ -407,10 +621,21 @@ iC3::iC3(
           //   std::cout << "u_" << i << ": " << u_curr.transpose() << std::endl;
           // }
           if (controller_options_.c3_options.penalize_input_change){
-            VectorXd u_prev = u_sol_for_penalization_copy[i];
+            VectorXd u_prev = u_sol_for_penalization[i];
+            if (!u_prev.allFinite()) {
+              std::cout << u_sol_for_penalization[i].transpose() << std::endl;
+              std::cout << "u prev not all finite " << i << std::endl;
+            }
+            if (!u_curr.allFinite()) {
+              std::cout << "u curr not all finite " << i << std::endl;
+            }
+            if (!R_[i].allFinite()) {
+              std::cout << "R not all finite" << i << std::endl;
+            }
             u_cost += (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev);
+            u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr - gravity);
           } else {
-            u_cost += u_curr.transpose() * R_[i] * u_curr;
+            u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr-gravity);
           }
           
           //std::cout << "u cost " << i << ": " << (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev) << std::endl;;
@@ -418,10 +643,17 @@ iC3::iC3(
 
         std::cout << "x cost: " << x_cost << std::endl;
         std::cout << "cube position cost: " << cube_pos_cost << std::endl;
-        // if (!is_franka_) {
-        //   std::cout << "plate position cost: " << plate_pos_cost << std::endl;
-        // }
+        if (example_idx_ == 0) {
+          std::cout << "plate position cost: " << plate_pos_cost << std::endl;
+        } else if(example_idx_ == 1 || example_idx_ == 2) {
+          std::cout << "thumb position cost: " << thumb_pos_cost << std::endl;
+          std::cout << "index position cost: " << index_pos_cost << std::endl;
+          std::cout << "middle position cost: " << middle_pos_cost << std::endl;
+          std::cout << "ring position cost: " << ring_pos_cost << std::endl;
+
+        }
         std::cout << "rotation cost: " << rot_cost << std::endl;
+        std::cout << "rotation rollout cost: " << rot_cost_rollout << std::endl;
         std::cout << "position rollout cost: " << pos_cost_rollout << std::endl;
         std::cout << "avg rotation angle diff: " << rot_angle_diff_rollout / N_ << std::endl;
         std::cout << "v cost " << v_cost << std::endl;
@@ -460,16 +692,16 @@ iC3::iC3(
 
     }
 
-    std::cout << std::endl;
-    for (int i = 0; i < N_; i++) {
-      std::cout << "u_hat " << i << ": " << u_hat.col(i).transpose() << std::endl;
-    }
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // for (int i = 0; i < N_; i++) {
+    //   std::cout << "u_hat " << i << ": " << u_hat.col(i).transpose() << std::endl;
+    // }
+    // std::cout << std::endl;
 
 
-    for (int i = 0; i < N_; i++) {
-      std::cout << "velo: " << (x_hat.col(i).segment(12, 5)).transpose() << std::endl;
-    }
+    // for (int i = 0; i < N_; i++) {
+    //   std::cout << "velo: " << (x_hat.col(i).segment(12, 5)).transpose() << std::endl;
+    // }
   
     UpdateQuaternionCosts(x_hat, xd, c3_quat_norms);
     std::cout << "Before compute lqr value function" << std::endl;
@@ -528,7 +760,9 @@ iC3::iC3(
       // Do one rollout step
       VectorXd u_k = u_hat.col(k / factor);
 
-      //std::cout << "lcs simulate timestep " << k << std::endl;
+      // std::cout << "lcs simulate timestep " << k << std::endl;
+      // std::cout << "x curr " << x_curr.transpose() << std::endl;
+      // std::cout << "u_k " << u_k.transpose() << std::endl;
       auto pair = lcs.SimulateAndReturnForce(x_curr, u_k, true);
       x_next = pair.first;
       lambda_hat.col(k) = pair.second;
@@ -556,7 +790,7 @@ iC3::iC3(
   }
 
 
-  MatrixXd iC3::RolloutUHatPlate(VectorXd x0, MatrixXd u_hat) {
+  MatrixXd iC3::RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u) {
     DiagramBuilder<double> builder;
     auto [plant_sim, scene_graph] =
         drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.00001);
@@ -570,8 +804,10 @@ iC3::iC3(
 
     plant_sim.Finalize();
 
-    auto* broadcaster = builder.AddSystem<InputSource>(u_hat, dt_, N_);
-    builder.Connect(broadcaster->get_output_port(), plant_sim.get_actuation_input_port());
+    auto* broadcaster = builder.AddSystem<PdInputSource>(c3_x, c3_u, 0, 
+          plant_sim.num_positions(), dt_, N_, ic3_options_.rollout_Kp, ic3_options_.rollout_Kd);
+    builder.Connect(plant_sim.get_state_output_port(), broadcaster->get_input_port_state());
+    builder.Connect(broadcaster->get_output_port_u(), plant_sim.get_actuation_input_port());
 
     auto diagram = builder.Build();
     auto context = diagram->CreateDefaultContext();
@@ -581,7 +817,6 @@ iC3::iC3(
     plant_sim.SetPositionsAndVelocities(&plant_context, x0);
 
     drake::systems::Simulator<double> simulator(*diagram, std::move(context));
-    simulator.set_target_realtime_rate(1);
     simulator.Initialize();
 
     MatrixXd x_hat(n_x_, N_+1);
@@ -598,26 +833,39 @@ iC3::iC3(
 
   }
 
-  MatrixXd iC3::RolloutUHatHand(VectorXd x0, MatrixXd u_hat) {
+  tuple<MatrixXd, MatrixXd> iC3::RolloutUHatHand(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u, 
+            const vector<SortedPair<GeometryId>>& contact_geoms) {
     DiagramBuilder<double> builder;
     auto [plant_sim, scene_graph] =
         drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.0001);
     Parser parser(&plant_sim, &scene_graph);
 
-    
-    // const std::string franka_file_lcs = "examples/resources/plate/panda_arm.urdf";
-    // const std::string plate_file_lcs = "examples/resources/plate/plate_end_effector.sdf";	
-    // const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
+    const std::string hand_file = "examples/resources/multifinger_hand/allegro_hand_description_right.urdf";
+    const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+    const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
-    // parser.AddModels(franka_file_lcs);
-    // ModelInstanceIndex end_effector_index = parser.AddModels(plate_file_lcs)[0];
-    // parser.AddModels(cube_file_lcs);
+    parser.AddModels(hand_file);
+    parser.AddModels(cube_file);
+    parser.AddModels(ground_file);
 
-    // plant_sim.Finalize();
+    RigidTransform<double> X_G = RigidTransform<double>(
+      drake::math::RotationMatrix<double>(), {0, 0, 0});
 
+    RotationMatrix<double> R =
+        RollPitchYaw<double>(0.0, (5.0 / 8) * M_PI, 0.0).ToRotationMatrix();
+    RigidTransform<double> X_H = RigidTransform<double>(R, {-0.04, 0, 0.17});
 
-    auto* broadcaster = builder.AddSystem<InputSource>(u_hat, dt_, N_);
-    builder.Connect(broadcaster->get_output_port(), plant_sim.get_actuation_input_port());
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                          plant_sim.GetFrameByName("hand_root"), X_H);
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                          plant_sim.GetFrameByName("ground"), X_G);
+
+    plant_sim.Finalize();
+
+    auto* broadcaster = builder.AddSystem<PdInputSource>(c3_x, c3_u, 0, 
+          plant_sim.num_positions(), dt_, N_, ic3_options_.rollout_Kp, ic3_options_.rollout_Kd);
+    builder.Connect(plant_sim.get_state_output_port(), broadcaster->get_input_port_state());
+    builder.Connect(broadcaster->get_output_port_u(), plant_sim.get_actuation_input_port());
 
     auto diagram = builder.Build();
     auto context = diagram->CreateDefaultContext();
@@ -631,17 +879,186 @@ iC3::iC3(
     simulator.Initialize();
 
     MatrixXd x_hat(n_x_, N_+1);
+    MatrixXd lambda_hat(n_lambda_, N_);
     x_hat.col(0) = x0;
 
     int idx = 1;
     for (double t = 0.0; t < N_ * dt_ - 0.0001; t += dt_) {
       simulator.AdvanceTo(t);
       x_hat.col(idx) = plant_sim.GetPositionsAndVelocities(plant_context);
+      
+
+      const auto& contact_results =
+          plant_sim.get_contact_results_output_port()
+              .Eval<ContactResults<double>>(plant_context);
+      lambda_hat.col(idx - 1) = GetLambdaFromContacts(contact_results, contact_geoms);
       idx++;
     }
 
-    return x_hat;
+    return {x_hat, lambda_hat};
 
+  }
+
+  tuple<MatrixXd, MatrixXd> iC3::RolloutUHatPointHand(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u, 
+            const vector<SortedPair<GeometryId>>& contact_geoms) {
+    DiagramBuilder<double> builder;
+
+    // for (int i = 0; i < c3_x.cols(); i+=5) {
+    //   std::cout << "c3 u " << i << ": " << c3_u.col(i).transpose() << std::endl;
+    // }
+
+    auto [plant_sim, scene_graph] =
+        drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.0001);
+    Parser parser(&plant_sim, &scene_graph);
+
+    const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
+    const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+    const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
+
+    parser.AddModels(hand_file);
+    parser.AddModels(cube_file);
+    parser.AddModels(ground_file);
+
+    RigidTransform<double> X_G = RigidTransform<double>(
+      drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+
+    // RigidTransform<double> X_1 = RigidTransform<double>(
+    //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+    // RigidTransform<double> X_2 = RigidTransform<double>(
+    //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+    // RigidTransform<double> X_3 = RigidTransform<double>(
+    //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+    // RigidTransform<double> X_4 = RigidTransform<double>(
+    //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+
+    RigidTransform<double> X_1 = RigidTransform<double>(
+      drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+    RigidTransform<double> X_2 = RigidTransform<double>(
+      drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+    RigidTransform<double> X_3 = RigidTransform<double>(
+      drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
+    RigidTransform<double> X_4 = RigidTransform<double>(
+      drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+      
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                        plant_sim.GetFrameByName("base_link_1"), X_1);
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                        plant_sim.GetFrameByName("base_link_2"), X_2);
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                        plant_sim.GetFrameByName("base_link_3"), X_3);
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                        plant_sim.GetFrameByName("base_link_4"), X_4);                                                  
+    plant_sim.WeldFrames(plant_sim.world_frame(),
+                        plant_sim.GetFrameByName("ground"), X_G);
+
+    plant_sim.Finalize();
+
+    int N = c3_u.cols();
+
+    auto* broadcaster = builder.AddSystem<PdInputSource>(c3_x, c3_u, 0, 
+          plant_sim.num_positions(), dt_, N_, ic3_options_.rollout_Kp, ic3_options_.rollout_Kd);
+    builder.Connect(plant_sim.get_state_output_port(), broadcaster->get_input_port_state());
+    builder.Connect(broadcaster->get_output_port_u(), plant_sim.get_actuation_input_port());
+
+    auto diagram = builder.Build();
+    auto context = diagram->CreateDefaultContext();
+
+    auto& plant_context =
+      diagram->GetMutableSubsystemContext(plant_sim, context.get());
+    plant_sim.SetPositionsAndVelocities(&plant_context, x0);
+
+    drake::systems::Simulator<double> simulator(*diagram, std::move(context));
+    simulator.set_target_realtime_rate(0);
+    simulator.Initialize();
+
+    MatrixXd x_hat(n_x_, N+1);
+    MatrixXd lambda_hat(n_lambda_, N);
+    x_hat.col(0) = x0;
+
+    int idx = 1;
+    for (double t = 0.0; t < N * dt_ - 0.0001; t += dt_) {
+      simulator.AdvanceTo(t);
+      x_hat.col(idx) = plant_sim.GetPositionsAndVelocities(plant_context);
+      
+
+      const auto& contact_results =
+          plant_sim.get_contact_results_output_port()
+              .Eval<ContactResults<double>>(plant_context);
+      lambda_hat.col(idx - 1) = GetLambdaFromContacts(contact_results, contact_geoms);
+      idx++;
+    }
+
+    return {x_hat, lambda_hat};
+
+  }
+
+  VectorXd iC3::GetLambdaFromContacts(ContactResults<double> contact_results,
+      const vector<SortedPair<GeometryId>>& contact_geoms) {
+
+    // HARDCODED for 2 friction directions
+    VectorXd lambda_hat(VectorXd::Zero(4 * contact_geoms.size()));
+
+    for (int i = 0; i < contact_geoms.size(); i++) {
+      auto contact_A = contact_geoms[i].first();
+      auto contact_B = contact_geoms[i].second();
+      Vector3d force(Vector3d::Zero());
+      Vector3d normal;
+      for (int j = 0; j < contact_results.num_point_pair_contacts(); j++){
+        const auto& result = contact_results.point_pair_contact_info(j);
+        auto pp = result.point_pair();
+        auto idA = pp.id_A;
+        auto idB = pp.id_B;
+        if ((idA == contact_A && idB == contact_B)) {
+          force = result.contact_force();  
+          normal = -1 * pp.nhat_BA_W;
+          std::cout << "found" << std::endl;
+          break;
+        } 
+        if ((idB == contact_A && idA == contact_B)) {
+          std::cout << "found opposite" << std::endl;
+        }
+      }
+      if (force == Vector3d::Zero()) {
+        lambda_hat.segment(4*i, 4) = VectorXd::Zero(4);
+        break;
+      }
+
+      double f_n = force.dot(normal);
+      Vector3d t1 = normal.unitOrthogonal().normalized();
+      Vector3d t2 = normal.cross(t1).normalized();
+
+      Vector3d f_t = force - f_n * normal;
+      double f_t1 = f_t.dot(t1);
+      double f_t2 = f_t.dot(t2);
+
+      double mu = controller_options_.lcs_factory_options.mu[i];
+
+      double l1 = std::max(f_t1 / mu, 0.0);
+      double l2 = std::max(-f_t1 / mu, 0.0);
+      double l3 = std::max(f_t2 / mu, 0.0);
+      double l4 = std::max(-f_t2 / mu, 0.0);
+      double sum = l1 + l2 + l3 + l4;
+
+      if (sum <= f_n && f_n > 0) {
+        double add = (f_n - sum) / 4.0;
+        l1 += add;
+        l2 += add;
+        l3 += add;
+        l4 += add;
+      } else if (sum > 1e-12) {
+        double scale = f_n / sum;
+        l1 *= scale;
+        l2 *= scale;
+        l3 *= scale;
+        l4 *= scale;
+      }
+
+      lambda_hat(4*i) = l1;
+      lambda_hat(4*i + 1) = l2;
+      lambda_hat(4*i + 2) = l3;
+      lambda_hat(4*i + 3) = l4;
+    }
+    return lambda_hat;
   }
 
   std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
@@ -705,6 +1122,7 @@ iC3::iC3(
     vector<Eigen::MatrixXd> F;
     vector<Eigen::MatrixXd> H;
     vector<Eigen::VectorXd> c;
+
 
     for (int k = 0; k < N_; k++) {
       
