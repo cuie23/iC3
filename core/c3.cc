@@ -90,13 +90,13 @@ C3::C3(const LCS& lcs, const CostMatrices& costs,
   u_sol_ = std::make_unique<std::vector<VectorXd>>();
   w_sol_ = std::make_unique<std::vector<VectorXd>>();
   delta_sol_ = std::make_unique<std::vector<VectorXd>>();
+
   for (int i = 0; i < N_; ++i) {
     z_sol_->push_back(Eigen::VectorXd::Zero(n_z_));
     x_sol_->push_back(Eigen::VectorXd::Zero(n_x_));
     lambda_sol_->push_back(Eigen::VectorXd::Zero(n_lambda_));
     u_sol_->push_back(Eigen::VectorXd::Zero(n_u_));
     z_fin_->push_back(Eigen::VectorXd::Zero(n_z_));
-    z_sol_->push_back(Eigen::VectorXd::Zero(n_z_));
     w_sol_->push_back(Eigen::VectorXd::Zero(n_z_));
     delta_sol_->push_back(Eigen::VectorXd::Zero(n_z_));
   }
@@ -250,6 +250,7 @@ C3::GetDynamicConstraints() {
 }
 
 void C3::UpdateTarget(const std::vector<Eigen::VectorXd>& x_des) {
+  DRAKE_DEMAND(x_des.size() == N_ + 1);
   x_desired_ = x_des;
   for (int i = 0; i < N_ + 1; ++i) {
     target_costs_[i]->UpdateCoefficients(
@@ -288,6 +289,11 @@ const std::vector<drake::solvers::QuadraticCost*>& C3::GetTargetCost() {
 
 void C3::Solve(const VectorXd& x0) {
   auto start = std::chrono::high_resolution_clock::now();
+
+  if (!x0.allFinite()) {
+    std::cout << "x0 NOT ALL FINITE" << std::endl;
+  }
+
   // Set the initial state constraint
   if (initial_state_constraint_) {
     initial_state_constraint_->UpdateCoefficients(
@@ -319,6 +325,15 @@ void C3::Solve(const VectorXd& x0) {
     }
   }
 
+  if (u_desired_.size() == N_) {
+    for (int i = 0; i < N_; ++i) {
+      input_costs_[i]->UpdateCoefficients(
+          2 * cost_matrices_.R.at(i),
+          -2 * cost_matrices_.R.at(i) * u_desired_.at(i));
+
+    }
+  }
+
   if (options_.penalize_input_change) {
     for (int i = 0; i < N_penalize_input_change_; ++i) {
       // Penalize deviation from previous input solution:  input cost is
@@ -328,7 +343,7 @@ void C3::Solve(const VectorXd& x0) {
       //     -2 * cost_matrices_.R.at(i) * u_sol_->at(i));
 
       const double w_sol = 1.0;
-      const double w_des = 3.0;
+      const double w_des = 10.0;
 
       input_costs_[i]->UpdateCoefficients(
           2 * (w_sol + w_des) * cost_matrices_.R.at(i),
@@ -336,6 +351,8 @@ void C3::Solve(const VectorXd& x0) {
               (w_sol * u_sol_->at(i) + w_des * u_desired_.at(i)));;
     }
   }
+
+
 
   // EXPERIMENTAL
   /*
@@ -527,7 +544,6 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
 
   SetInitialGuessQP(x0, admm_iteration);
 
-
   for (int i = 0; i < N_; i++) {
     if (!(lcs_.A()[i].allFinite())) {
       drake::log()->error("A[{}] contains NaN or Inf", i);
@@ -579,6 +595,12 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
       drake::log()->warn("Primal Res: {}", details.primal_res);
       drake::log()->warn("Dual Res: {}", details.dual_res);
 
+  } else {
+    // const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
+    // std::cout << "Iterations: " << details.iter << std::endl;
+    // std::cout << "Primal Res: " << details.primal_res << std::endl;
+    // std::cout << "Dual Res: " << details.dual_res << std::endl;
+
   }
 
   StoreQPResults(result, admm_iteration, is_final_solve);
@@ -627,7 +649,20 @@ void C3::AddLinearConstraint(const Eigen::MatrixXd& A,
                              const VectorXd& lower_bound,
                              const VectorXd& upper_bound,
                              ConstraintVariable constraint) {
+  DRAKE_DEMAND(A.allFinite());
+  DRAKE_DEMAND(lower_bound.allFinite());
+  DRAKE_DEMAND(upper_bound.allFinite());
+  for (int i = 0; i < lower_bound.size(); i++) {
+    DRAKE_DEMAND(lower_bound(i) <= upper_bound(i));
+  }
+
+
   if (constraint == 1) {
+    DRAKE_DEMAND(A.rows() == n_x_);
+    DRAKE_DEMAND(A.cols() == n_x_);
+    DRAKE_DEMAND(lower_bound.rows() == n_x_);
+    DRAKE_DEMAND(upper_bound.rows() == n_x_);
+
     for (int i = 1; i < N_; ++i) {
       user_constraints_.push_back(
           prog_.AddLinearConstraint(A, lower_bound, upper_bound, x_.at(i)));
@@ -635,6 +670,10 @@ void C3::AddLinearConstraint(const Eigen::MatrixXd& A,
   }
 
   if (constraint == 2) {
+    DRAKE_DEMAND(A.rows() == n_u_);
+    DRAKE_DEMAND(A.cols() == n_u_);
+    DRAKE_DEMAND(lower_bound.rows() == n_u_);
+    DRAKE_DEMAND(upper_bound.rows() == n_u_);
     for (int i = 0; i < N_; ++i) {
       user_constraints_.push_back(
           prog_.AddLinearConstraint(A, lower_bound, upper_bound, u_.at(i)));

@@ -305,7 +305,7 @@ void C3Controller::UpdateQuaternionCosts(
   Q_.push_back(discount_factor * controller_options_.c3_options.Q); 
 
   for (int index : controller_options_.quaternion_indices) {
-    
+    std::cout << "quat idx " << index << std::endl;
     Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4);
     Eigen::VectorXd quat_des_i = x_des.segment(index, 4);
 

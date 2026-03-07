@@ -43,6 +43,7 @@ cc_binary(
     data = [
         ":example_data",
         "@drake_models//:franka_description",
+        "@drake_models//:allegro_hand_description",
     ],
     deps = [
         "//core:c3",

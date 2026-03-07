@@ -13,6 +13,7 @@
 #include "systems/iC3_options.h"
 #include "systems/framework/c3_output.h"
 #include "systems/framework/timestamped_vector.h"
+#include "systems/PdInputSource.h"
 
 #include "drake/systems/analysis/simulator.h"
 #include "drake/multibody/plant/multibody_plant.h"
@@ -24,47 +25,27 @@ using std::tuple;
 using drake::systems::BasicVector;
 using drake::systems::Context;
 using drake::multibody::MultibodyPlant;
+using drake::geometry::GeometryId;
+using drake::SortedPair;
+using drake::multibody::ContactResults;
 
 namespace c3 {
 namespace systems {
 
-// For simulated rollouts
-class InputSource : public drake::systems::LeafSystem<double> {
-public:
-  InputSource(MatrixXd u_hat, double dt, int N)  
-  : u_hat_(u_hat),
-    dt_(dt),
-    N_(N) 
-  {
-    this->DeclareVectorOutputPort("u curr", u_hat_.rows(),
-                                  &InputSource::CalcOutput);
-  }
-
-private:
-  void CalcOutput(const Context<double>& context,
-                  BasicVector<double>* output) const {
-    double t = context.get_time();
-    if (t < dt_ * N_) {
-      int segment = (int)(t / dt_);
-      output->get_mutable_value() = u_hat_.col(segment);
-    } else {
-      output->get_mutable_value() = VectorXd::Zero(u_hat_.rows());
-    }
-  }
-  MatrixXd u_hat_;
-  double dt_;
-  int N_;
-};
-
 class iC3 : public drake::systems::LeafSystem<double> {
 
 public:
+
+  // Example idx
+  // 0 = plate
+  // 1 = allegro (joint space)
+  // 2 = allegro (point fingers)
  explicit iC3(
-    drake::multibody::MultibodyPlant<double>& plant,
-    drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    MultibodyPlant<double>& plant,
+    MultibodyPlant<drake::AutoDiffXd>& plant_ad,
     C3::CostMatrices& costs, 
     C3ControllerOptions controller_options, iC3Options ic3_options, 
-    bool is_plate);
+    int example_idx);
 
 
   // Outputs
@@ -80,7 +61,7 @@ public:
     vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
-    const vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms);
+    const vector<SortedPair<GeometryId>>& contact_geoms);
 
 private:
   
@@ -88,8 +69,18 @@ private:
   // returns LCS, x_hat, lambda_hat
   tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory);
  
-  MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd u_hat);
-  MatrixXd RolloutUHatHand(VectorXd x0, MatrixXd u_hat);
+  MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u);
+
+  tuple<MatrixXd, MatrixXd> RolloutUHatHand(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u,
+       const vector<SortedPair<GeometryId>>& contact_geoms);
+
+  tuple<MatrixXd, MatrixXd> RolloutUHatPointHand(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u,
+       const vector<SortedPair<GeometryId>>& contact_geoms);
+
+  // TODO: FIX THIS
+  VectorXd GetLambdaFromContacts(ContactResults<double> contact_results,
+      const vector<SortedPair<GeometryId>>& contact_geoms);
+
 
   // For affine time-varying LQR problem get value function
   // min  Σ (x[k]'Q[k]x[k] + u[k]'R[k]u[k]) + x[f]'Q[f]x[f]
@@ -140,7 +131,7 @@ private:
   mutable std::vector<Eigen::MatrixXd> U_;  ///< Constraint matrices.
 
   int N_;  ///< Horizon length.
-  bool is_plate_;
+  int example_idx_;
 
 };
 

@@ -20,6 +20,9 @@ struct iC3Options {
 
   int rollout_dt_scaling;
 
+  VectorXd rollout_Kp;
+  VectorXd rollout_Kd;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(num_iters));
@@ -30,7 +33,8 @@ struct iC3Options {
     a->Visit(DRAKE_NVP(num_segments));
     a->Visit(DRAKE_NVP(print_costs));
     a->Visit(DRAKE_NVP(rollout_dt_scaling));
-
+    a->Visit(DRAKE_NVP(rollout_Kp));
+    a->Visit(DRAKE_NVP(rollout_Kd));
   }
 };
 

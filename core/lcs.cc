@@ -96,11 +96,29 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
   VectorXd force;
   int flag;
   drake::solvers::MobyLCPSolver<double> LCPSolver;
+
+  if (!F_[0].allFinite()) {
+    std::cout << "M not all finite" << std::endl;
+  }
+  if (!(E_[0] * x_init + c_[0] + H_[0] * u).allFinite()) {
+    std::cout << "q not all finite" << std::endl;
+  }
+  auto eigs = Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(F_[0]).eigenvalues();
+  double max_eig = eigs.maxCoeff();
+  double min_eig = eigs.minCoeff();
+
+  std::cout << x_init.transpose() << std::endl;
+  std::cout << "min eigenvalue " << min_eig << std::endl;
+  std::cout << "max eigenvalue " << max_eig << std::endl;
+
+  MatrixXd sym_diff = F_[0] - F_[0].transpose();
+  std::cout << "symmetric difference norm " << sym_diff.norm() << std::endl << std::endl;
+
   if (regularized) {
-    flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
+    flag = LCPSolver.SolveLcpFastRegularized(
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 2, -8);
   } else {
-    flag = LCPSolver.SolveLcpLemke(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
+    flag = LCPSolver.SolveLcpFast(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }
 
   if (flag == 0) {

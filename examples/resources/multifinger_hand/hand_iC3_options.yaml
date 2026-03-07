@@ -1,11 +1,11 @@
-num_iters: 10
+num_iters: 6
 add_position_constraints: true
 add_input_constraints: true
 early_termination: false
 
-num_segments: 8
+num_segments: 50
 N_penalize_input_change: 0
 
-rollout_dt_scaling: 1
+rollout_dt_scaling: 10
 
 print_costs: true
