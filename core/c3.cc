@@ -479,8 +479,17 @@ void C3::ADMMStep(const VectorXd& x0, vector<VectorXd>* delta,
 
 void C3::SetInitialGuessQP(const Eigen::VectorXd& x0, int admm_iteration) {
   prog_.SetInitialGuess(x_[0], x0);
-  if (!warm_start_ || admm_iteration == 0)
-    return;  // No warm start for the first iteration
+  if (!warm_start_)
+    return;  // No warm start
+
+  if (admm_iteration == 0) {
+    for (int i = 0; i < N_; ++i) {
+      prog_.SetInitialGuess(x_[i], x_sol_->at(i));
+      prog_.SetInitialGuess(u_[i], u_sol_->at(i));
+    }
+    prog_.SetInitialGuess(x_[N_], x_sol_->at(N_));
+    return;
+  } 
   int index = solve_time_ / lcs_.dt();
   double weight = (solve_time_ - index * lcs_.dt()) / lcs_.dt();
   for (int i = 0; i < N_ - 1; ++i) {

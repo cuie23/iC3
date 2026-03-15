@@ -67,7 +67,8 @@ private:
   
   // Given an initial x and u trajectory, return x rollout out using lcs
   // returns LCS, x_hat, lambda_hat
-  tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory);
+  tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory,
+                                              MatrixXd A, VectorXd lower_bound_x, VectorXd upper_bound_x);
  
   MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u);
 
