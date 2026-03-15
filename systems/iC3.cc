@@ -113,11 +113,11 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     } else if (example_idx_ == 1) {
       gravity = VectorXd::Zero(16);
     } else if (example_idx_ == 2) {
-      gravity = VectorXd::Zero(12);
+      gravity = VectorXd::Zero(9);
       gravity[2] = 1.96;
       gravity[5] = 1.96;
       gravity[8] = 1.96;
-      gravity[11] = 1.96;
+      // gravity[11] = 1.96;
 
     }
   
@@ -227,18 +227,31 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         upper_bound(14) = 1.71;
         upper_bound(15) = 1.62;      
     } else if (example_idx_ == 2) {
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < 3; i++) {
+        // Position constraints
         A(3*i, 3*i) = 1;
         A(3*i+1, 3*i+1) = 1;
         A(3*i+2, 3*i+2) = 1;
 
-        lower_bound(3*i) = -0.2;
-        lower_bound(3*i+1) = -0.2;
-        lower_bound(3*i+2) = -0.02;
-        
-        upper_bound(3*i) = 0.2;
-        upper_bound(3*i+1) = 0.2;
-        upper_bound(3*i+2) = 0.1;
+        // Velocity constraints
+        A(19 + 3*i) = 1;
+        A(19 + 3*i + 1) = 1;
+        A(19 + 3*i + 2) = 1;
+
+        lower_bound(3*i) = -0.1;
+        lower_bound(3*i+1) = -0.1;
+        lower_bound(3*i+2) = -0.03;
+        lower_bound(19 + 3*i) = -3;
+        lower_bound(19 + 3*i+1) = -3;
+        lower_bound(19 + 3*i+2) = -3;
+
+        upper_bound(3*i) = 0.1;
+        upper_bound(3*i+1) = 0.1;
+        upper_bound(3*i+2) = 0.05;
+        upper_bound(19 + 3*i) = 3;
+        upper_bound(19 + 3*i+1) = 3;
+        upper_bound(19 + 3*i+2) = 3;
+
 
         A_u(3*i, 3*i) = 1;
         A_u(3*i+1, 3*i+1) = 1;
@@ -272,71 +285,6 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         LCS shortened_lcs = ShortenLCSFront(lcs, i * segment_length);
         C3::CostMatrices shortened_costs = ShortenCostsFront(i * segment_length);
         std::vector<VectorXd> shortened_targets;
-
-        // DEBUGGING
-        for (int w = 0; w < shortened_lcs.A().size(); w++) {
-          if ((shortened_lcs.A()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in A " << w << std::endl;
-          }
-          if ((shortened_lcs.B()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in B " << w << std::endl;
-          }
-          if ((shortened_lcs.D()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in D " << w << std::endl;
-          }
-          if ((shortened_lcs.d()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in d " << w << std::endl;
-          }
-          if ((shortened_lcs.E()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in E " << w << std::endl;
-          }
-          if ((shortened_lcs.F()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in F " << w << std::endl;
-          }
-          if ((shortened_lcs.H()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in H " << w << std::endl;
-          }
-          if ((shortened_lcs.c()[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in c " << w << std::endl;
-          }
-
-          if ((shortened_costs.Q[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in Q " << w << std::endl;
-          }
-          if ((shortened_costs.R[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in R " << w << std::endl;
-          }
-          if ((shortened_costs.G[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in G " << w << std::endl;
-          }
-          if ((shortened_costs.U[w].array().isNaN()).any()) {
-            std::cout << "NaN detected in U " << w << std::endl;
-          }
-          Eigen::LLT<Eigen::MatrixXd> llt_Q(shortened_costs.Q[w]);
-          if (llt_Q.info() != Eigen::Success) {
-            std::cout << "Q not PSD " << w << std::endl;
-          }
-          Eigen::LLT<Eigen::MatrixXd> llt_R(shortened_costs.R[w]);
-          if (llt_R.info() != Eigen::Success) {
-            std::cout << "R not PSD " << w << std::endl;
-          }
-          Eigen::LLT<Eigen::MatrixXd> llt_G(shortened_costs.G[w]);
-          if (llt_G.info() != Eigen::Success) {
-            std::cout << "G not PSD " << w << std::endl;
-          }
-          Eigen::LLT<Eigen::MatrixXd> llt_U(shortened_costs.U[w]);
-          if (llt_U.info() != Eigen::Success) {
-            std::cout << "U not PSD " << w << std::endl;
-          }
-        }
-        if (!shortened_costs.Q[shortened_lcs.A().size()].allFinite()) {
-          std::cout << "NaN detected in Q " << shortened_lcs.A().size() << std::endl;
-        }
-        Eigen::LLT<Eigen::MatrixXd> llt(shortened_costs.Q[shortened_lcs.A().size()]);
-        if (llt.info() != Eigen::Success) {
-            std::cout << "Q not PSD " << shortened_lcs.A().size() << std::endl;
-        }
-
 
         // Scale quaternions in target based on previous iteration
         for (int k = i * segment_length; k < N_+1; k++) {
@@ -374,10 +322,17 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
             u_sol_keep = std::vector<VectorXd>(u_sol_prev_iter.begin() + i * segment_length, 
                                               u_sol_prev_iter.end());            
           } 
-          c3_->set_u_sol(u_sol_keep);
-
+          c3_->SetUSol(u_sol_keep);
         }
         
+        if ((controller_options_.c3_options.warm_start)) {
+          vector<VectorXd> warm_start_x;
+          for (int i = 0; i < N_ + 1; i++) {
+            warm_start_x.push_back(x_hat.col(i));
+          }
+          c3_->SetXSol(warm_start_x);
+          c3_->SetUSol(u_sol_prev_iter);
+        }
 
 
         if (ic3_options_.add_position_constraints) {
@@ -450,44 +405,51 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         
       }
 
-      // auto lcs_start = std::chrono::high_resolution_clock::now();
-      // auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
-      // auto lcs_end = std::chrono::high_resolution_clock::now();
-      // std::chrono::duration<double> lcs_elapsed = lcs_end - lcs_start;
-      // std::cout << "LCS rollout time: " << lcs_elapsed.count() << " seconds\n";
-      if (example_idx_ == 0) {
-        auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
-        x_hat = x_hat_out;
-        lambda_hat = lambda_hat_out;
-        lcs = lcs_out;
-      } else if (example_idx_ == 1) {
-        auto [x_hat_out, lambda_hat_out] = RolloutUHatHand(x0, c3_xs, u_hat, contact_geoms);
-        x_hat = x_hat_out;
-        lambda_hat = lambda_hat_out;
-        lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
-      } else if (example_idx_ == 2) {
-        auto rollout_start = std::chrono::high_resolution_clock::now();
-        auto [x_hat_out, lambda_hat_out] = RolloutUHatPointHand(x0, c3_xs, u_hat, contact_geoms);
-        auto rollout_end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> rollout_elapsed = rollout_end - rollout_start;
-        std::cout << "Rollout time: " << rollout_elapsed.count() << " seconds\n";
+      auto lcs_start = std::chrono::high_resolution_clock::now();
+      auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory, A, lower_bound, upper_bound);
+      auto lcs_end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> lcs_elapsed = lcs_end - lcs_start;
+      std::cout << "LCS rollout time: " << lcs_elapsed.count() << " seconds\n";
+
+      lcs = lcs_out;
+      x_hat = x_hat_out;
+      lambda_hat = lambda_hat_out;
+
+      // for (int i = 0; i < x_hat.cols(); i++) {
+      //   std::cout << x_hat.col(i).transpose() << std::endl;
+      // }
+
+      // if (example_idx_ == 0) {
+      //   auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory);
+      //   x_hat = x_hat_out;
+      //   lambda_hat = lambda_hat_out;
+      //   lcs = lcs_out;
+      // } else if (example_idx_ == 1) {
+      //   auto [x_hat_out, lambda_hat_out] = RolloutUHatHand(x0, c3_xs, u_hat, contact_geoms);
+      //   x_hat = x_hat_out;
+      //   lambda_hat = lambda_hat_out;
+      //   lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
+      // } else if (example_idx_ == 2) {
+      //   auto rollout_start = std::chrono::high_resolution_clock::now();
+      //   auto [x_hat_out, lambda_hat_out] = RolloutUHatPointHand(x0, c3_xs, u_hat, contact_geoms);
+      //   auto rollout_end = std::chrono::high_resolution_clock::now();
+      //   std::chrono::duration<double> rollout_elapsed = rollout_end - rollout_start;
+      //   std::cout << "Rollout time: " << rollout_elapsed.count() << " seconds\n";
 
 
-        x_hat = x_hat_out;
-        lambda_hat = lambda_hat_out;       
-        lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory); 
-      }
+      //   x_hat = x_hat_out;
+      //   lambda_hat = lambda_hat_out;       
+      //   lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory); 
+      // }
 
-     
-
-      if (example_idx_ == 0) {
-        x_real = RolloutUHatPlate(x0, c3_xs, u_hat);
-      } else if (example_idx_ == 1) {
-        // x_real = RolloutUHatHand(x0, u_hat);
-        x_real = x_hat;
-      } else if (example_idx_ == 2) {
-        x_real = x_hat;
-      }
+      // if (example_idx_ == 0) {
+      //   x_real = RolloutUHatPlate(x0, c3_xs, u_hat);
+      // } else if (example_idx_ == 1) {
+      //   // x_real = RolloutUHatHand(x0, u_hat);
+      //   x_real = x_hat;
+      // } else if (example_idx_ == 2) {
+      //   x_real = x_hat;
+      // }
 
       // normalize xhat quaternions
       for (int i = 0; i < x_hat.cols(); i++) {
@@ -587,8 +549,6 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
                 Q_[i].block(3, 3, 3, 3) * (x_curr.segment(3, 3) - xd.segment(3, 3));
             ring_pos_cost += (x_curr.segment(6, 3) - xd.segment(6, 3)).transpose() * 
                 Q_[i].block(6, 6, 3, 3) * (x_curr.segment(6, 3) - xd.segment(6, 3));
-            thumb_pos_cost += (x_curr.segment(9, 3) - xd.segment(9, 3)).transpose() * 
-                Q_[i].block(9, 9, 3, 3) * (x_curr.segment(9, 3) - xd.segment(9, 3));
           }
 
 
@@ -598,7 +558,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           } else if (example_idx_ == 1) {
             cube_pos_idx = 20;
           } else if (example_idx_ == 2) {
-            cube_pos_idx = 16;
+            cube_pos_idx = 13;
           }
 
           cube_pos_cost += (x_curr.segment(cube_pos_idx, 3) - xd.segment(cube_pos_idx, 3)).transpose() * 
@@ -646,10 +606,12 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         if (example_idx_ == 0) {
           std::cout << "plate position cost: " << plate_pos_cost << std::endl;
         } else if(example_idx_ == 1 || example_idx_ == 2) {
-          std::cout << "thumb position cost: " << thumb_pos_cost << std::endl;
-          std::cout << "index position cost: " << index_pos_cost << std::endl;
-          std::cout << "middle position cost: " << middle_pos_cost << std::endl;
-          std::cout << "ring position cost: " << ring_pos_cost << std::endl;
+          std::cout << "finger 1 position cost: " << index_pos_cost << std::endl;
+          std::cout << "finger 2 position cost: " << middle_pos_cost << std::endl;
+          std::cout << "finger 3 position cost: " << ring_pos_cost << std::endl;
+          if (example_idx_ == 1) {
+            std::cout << "finger 4 position cost: " << thumb_pos_cost << std::endl;
+          }
 
         }
         std::cout << "rotation cost: " << rot_cost << std::endl;
@@ -664,7 +626,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           int matched_count = 0;
           vector<int> quat_idxs = controller_options_.quaternion_indices;
 
-          for (int s = (int)(0.6 * N_); s < x_hat.cols(); s++) {
+          for (int s = (int)(0.7 * N_); s < x_hat.cols(); s++) {
 
             for (int r = 0; r < quat_idxs.size(); r++) {
               VectorXd v_curr = x_hat.col(s).segment(quat_idxs[r], 4).normalized(); 
@@ -675,14 +637,14 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
               double angle = q_curr.angularDistance(q_des);
               std::cout << "s: " << s << ", angle: " << angle << std::endl;
-              if (angle < 0.25) {
+              if (angle < 0.3) {
                 matched_count++;
               }
             }
           }
           // Random heuristic for stopping condition
           std::cout << "matched count: " << matched_count << std::endl;
-          if (matched_count > 0.6 * (0.4 * N_)) {
+          if (matched_count > 0.5 * (0.3 * N_)) {
             iter = 99999;
           }
         }
@@ -711,7 +673,8 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
   }
 
 
-  tuple<LCS, MatrixXd, MatrixXd> iC3::DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory input_factory) {
+  tuple<LCS, MatrixXd, MatrixXd> iC3::DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory input_factory, 
+      MatrixXd A_constraint, VectorXd lower_bound_x, VectorXd upper_bound_x) {
 
     // Make coaser timestep lcs factory, don't need to change N 
     // since we just pluck the first element of each vector
@@ -763,8 +726,19 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       // std::cout << "lcs simulate timestep " << k << std::endl;
       // std::cout << "x curr " << x_curr.transpose() << std::endl;
       // std::cout << "u_k " << u_k.transpose() << std::endl;
+      // std::cout << u_k.size() << std::endl;
       auto pair = lcs.SimulateAndReturnForce(x_curr, u_k, true);
       x_next = pair.first;
+
+      // HARDCODED
+      if (example_idx_ == 2) {
+        for (int i = 0; i < A_constraint.rows(); i++) {
+          if (A_constraint(i, i) != 0) { // Assumes diagonal
+            x_next(i) = std::min(std::max(x_next(i), lower_bound_x(i)), upper_bound_x(i));
+          }
+        }
+      }
+
       lambda_hat.col(k) = pair.second;
 
       x_hat.col(k+1) = x_next;
@@ -923,31 +897,29 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       drake::math::RotationMatrix<double>(), {0, 0, 0.0});
 
     // RigidTransform<double> X_1 = RigidTransform<double>(
-    //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+    //   drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
     // RigidTransform<double> X_2 = RigidTransform<double>(
     //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
     // RigidTransform<double> X_3 = RigidTransform<double>(
-    //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+    //   drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
     // RigidTransform<double> X_4 = RigidTransform<double>(
-    //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
-
+    //   drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+      
     RigidTransform<double> X_1 = RigidTransform<double>(
       drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
     RigidTransform<double> X_2 = RigidTransform<double>(
-      drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+      drake::math::RotationMatrix<double>(), {-0.08, -0.04, 0.05});
     RigidTransform<double> X_3 = RigidTransform<double>(
-      drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
-    RigidTransform<double> X_4 = RigidTransform<double>(
-      drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
-      
+      drake::math::RotationMatrix<double>(), {-0.08, 0.04, 0.05});
+
     plant_sim.WeldFrames(plant_sim.world_frame(),
                         plant_sim.GetFrameByName("base_link_1"), X_1);
     plant_sim.WeldFrames(plant_sim.world_frame(),
                         plant_sim.GetFrameByName("base_link_2"), X_2);
     plant_sim.WeldFrames(plant_sim.world_frame(),
                         plant_sim.GetFrameByName("base_link_3"), X_3);
-    plant_sim.WeldFrames(plant_sim.world_frame(),
-                        plant_sim.GetFrameByName("base_link_4"), X_4);                                                  
+    // plant_sim.WeldFrames(plant_sim.world_frame(),
+    //                     plant_sim.GetFrameByName("base_link_4"), X_4);                                                  
     plant_sim.WeldFrames(plant_sim.world_frame(),
                         plant_sim.GetFrameByName("ground"), X_G);
 

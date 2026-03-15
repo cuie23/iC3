@@ -107,23 +107,16 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
   double max_eig = eigs.maxCoeff();
   double min_eig = eigs.minCoeff();
 
-  std::cout << x_init.transpose() << std::endl;
-  std::cout << "min eigenvalue " << min_eig << std::endl;
-  std::cout << "max eigenvalue " << max_eig << std::endl;
-
-  MatrixXd sym_diff = F_[0] - F_[0].transpose();
-  std::cout << "symmetric difference norm " << sym_diff.norm() << std::endl << std::endl;
-
   if (regularized) {
-    flag = LCPSolver.SolveLcpFastRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 2, -8);
+    flag = LCPSolver.SolveLcpLemkeRegularized(
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 2, 2);
   } else {
     flag = LCPSolver.SolveLcpFast(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }
 
   if (flag == 0) {
     std::cout << "LCP failed: returning x_init" << std::endl;
-    return std::make_pair(x_final, VectorXd::Zero(F_[0].cols()));
+    return std::make_pair(x_init, VectorXd::Zero(F_[0].cols()));
   }
 
   x_final = A_[0] * x_init + B_[0] * u + D_[0] * force + d_[0];

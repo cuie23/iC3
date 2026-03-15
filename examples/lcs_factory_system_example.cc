@@ -1418,22 +1418,20 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
     drake::math::RotationMatrix<double>(), {0, 0, 0.0});
 
   // RigidTransform<double> X_1_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+  //   drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
   // RigidTransform<double> X_2_lcs = RigidTransform<double>(
   //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
   // RigidTransform<double> X_3_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+  //   drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
   // RigidTransform<double> X_4_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+  //   drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
 
   RigidTransform<double> X_1_lcs = RigidTransform<double>(
     drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
   RigidTransform<double> X_2_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+    drake::math::RotationMatrix<double>(), {-0.08, -0.04, 0.05});
   RigidTransform<double> X_3_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
-  RigidTransform<double> X_4_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+    drake::math::RotationMatrix<double>(), {-0.08, 0.04, 0.05});
 
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
                           plant_for_lcs.GetFrameByName("base_link_1"), X_1_lcs);
@@ -1441,8 +1439,8 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
                           plant_for_lcs.GetFrameByName("base_link_2"), X_2_lcs);
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
                           plant_for_lcs.GetFrameByName("base_link_3"), X_3_lcs);
-  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-                          plant_for_lcs.GetFrameByName("base_link_4"), X_4_lcs);                                                  
+  // plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
+  //                         plant_for_lcs.GetFrameByName("base_link_4"), X_4_lcs);                                                  
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
                           plant_for_lcs.GetFrameByName("ground"), X_G_lcs);
 
@@ -1487,9 +1485,9 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   fingertip_collision_geoms.push_back(
     plant_for_lcs.GetCollisionGeometriesForBody(
         plant_for_lcs.GetBodyByName("fingertip_3"))[0]);
-  fingertip_collision_geoms.push_back(
-    plant_for_lcs.GetCollisionGeometriesForBody(
-        plant_for_lcs.GetBodyByName("fingertip_4"))[0]); 
+  // fingertip_collision_geoms.push_back(
+  //   plant_for_lcs.GetCollisionGeometriesForBody(
+  //       plant_for_lcs.GetBodyByName("fingertip_4"))[0]); 
 
 	std::vector<GeometryId> cube_collision_geoms;
   for (int i = 0; i <= 8; i++) {
@@ -1505,7 +1503,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
 	for (auto geom_id : fingertip_collision_geoms) {
 		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
   }
-
+  // fingertip-ground contact pairs
   for (auto geom_id : fingertip_collision_geoms) {
 		contact_pairs.emplace_back(geom_id, ground_collision_geom);
   }
@@ -1532,22 +1530,20 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
     drake::math::RotationMatrix<double>(), {0, 0, 0.0});
 
   // RigidTransform<double> X_1 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
+  //   drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
   // RigidTransform<double> X_2 = RigidTransform<double>(
   //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
   // RigidTransform<double> X_3 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
+  //   drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
   // RigidTransform<double> X_4 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
+  //   drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
 
   RigidTransform<double> X_1 = RigidTransform<double>(
     drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
   RigidTransform<double> X_2 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
+    drake::math::RotationMatrix<double>(), {-0.08, -0.04, 0.05});
   RigidTransform<double> X_3 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
-  RigidTransform<double> X_4 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+    drake::math::RotationMatrix<double>(), {-0.08, 0.04, 0.05});
 
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("base_link_1"), X_1);
@@ -1555,8 +1551,8 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
                    plant.GetFrameByName("base_link_2"), X_2);
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("base_link_3"), X_3);
-  plant.WeldFrames(plant.world_frame(),
-                   plant.GetFrameByName("base_link_4"), X_4);                                                  
+  // plant.WeldFrames(plant.world_frame(),
+  //                  plant.GetFrameByName("base_link_4"), X_4);                                                  
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("ground"), X_G);
 
