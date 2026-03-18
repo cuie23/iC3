@@ -43,6 +43,8 @@ public:
  explicit iC3(
     MultibodyPlant<double>& plant,
     MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    MultibodyPlant<double>& plant_rollout,
+    MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     C3::CostMatrices& costs, 
     C3ControllerOptions controller_options, iC3Options ic3_options, 
     int example_idx);
@@ -61,7 +63,10 @@ public:
     vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
-    const vector<SortedPair<GeometryId>>& contact_geoms);
+    drake::systems::Context<double>& context_rollout,
+    drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout, 
+    const vector<SortedPair<GeometryId>>& contact_geoms,
+    const vector<SortedPair<GeometryId>>& contact_geoms_rollout);
 
 private:
   
@@ -109,6 +114,8 @@ private:
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;
+  const drake::multibody::MultibodyPlant<double>& plant_rollout_;
+  const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout_;
 
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
