@@ -34,9 +34,12 @@ namespace c3 {
 namespace systems {
 
 iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
+  MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     C3::CostMatrices& costs, C3ControllerOptions controller_options, iC3Options ic3_options, int example_idx)
     : plant_(plant),
       plant_ad_(plant_ad),
+      plant_rollout_(plant_rollout),
+      plant_ad_rollout_(plant_ad_rollout),
       controller_options_(controller_options),
       ic3_options_(ic3_options),
       N_(controller_options_.lcs_factory_options.N),
@@ -89,7 +92,10 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> iC3::ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
-    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms) {
+    drake::systems::Context<double>& context_rollout,
+    drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout, 
+    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms,
+    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms_rollout) {
 
     std::vector<double> x_init = *controller_options_.x_init;
     VectorXd x0 = Eigen::Map<VectorXd>(x_init.data(), x_init.size());    
@@ -141,6 +147,9 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
     LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
         contact_geoms, controller_options_.lcs_factory_options);
+
+    LCSFactory lcs_factory_rollout(plant_rollout_, context_rollout, plant_ad_rollout_,
+       context_ad_rollout, contact_geoms_rollout, controller_options_.lcs_factory_options);
 
     LCS lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
 
@@ -234,34 +243,37 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         A(3*i+2, 3*i+2) = 1;
 
         // Velocity constraints
-        A(19 + 3*i) = 1;
-        A(19 + 3*i + 1) = 1;
-        A(19 + 3*i + 2) = 1;
+        A(16 + 3*i) = 1;
+        A(16 + 3*i + 1) = 1;
+        A(16 + 3*i + 2) = 1;
 
-        lower_bound(3*i) = -0.1;
-        lower_bound(3*i+1) = -0.1;
-        lower_bound(3*i+2) = -0.03;
-        lower_bound(19 + 3*i) = -3;
-        lower_bound(19 + 3*i+1) = -3;
-        lower_bound(19 + 3*i+2) = -3;
+        // Offset from initial position
+        lower_bound(3*i) = x0(3*i) - 0.1;
+        lower_bound(3*i+1) = x0(3*i+1) - 0.1;
+        lower_bound(3*i+2) = x0(3*i+2) - 0.03;
 
-        upper_bound(3*i) = 0.1;
-        upper_bound(3*i+1) = 0.1;
-        upper_bound(3*i+2) = 0.05;
-        upper_bound(19 + 3*i) = 3;
-        upper_bound(19 + 3*i+1) = 3;
-        upper_bound(19 + 3*i+2) = 3;
+        lower_bound(16 + 3*i) = -0.2;
+        lower_bound(16 + 3*i+1) = -0.2;
+        lower_bound(16 + 3*i+2) = -0.2;
+
+        upper_bound(3*i) = x0(3*i) + 0.1;
+        upper_bound(3*i+1) = x0(3*i+1) + 0.1;
+        upper_bound(3*i+2) = x0(3*i+2) + 0.08;
+
+        upper_bound(16 + 3*i) = 0.2;
+        upper_bound(16 + 3*i+1) = 0.2;
+        upper_bound(16 + 3*i+2) = 0.2;
 
 
         A_u(3*i, 3*i) = 1;
         A_u(3*i+1, 3*i+1) = 1;
         
-        lower_bound_u(3*i) = -20;
-        lower_bound_u(3*i+1) = -20;
+        lower_bound_u(3*i) = -10;
+        lower_bound_u(3*i+1) = -10;
         //lower_bound_u(3*i+2) = 0;
         
-        upper_bound_u(3*i) = 20;
-        upper_bound_u(3*i+1) = 20;
+        upper_bound_u(3*i) = 10;
+        upper_bound_u(3*i+1) = 10;
         //upper_bound_u(3*i+2) = 4;
       }
 
@@ -406,7 +418,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       }
 
       auto lcs_start = std::chrono::high_resolution_clock::now();
-      auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory, A, lower_bound, upper_bound);
+      auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x0, u_hat, lcs_factory_rollout, A, lower_bound, upper_bound);
       auto lcs_end = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> lcs_elapsed = lcs_end - lcs_start;
       std::cout << "LCS rollout time: " << lcs_elapsed.count() << " seconds\n";

@@ -1007,10 +1007,12 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
       plant_for_lcs, plant_diagram_context.get());
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
-  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, 0);
+  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, plant_for_lcs, 
+      *plant_autodiff, cost, options, ic3_options, 0);
   
   auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
-    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
+    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
+        plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
   std::cout << "computed traj" << std::endl;
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
@@ -1290,11 +1292,13 @@ int RunHandTestiC3(drake::lcm::DrakeLcm& lcm) {
       plant_for_lcs, plant_diagram_context.get());
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
-  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, 1);
+  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, plant_for_lcs, 
+    *plant_autodiff, cost, options, ic3_options, 1);
   
 
   auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
-    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
+    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
+      plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
   std::cout << "computed traj" << std::endl;
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
@@ -1417,21 +1421,12 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   RigidTransform<double> X_G_lcs = RigidTransform<double>(
     drake::math::RotationMatrix<double>(), {0, 0, 0.0});
 
-  // RigidTransform<double> X_1_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
-  // RigidTransform<double> X_2_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
-  // RigidTransform<double> X_3_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
-  // RigidTransform<double> X_4_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
-
   RigidTransform<double> X_1_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
   RigidTransform<double> X_2_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, -0.04, 0.05});
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
   RigidTransform<double> X_3_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, 0.04, 0.05});
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
 
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
                           plant_for_lcs.GetFrameByName("base_link_1"), X_1_lcs);
@@ -1446,28 +1441,48 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
 
   plant_for_lcs.Finalize();
 
-  std::cout << "=== Positions ===" << std::endl;
-  int pos_idx = 0;
-	for (const auto& pname : plant_for_lcs.GetPositionNames()) {
-		std::cout << "position " << pos_idx << ": " << pname << std::endl;
-    pos_idx++;
-	}
-  std::cout << "\n=== Velocities ===" << std::endl;
-  int vel_idx = 0;
-	for (const auto& vname : plant_for_lcs.GetVelocityNames()) {
-		std::cout << "velocity " << vel_idx << ": " << vname << std::endl;
-    vel_idx++;
-	}
-  std::cout << "\n=== Actuators ===" << std::endl;
-  int u_idx = 0;
-  	for (const auto& vname : plant_for_lcs.GetActuatorNames()) {
-		std::cout << "actuator " << u_idx << ": " << vname << std::endl;
-    u_idx++;
-	}
-
-
   // Build the plant diagram.
   auto plant_diagram = plant_builder.Build();
+
+
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder_rollout;
+  auto [plant_rollout, scene_graph_rollout] =
+      AddMultibodyPlantSceneGraph(&plant_builder_rollout, 0);
+  Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
+
+  const std::string hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand.sdf";
+	const std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
+
+  parser_rollout.AddModels(hand_file_rollout);
+  parser_rollout.AddModels(cube_file_rollout);
+  parser_rollout.AddModels(ground_file_rollout);
+
+  RigidTransform<double> X_G_rollout = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
+
+  RigidTransform<double> X_1_rollout = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
+  RigidTransform<double> X_2_rollout = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
+  RigidTransform<double> X_3_rollout = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0, 0, 0});
+
+  plant_rollout.WeldFrames(plant_rollout.world_frame(),
+                          plant_rollout.GetFrameByName("base_link_1"), X_1_rollout);
+  plant_rollout.WeldFrames(plant_rollout.world_frame(),
+                          plant_rollout.GetFrameByName("base_link_2"), X_2_rollout);
+  plant_rollout.WeldFrames(plant_rollout.world_frame(),
+                          plant_rollout.GetFrameByName("base_link_3"), X_3_rollout);                                                
+  plant_rollout.WeldFrames(plant_rollout.world_frame(),
+                          plant_rollout.GetFrameByName("ground"), X_G_rollout);
+
+  plant_rollout.Finalize();
+
+  // Build the plant diagram.
+  auto plant_diagram_rollout = plant_builder_rollout.Build();
+
 
   // Retrieve collision geometries for relevant bodies.
   GeometryId ground_collision_geom = 
@@ -1485,9 +1500,6 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   fingertip_collision_geoms.push_back(
     plant_for_lcs.GetCollisionGeometriesForBody(
         plant_for_lcs.GetBodyByName("fingertip_3"))[0]);
-  // fingertip_collision_geoms.push_back(
-  //   plant_for_lcs.GetCollisionGeometriesForBody(
-  //       plant_for_lcs.GetBodyByName("fingertip_4"))[0]); 
 
 	std::vector<GeometryId> cube_collision_geoms;
   for (int i = 0; i <= 8; i++) {
@@ -1512,6 +1524,46 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
 		contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
   }
 
+
+  // Retrieve collision geometries for relevant bodies (ROLLOUT PLANT)
+  GeometryId ground_collision_geom_rollout = 
+    plant_rollout.GetCollisionGeometriesForBody(
+          plant_rollout.GetBodyByName("ground"))[0];
+
+  std::vector<GeometryId> fingertip_collision_geoms_rollout;
+  // Index, middle, ring, thumb
+  fingertip_collision_geoms_rollout.push_back(
+    plant_rollout.GetCollisionGeometriesForBody(
+        plant_rollout.GetBodyByName("fingertip_1"))[0]);
+  fingertip_collision_geoms_rollout.push_back(
+    plant_rollout.GetCollisionGeometriesForBody(
+        plant_rollout.GetBodyByName("fingertip_2"))[0]);
+  fingertip_collision_geoms_rollout.push_back(
+    plant_rollout.GetCollisionGeometriesForBody(
+        plant_rollout.GetBodyByName("fingertip_3"))[0]);
+
+	std::vector<GeometryId> cube_collision_geoms_rollout;
+  for (int i = 0; i <= 8; i++) {
+		cube_collision_geoms_rollout.push_back(
+			plant_rollout.GetCollisionGeometriesForBody(
+          plant_rollout.GetBodyByName("cube"))[i]);
+	}
+
+  // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs_rollout;
+
+  // fingertip-cube contact pairs
+	for (auto geom_id : fingertip_collision_geoms_rollout) {
+		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[0], geom_id);
+  }
+  // fingertip-ground contact pairs
+  for (auto geom_id : fingertip_collision_geoms_rollout) {
+		contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
+  }
+  // cube-ground contact pairs
+  for (int i = 1; i < cube_collision_geoms_rollout.size(); i++) {
+		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
+  }
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
@@ -1539,11 +1591,11 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   //   drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
 
   RigidTransform<double> X_1 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
+    drake::math::RotationMatrix<double>(), {0.0, 0, 0.0});
   RigidTransform<double> X_2 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, -0.04, 0.05});
+    drake::math::RotationMatrix<double>(), {-0.0, -0.0, 0.0});
   RigidTransform<double> X_3 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, 0.04, 0.05});
+    drake::math::RotationMatrix<double>(), {-0.0, 0.0, 0.0});
 
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("base_link_1"), X_1);
@@ -1570,17 +1622,27 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_autodiff =
+  auto plant_lcs_autodiff =
       drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
+  auto plant_lcs_context_autodiff = plant_lcs_autodiff->CreateDefaultContext(); 
 
-  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_autodiff, cost, options, ic3_options, 2);
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
+      plant_diagram_rollout->CreateDefaultContext();
+  auto plant_rollout_autodiff =
+      drake::systems::System<double>::ToAutoDiffXd(plant);
+  auto& plant_rollout_context = plant_diagram_rollout->GetMutableSubsystemContext(
+      plant_rollout, plant_diagram_rollout_context.get());
+  auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
+
+  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_lcs_autodiff, 
+      plant_rollout, *plant_rollout_autodiff, cost, options, ic3_options, 2);
   
 
   auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
-    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, contact_pairs);
+    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
+      plant_rollout_context, *plant_rollout_context_autodiff, contact_pairs, contact_pairs_rollout);
   std::cout << "computed traj" << std::endl;
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
@@ -1659,7 +1721,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   // x0 << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
   std::vector<double> x_init = *options.x_init;
   x0 = Eigen::Map<Eigen::VectorXd>(x_init.data(), x_init.size());
-	//std::cout << "x0: " << x0.transpose() << std::endl;
+	std::cout << "x0: " << x0.transpose() << std::endl;
 
 	auto& plant_context =
       diagram->GetMutableSubsystemContext(plant, diagram_context.get());

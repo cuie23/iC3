@@ -10,26 +10,24 @@ Q_quaternion_weight: 5000
 
 quaternion_regularizer_fraction: 0.0
 
-x_init: [0.0, 0, -0.0,  # finger 1  
-         0.0, -0.0, 0.0,   # finger 2
-         0.0, 0.0, 0.0,   # finger 3
-         #0, 0, 0.0,  # finger 4
+x_init: [0, 0.08, 0.05,  # finger 1  
+         0.04, -0.08, 0.05,   # finger 2
+         -0.04, -0.08, 0.05,   # finger 3
          1, 0, 0, 0,  # cube orientation
          0, 0, 0.05,  # cube position
          0, 0, 0,     # finger 1 velo
          0, 0, 0,     # finger 2 velo
          0, 0, 0,     # finger 3 velo
-         #0, 0, 0,     # finger 4 velo
          0, 0, 0,     # cube ang velo
          0, 0, 0]   	# cube velo
 
 
-x_des: [0.0, 0, -0.0,  # finger 1  
-         0.0, -0.0, 0.0,   # finger 2
-         0.0, 0.0, 0.0,   # finger 3
+x_des: [0, 0.08, 0.05,  # finger 1  
+         0.04, -0.08, 0.05,   # finger 2
+         -0.04, -0.08, 0.05,   # finger 3
          # 0, 0, 0.0,   # finger 4
          # 0, 0, 1, 0,  # cube orientation (180 about y)
-         0.707, 0, 0.707, 0,  # cube orientation (90 about y)
+         0.707, -0.707, 0, 0,  # cube orientation (90 about y)
          #0, 0, 0, 1,  # cube orientation (180 about z)
          0, 0, 0.05,  # cube position
          0, 0, 0,     # finger 1 velo
@@ -47,8 +45,8 @@ lcs_factory_options:
   num_friction_directions: 2
   num_contacts: 14
   spring_stiffness: 0
-  mu: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] #, 1, 1]
-  N: 100    
+  mu: [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8] #, 0.8, 0.8]
+  N: 200
   dt: 0.01
 
 c3_options:
@@ -58,7 +56,7 @@ c3_options:
   # penalize_snap: false
   # snap_scaling: 0.5 # If too big, can cause non-convexity
 
-  warm_start: false
+  warm_start: true
   end_on_qp_step: true
   scale_lcs: false
 
@@ -67,20 +65,20 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 8
-  gamma: 1.03
+  admm_iter: 10
+  gamma: 1.02
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
-  w_R: 5 #Penalty on all decision variables, assuming scalar
-  w_G: 200 #Penalty on all decision variables, assuming scalar
-  w_U: 5 #State Tracking Error, assuming diagonal
+  w_R: 20 #Penalty on all decision variables, assuming scalar
+  w_G: 100 #Penalty on all decision variables, assuming scalar
+  w_U: 20 #State Tracking Error, assuming diagonal
 
-  q_vector: [500, 500, 50,    # finger 1
-             500, 500, 50,    # finger 2
-             500, 500, 50,    # finger 3
+  q_vector: [1000, 1000, 100,    # finger 1
+             1000, 1000, 100,    # finger 2
+             1000, 1000, 100,    # finger 3
              # 500, 500, 50,    # finger 4
              1, 1, 1, 1,
-             1500, 1500, 50,
+             500, 500, 300,
              3, 3, 3,          # finger 1 velo
              3, 3, 3,          # finger 2 velo
              3, 3, 3,          # finger 3 velo 
@@ -88,14 +86,14 @@ c3_options:
              1, 1, 1,
              1, 1, 1]
 
-  r_vector: [1, 1, 1,        # finger 1 actuation
-             1, 1, 1,        # finger 2 actuation
+  r_vector: [1, 1, 0.5,        # finger 1 actuation
+             1, 1, 0.5,        # finger 2 actuation
              # 1, 1, 1,        # finger 3 actuation
-             1, 1, 1]        # finger 4 actuation
+             1, 1, 0.5]        # finger 4 actuation
   
   #Penalty on matching projected variables
-  g_x: [10, 10, 10, 10, 10, 10, 10, 10, 10, # 10, 10, 10,   # hand pos
-        50, 50, 50, 50, 10, 10, 10,                      	# cube pos
+  g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50, # 10, 10, 10,   # hand pos
+        50, 50, 50, 50, 10, 10, 50,                      	# cube pos
         1, 1, 1, 1, 1, 1, 1, 1, 1, # 1, 1, 1,  						  # hand velo
         1, 1, 1, 1, 1, 1]                                 # cube velo
   g_gamma: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] #, 1, 1]
@@ -115,8 +113,8 @@ c3_options:
 
 
   #Penalty on matching the QP variables
-  u_x: [10, 10, 10, 10, 10, 10, 10, 10, 10, # 10, 10, 10,   # hand pos
-        50, 50, 50, 50, 10, 10, 10,                       # cube pos
+  u_x: [100, 100, 100, 100, 100, 100, 100, 100, 100, # 10, 10, 10,   # hand pos
+        100, 100, 100, 100, 10, 10, 50,                       # cube pos
         10, 10, 10, 10, 10, 10, 10, 10, 10, # 10, 10, 10,   # hand velo
         10, 10, 10, 10, 10, 10]                           # cube velo
   u_gamma: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] #, 1, 1]
