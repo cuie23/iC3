@@ -1402,7 +1402,7 @@ int RunHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   return 0;
 }
 
-int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
+int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
   
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
@@ -1612,10 +1612,19 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm) {
 
 
   // Load controller options and cost matrices.
-  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
-      "examples/resources/multifinger_hand/c3_controller_point_hand_options.yaml");
-  iC3Options ic3_options = drake::yaml::LoadYamlFile<iC3Options>(
-      "examples/resources/multifinger_hand/point_hand_iC3_options.yaml");
+  std::string c3_options_file;
+  std::string ic3_options_file;
+
+  if (example == 0) {
+    c3_options_file = "examples/resources/multifinger_hand/c3_controller_point_hand_options.yaml";
+    ic3_options_file = "examples/resources/multifinger_hand/point_hand_iC3_options.yaml";
+  } else if (example == 1) {
+    c3_options_file = "examples/resources/multifinger_hand/c3_controller_point_hand_180_options.yaml";
+    ic3_options_file = "examples/resources/multifinger_hand/point_hand_180_iC3_options.yaml";
+  }
+
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(c3_options_file);
+  iC3Options ic3_options = drake::yaml::LoadYamlFile<iC3Options>(ic3_options_file);
   C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
       options.c3_options, options.lcs_factory_options.N);
   
@@ -2106,7 +2115,10 @@ int main(int argc, char* argv[]) {
     return RunHandTestiC3(lcm);
   } else if (FLAGS_experiment_type == "iC3_point_hand") {
     std::cout << "Running iC3 point hand Test..." << std::endl;
-    return RunPointHandTestiC3(lcm);
+    return RunPointHandTestiC3(lcm, 0);
+  } else if (FLAGS_experiment_type == "iC3_point_hand_180") {
+    std::cout << "Running iC3 point hand Test..." << std::endl;
+    return RunPointHandTestiC3(lcm, 1);
   } else if (FLAGS_experiment_type == "point_hand_mpc") {
     std::cout << "Running iC3 point hand MPC Test..." << std::endl;
     return RunPointHandMPC();
