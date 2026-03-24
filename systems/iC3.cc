@@ -253,16 +253,16 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         lower_bound(3*i+1) = x0(3*i+1) - 0.1;
         lower_bound(3*i+2) = x0(3*i+2) - 0.01;
 
-        lower_bound(16 + 3*i) = -0.5;
-        lower_bound(16 + 3*i+1) = -0.5;
+        lower_bound(16 + 3*i) = -0.3;
+        lower_bound(16 + 3*i+1) = -0.3;
         lower_bound(16 + 3*i+2) = -0.05;
 
         upper_bound(3*i) = x0(3*i) + 0.1;
         upper_bound(3*i+1) = x0(3*i+1) + 0.1;
         upper_bound(3*i+2) = x0(3*i+2) + 0.01;
 
-        upper_bound(16 + 3*i) = 0.5;
-        upper_bound(16 + 3*i+1) = 0.5;
+        upper_bound(16 + 3*i) = 0.3;
+        upper_bound(16 + 3*i+1) = 0.3;
         upper_bound(16 + 3*i+2) = 0.05;
 
 
@@ -378,20 +378,31 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         // Only keep segment_length x's and u's
         for (int j = 0; j < segment_length; j++) {
           c3_xs.col(indexer) = x_sol[j];
-          u_hat.col(indexer) = u_sol[j];
+
+          // HARDCODED thresholding inputs
+          for (int row = 0; row < n_u_; row++) {
+            u_hat.col(indexer)(row) = std::min(std::max(u_sol[j](row), lower_bound_u(row)), upper_bound_u(row));
+          }
+          // u_hat.col(indexer)(row) = u_sol[j];
+
           indexer++;
           u_sol_for_penalization.push_back(u_sol[j]);
         }
         if (i < ic3_options_.num_segments) { 
           if (example_idx_ == 2) {
-            MatrixXd segment_u_hat(MatrixXd::Zero(n_u_, segment_length));
-            for (int w = 0; w < segment_length; w++) {
-              segment_u_hat.col(w) = u_sol[w];
-            }
+            int freq = ic3_options_.segment_rollout_frequency;
             
-            // auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x_start, segment_u_hat, lcs_factory_rollout, A, lower_bound, upper_bound);
-            // x_start = x_hat_out.col(x_hat_out.cols()-1);
-            x_start = x_sol[segment_length];
+            if (freq > 0 &&  (i + 1) % freq == 0) {
+              MatrixXd segment_u_hat(MatrixXd::Zero(n_u_, freq*segment_length));
+              int col_indexer = 0;
+              for (int w = 0; w < freq*segment_length; w++) {
+                segment_u_hat.col(w) = u_sol[w + ((i % freq) * segment_length)];
+              }
+              auto [lcs_out, x_hat_out, lambda_hat_out] = DoLCSRollout(x_start, segment_u_hat, lcs_factory_rollout, A, lower_bound, upper_bound);
+              x_start = x_hat_out.col(x_hat_out.cols()-1);
+            } else {
+              x_start = x_sol[segment_length];
+            }
           } else {
             x_start = x_sol[segment_length];
           }
@@ -687,8 +698,8 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
   tuple<LCS, MatrixXd, MatrixXd> iC3::DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory input_factory, 
       MatrixXd A_constraint, VectorXd lower_bound_x, VectorXd upper_bound_x) {
 
-    int factor = ic3_options_.rollout_dt_scaling;
     int N = u_hat.cols();
+    int factor = ic3_options_.rollout_dt_scaling;
 
     LCSFactory factory = input_factory;
     factory.SetNewDt(dt_ / factor);
@@ -1170,12 +1181,12 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     double discount_factor = 1;
     for (int i = 0; i < N_; i++) {
       Q_.push_back(discount_factor * controller_options_.c3_options.Q);
-      discount_factor *=  controller_options_.c3_options.gamma;
       if (i < N_) {
         R_.push_back(discount_factor * controller_options_.c3_options.R);
         G_.push_back(discount_factor * controller_options_.c3_options.G);
         U_.push_back(discount_factor * controller_options_.c3_options.U);
       }
+      discount_factor *=  controller_options_.c3_options.gamma;
     }  
     Q_.push_back(discount_factor * controller_options_.c3_options.Q); 
 
