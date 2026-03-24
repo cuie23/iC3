@@ -4,6 +4,8 @@ add_input_constraints: true
 early_termination: true
 
 num_segments: 12
+segment_rollout_frequency: 0
+
 N_penalize_input_change: 0
 
 rollout_dt_scaling: 5
