@@ -1,4 +1,4 @@
-num_iters: 10
+num_iters: 2
 add_position_constraints: true
 add_input_constraints: true
 early_termination: true
@@ -15,6 +15,6 @@ print_costs: true
 rollout_Kp: [30, 30, 0, 30, 30, 0, 30, 30, 0]
 rollout_Kd: [5, 5, 0, 5, 5, 0, 5, 5, 0]
 
-ff_alpha: 0.9
+ff_alpha: 0.8
 # rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 # rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
