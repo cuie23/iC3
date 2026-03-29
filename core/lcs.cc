@@ -116,6 +116,7 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
 
   if (flag == 0) {
     std::cout << "LCP failed: returning x_init" << std::endl;
+    //std::cout << x_init.transpose() << std::endl;
     return std::make_pair(x_init, VectorXd::Zero(F_[0].cols()));
   }
 

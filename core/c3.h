@@ -226,6 +226,8 @@ class C3 {
      const std::vector<Eigen::VectorXd>& x_des, const C3Options& options,
      int z_size);
 
+  void UpdateFinalCost(const Eigen::MatrixXd Q_final, const Eigen::VectorXd bias);   
+
   std::vector<std::vector<Eigen::VectorXd>> warm_start_delta_;
   std::vector<std::vector<Eigen::VectorXd>> warm_start_binary_;
   std::vector<std::vector<Eigen::VectorXd>> warm_start_x_;
