@@ -72,8 +72,10 @@ private:
   
   // Given an initial x and u trajectory, return x rollout out using lcs
   // returns LCS, x_hat, lambda_hat
-  tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, LCSFactory factory,
-                                              MatrixXd A, VectorXd lower_bound_x, VectorXd upper_bound_x);
+  tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd c3_x_hat, MatrixXd u_hat, LCSFactory factory, LCSFactory rollout_factory,
+                                              MatrixXd A_constraint_x, VectorXd lower_bound_x, VectorXd upper_bound_x,
+                                              MatrixXd A_constraint_u, VectorXd lower_bound_u, VectorXd upper_bound_u,
+                                              vector<MatrixXd> K, vector<VectorXd> k_ff, double alpha);
  
   MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u);
 
@@ -102,6 +104,7 @@ private:
       MatrixXd lambda_hat, VectorXd xd, VectorXd ud, LCS lcs);
 
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory);
+  LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, VectorXd ee_position, int ee_idx, int num_ee);
 
   // removes num_timesteps_to_remove timesteps from the front of the LCS
   LCS ShortenLCSFront(LCS lcs, int num_timesteps_to_remove);

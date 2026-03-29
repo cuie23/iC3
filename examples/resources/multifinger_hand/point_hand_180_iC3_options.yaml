@@ -1,19 +1,20 @@
-num_iters: 1
+num_iters: 10
 add_position_constraints: true
 add_input_constraints: true
 early_termination: true
 
-num_segments: 40
-segment_rollout_frequency: 8
+num_segments: 20
+segment_rollout_frequency: 1
 
 N_penalize_input_change: 0
 
-rollout_dt_scaling: 5
+rollout_dt_scaling: 20
 
 print_costs: true
 
-# rollout_Kp: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
-# rollout_Kd: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+rollout_Kp: [30, 30, 0, 30, 30, 0, 30, 30, 0]
+rollout_Kd: [5, 5, 0, 5, 5, 0, 5, 5, 0]
 
-rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+ff_alpha: 0.9
+# rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+# rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

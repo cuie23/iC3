@@ -4,7 +4,7 @@
       <!-- Cube -->
       <link name="cube">
         <pose>0 0 0 0 0 0</pose> 
-        <inertial>
+        <!-- <inertial>
           <mass>0.2</mass>
           <inertia>
             <ixx>0.000332</ixx>
@@ -14,8 +14,18 @@
             <ixz>0.0</ixz>
             <iyz>0.0</iyz>
           </inertia>
-        </inertial>
-        
+        </inertial> -->
+        <inertial>
+          <mass>0.05</mass>
+          <inertia>
+            <ixx>0.000083</ixx>
+            <iyy>0.000083</iyy>
+            <izz>0.000083</izz>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>    
         <visual name="cube_visual">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
           <material><diffuse>0.8 0.4 0.0 1</diffuse></material>
