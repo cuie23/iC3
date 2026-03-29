@@ -16,11 +16,11 @@
           </inertia>
         </inertial> -->
         <inertial>
-          <mass>0.05</mass>
+          <mass>0.2</mass>
           <inertia>
-            <ixx>0.000083</ixx>
-            <iyy>0.000083</iyy>
-            <izz>0.000083</izz>
+            <ixx>0.000334</ixx>
+            <iyy>0.000334</iyy>
+            <izz>0.000334</izz>
             <ixy>0.0</ixy>
             <ixz>0.0</ixz>
             <iyz>0.0</iyz>

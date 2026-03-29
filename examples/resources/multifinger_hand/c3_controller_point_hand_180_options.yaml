@@ -62,8 +62,8 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 16
-  gamma: 1.01
+  admm_iter: 15
+  gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
@@ -74,12 +74,12 @@ c3_options:
              100000, 100000, 5000,    # finger 2
              100000, 100000, 5000,    # finger 3
              1, 1, 1, 1,
-             70000, 70000, 10000,
+             200000, 200000, 10000,
              1, 1, 1,          # finger 1 velo
              1, 1, 1,          # finger 2 velo
              1, 1, 1,          # finger 3 velo 
              0.2, 0.2, 0.2,
-             8, 8, 8]
+             10, 10, 10]
 
   r_vector: [1, 1, 1,        # finger 1 actuation
              1, 1, 1,        # finger 2 actuation
