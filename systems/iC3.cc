@@ -253,16 +253,16 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           A(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
           // Offset from initial position
-          lower_bound(3*i) = x0(3*i) - 0.07;
-          lower_bound(3*i+1) = x0(3*i+1) - 0.07;
+          lower_bound(3*i) = x0(3*i) - 0.1;
+          lower_bound(3*i+1) = x0(3*i+1) - 0.1;
           lower_bound(3*i+2) = x0(3*i+2) - 0.01;
 
           lower_bound(16 + 3*i) = -0.2;
           lower_bound(16 + 3*i+1) = -0.2;
           lower_bound(16 + 3*i+2) = -0.05;
 
-          upper_bound(3*i) = x0(3*i) + 0.07;
-          upper_bound(3*i+1) = x0(3*i+1) + 0.07;
+          upper_bound(3*i) = x0(3*i) + 0.1;
+          upper_bound(3*i+1) = x0(3*i+1) + 0.1;
           upper_bound(3*i+2) = x0(3*i+2) + 0.01;
 
           upper_bound(16 + 3*i) = 0.2;
