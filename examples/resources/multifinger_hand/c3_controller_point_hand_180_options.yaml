@@ -62,12 +62,12 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 15
+  admm_iter: 20
   gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 1000 #Penalty on all decision variables, assuming scalar
+  w_G: 800 #Penalty on all decision variables, assuming scalar
   w_U: 5 #State Tracking Error, assuming diagonal
 
   q_vector: [100000, 100000, 5000,    # finger 1
