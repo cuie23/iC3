@@ -4,23 +4,12 @@
       <!-- Cube -->
       <link name="cube">
         <pose>0 0 0 0 0 0</pose> 
-        <!-- <inertial>
-          <mass>0.2</mass>
-          <inertia>
-            <ixx>0.000332</ixx>
-            <iyy>0.000332</iyy>
-            <izz>0.000332</izz>
-            <ixy>0.0</ixy>
-            <ixz>0.0</ixz>
-            <iyz>0.0</iyz>
-          </inertia>
-        </inertial> -->
         <inertial>
-          <mass>0.5</mass>
+          <mass>0.05</mass>
           <inertia>
-            <ixx>0.000833</ixx>
-            <iyy>0.000833</iyy>
-            <izz>0.000833</izz>
+            <ixx>0.0005</ixx>
+            <iyy>0.0005</iyy>
+            <izz>0.0005</izz>
             <ixy>0.0</ixy>
             <ixz>0.0</ixz>
             <iyz>0.0</iyz>
@@ -74,10 +63,13 @@
           </material>
         </visual>
 
-         <collision name="cube">
+        <collision name="cube">
           <pose>0 0 0 0 0 0</pose>
           <geometry>
-            <box><size>0.1 0.1 0.1</size></box>
+            <cylinder>
+              <radius>0.05</radius>
+              <length> 0.1 </length>
+            </cylinder>
           </geometry>
         <drake:proximity_properties>
           <drake:mu_static>0.8</drake:mu_static>

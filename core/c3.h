@@ -17,6 +17,7 @@ typedef drake::solvers::Binding<drake::solvers::QuadraticCost>
     QuadraticCostBinding;
 
 enum ConstraintVariable : uint8_t { STATE = 1, INPUT = 2, FORCE = 3 };
+enum CostVariable : uint8_t { POSITION = 1, VELOCITY = 2, INPUTS = 3 }; // won't let me repeat "INPUT" as an enum, idk why
 
 class C3 {
  public:
@@ -159,6 +160,11 @@ class C3 {
   void RemoveConstraints();
 
   void SetNPenalizeInputChange(int N) {N_penalize_input_change_ = N; }
+
+  void AddL1Cost(Eigen::MatrixXd A, CostVariable variable, int start_idx);
+
+  // L = Cholesky decomposition of Q or R matrix
+  void AddHuberCost(std::vector<Eigen::MatrixXd> L, double delta, CostVariable variable, int start_idx);
 
   /**
    * @brief Creates cost matrices from the provided C3Options.
