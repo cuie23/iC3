@@ -29,6 +29,20 @@ struct iC3Options {
 
   double ff_alpha;
 
+  double position_l2_decoupling_weight;
+  double velocity_l2_decoupling_weight;
+  double input_l2_decoupling_weight;
+  std::vector<std::vector<int>> l2_decoupling_indices;
+
+  double position_l1_weight;
+  double velocity_l1_weight;
+  double input_l1_weight;  
+
+  double position_huber_weight;
+  double velocity_huber_weight;
+  double input_huber_weight;  
+  double huber_delta;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(num_iters));
@@ -43,6 +57,17 @@ struct iC3Options {
     a->Visit(DRAKE_NVP(rollout_Kp));
     a->Visit(DRAKE_NVP(rollout_Kd));
     a->Visit(DRAKE_NVP(ff_alpha));
+    a->Visit(DRAKE_NVP(position_l2_decoupling_weight));
+    a->Visit(DRAKE_NVP(velocity_l2_decoupling_weight));
+    a->Visit(DRAKE_NVP(input_l2_decoupling_weight));
+    a->Visit(DRAKE_NVP(l2_decoupling_indices));
+    a->Visit(DRAKE_NVP(position_l1_weight));
+    a->Visit(DRAKE_NVP(velocity_l1_weight));
+    a->Visit(DRAKE_NVP(input_l1_weight));
+    a->Visit(DRAKE_NVP(position_huber_weight));
+    a->Visit(DRAKE_NVP(velocity_huber_weight));
+    a->Visit(DRAKE_NVP(input_huber_weight));
+    a->Visit(DRAKE_NVP(huber_delta));
 
   }
 };

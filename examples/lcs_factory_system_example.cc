@@ -203,12 +203,12 @@ class TrajToLcmSystem : public drake::systems::LeafSystem<double> {
 
 class ValueFunctionToLCMSystem : public drake::systems::LeafSystem<double> {
  public:
-  ValueFunctionToLCMSystem(vector<MatrixXd> H, vector<VectorXd> g, 
-      vector<MatrixXd> K, vector<VectorXd> k_ff)
-      : H_(H),
-        g_(g),
-        K_(K),
-        k_ff_(k_ff) {
+  ValueFunctionToLCMSystem(vector<vector<MatrixXd>> Hs, vector<vector<VectorXd>> gs, 
+      vector<vector<MatrixXd>> Ks, vector<vector<VectorXd>> k_ffs)
+      : Hs_(Hs),
+        gs_(gs),
+        Ks_(Ks),
+        k_ffs_(k_ffs) {
     this->DeclareAbstractOutputPort(
         "traj_message",
         &ValueFunctionToLCMSystem::CalcMessage);
@@ -224,52 +224,58 @@ class ValueFunctionToLCMSystem : public drake::systems::LeafSystem<double> {
       c3::LcmTrajectory::Trajectory traj;
       traj.traj_name = "lqr_output";
 
-      int N = K_.size();
-      int n_x = g_[0].size();
-      int n_u = k_ff_[0].size();
+      int num_iters = Ks_.size();
+      int N = Ks_[0].size();
+      int n_x = gs_[0][0].size();
+      int n_u = k_ffs_[0][0].size();
 
+      std::cout << "num iter: " << num_iters << std::endl;
       std::cout << "N: " << N << std::endl;
       std::cout << "n_x: " << n_x << std::endl;
       std::cout << "n_u: " << n_u << std::endl;
 
+      msg->num_iterations = num_iters;
       msg->num_timesteps_x = N + 1;
       msg->num_timesteps_u = N;
       msg->n_x = n_x;
       msg->n_u = n_u;
 
-      msg->H = vector<vector<vector<double>>>(N+1, vector<vector<double>>(n_x, vector<double>(n_x)));
-      msg->g = vector<vector<double>>(N+1, vector<double>(n_x));
-      msg->K = vector<vector<vector<double>>>(N, vector<vector<double>>(n_x, vector<double>(n_x)));
-      msg->k_ff = vector<vector<double>>(N, vector<double>(n_x));
+      msg->H = vector<vector<vector<vector<double>>>>(num_iters, 
+          vector<vector<vector<double>>>(N+1, vector<vector<double>>(n_x, vector<double>(n_x))));
+      msg->g = vector<vector<vector<double>>>(num_iters, vector<vector<double>>(N+1, vector<double>(n_x)));
+      msg->K = vector<vector<vector<vector<double>>>>(num_iters, 
+          vector<vector<vector<double>>>(N, vector<vector<double>>(n_x, vector<double>(n_x))));
+      msg->k_ff = vector<vector<vector<double>>>(num_iters, vector<vector<double>>(N, vector<double>(n_x)));
 
-      for (int k = 0; k < N + 1; k++) {
-        for (int i = 0; i < n_x; ++i) {
-          VectorXd tempRow = H_[k].row(i);
-          memcpy(msg->H[k][i].data(), tempRow.data(),
-                sizeof(double) * n_x);
-          
-          if (k < N) {
-            tempRow = K_[k].row(i);
-            memcpy(msg->K[k][i].data(), tempRow.data(),
-                  sizeof(double) * n_u);
+      for (int iter = 0; iter < num_iters; iter++) {
+        for (int k = 0; k < N + 1; k++) {
+          for (int i = 0; i < n_x; ++i) {
+            VectorXd tempRow = Hs_[iter][k].row(i);
+            memcpy(msg->H[iter][k][i].data(), tempRow.data(),
+                  sizeof(double) * n_x);
+            
+            if (k < N) {
+              tempRow = Ks_[iter][k].row(i);
+              memcpy(msg->K[iter][k][i].data(), tempRow.data(),
+                    sizeof(double) * n_u);
+            }
           }
-        }
-        memcpy(msg->g[k].data(), g_[k].data(),
-                sizeof(double) * n_x);  
+          memcpy(msg->g[iter][k].data(), gs_[iter][k].data(),
+                  sizeof(double) * n_x);  
 
-        if (k < N) {
-          memcpy(msg->k_ff[k].data(), k_ff_[k].data(),
-                sizeof(double) * n_u);  
+          if (k < N) {
+            memcpy(msg->k_ff[iter][k].data(), k_ffs_[iter][k].data(),
+                  sizeof(double) * n_u);  
+          }
+          
         }
-        
       }
-
   }
 
-  vector<MatrixXd> H_;
-  vector<VectorXd> g_;
-  vector<MatrixXd> K_;
-  vector<VectorXd> k_ff_;
+  vector<vector<MatrixXd>> Hs_;
+  vector<vector<VectorXd>> gs_;
+  vector<vector<MatrixXd>> Ks_;
+  vector<vector<VectorXd>> k_ffs_;
 };
 
 
@@ -1412,7 +1418,8 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
 	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
-	const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
+  // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
+  const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
 
   parser_for_lcs.AddModels(hand_file_lcs);
   parser_for_lcs.AddModels(cube_file_lcs);
@@ -1453,6 +1460,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   const std::string hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand.sdf";
 	const std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+  // const std::string cube_file_rollout = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
 
   parser_rollout.AddModels(hand_file_rollout);
@@ -1572,6 +1580,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
 	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+  //const std::string cube_file = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
   parser.AddModels(hand_file);

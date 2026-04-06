@@ -55,12 +55,12 @@ public:
   // 1: u_hat for each iC3 iteration
   // 2: C3's x solution for each iC3 iteration
   // 3: x's simulated with drake for each iC3 iteration
-  // 4: Quadratic term for LQR value function 
-  // 5: Linear term for LQR value function
-  // 6: LQR feedback gain
-  // 7: LQR feedforward gain
-  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>,
-    vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> ComputeTrajectory(
+  // 4: Quadratic terms for LQR value function for each iC3 iteration
+  // 5: Linear terms for LQR value function for each iC3 iteration
+  // 6: LQR feedback gains for each iC3 iteration
+  // 7: LQR feedforward gains for each iC3 iteration
+  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector< vector<MatrixXd>>, 
+      vector<vector<VectorXd>>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>> ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     drake::systems::Context<double>& context_rollout,
@@ -71,11 +71,12 @@ public:
 private:
   
   // Given an initial x and u trajectory, return x rollout out using lcs
-  // returns LCS, x_hat, lambda_hat
-  tuple<LCS, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd c3_x_hat, MatrixXd u_hat, LCSFactory factory, LCSFactory rollout_factory,
-                                              MatrixXd A_constraint_x, VectorXd lower_bound_x, VectorXd upper_bound_x,
-                                              MatrixXd A_constraint_u, VectorXd lower_bound_u, VectorXd upper_bound_u,
-                                              vector<MatrixXd> K, vector<VectorXd> k_ff, double alpha);
+  // returns LCS, x_hat, u_hat, lambda_hat
+  tuple<LCS, MatrixXd, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd x_hat_prev, MatrixXd c3_x_hat, MatrixXd u_hat, 
+                                              LCSFactory factory, LCSFactory rollout_factory, MatrixXd A_constraint_x, 
+                                              VectorXd lower_bound_x, VectorXd upper_bound_x, MatrixXd A_constraint_u, 
+                                              VectorXd lower_bound_u, VectorXd upper_bound_u, vector<MatrixXd> K, 
+                                              vector<VectorXd> k_ff, double alpha);
  
   MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u);
 
@@ -114,6 +115,11 @@ private:
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
     MatrixXd x_hat, const Eigen::VectorXd& x_des, vector<VectorXd> c3_quat_norms);
+
+  // Note: both override (parts of) Q_ and R_, make sure this doesn't conflict with quaternion cost terms
+  void UpdateDecouplingCosts(int position_idx, int velocity_idx);
+  void UpdateL1Costs(int position_idx, int num_positions, int velocity_idx, int num_velocities);
+  void UpdateHuberCosts(int position_idx, int num_positions, int velocity_idx, int num_velocities);
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;

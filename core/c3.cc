@@ -727,6 +727,179 @@ void C3::RemoveConstraints() {
   user_constraints_.clear();
 }
 
+
+// Manual implementation of L1 norm
+void C3::AddL1Cost(MatrixXd A, CostVariable variable, int start_idx) {
+
+  DRAKE_DEMAND(A.rows() == A.cols());
+
+  int var_size = A.rows();
+
+  // position l1 cost
+  if (variable == 1 || variable == 2) {
+    int discount_factor = 1;
+    drake::solvers::VectorXDecisionVariable y;
+    std::vector<drake::solvers::VectorXDecisionVariable> s;
+
+    y = prog_.NewContinuousVariables(N_+1);
+    for (int i = 0; i < N_+1; i++) {
+      s.push_back(prog_.NewContinuousVariables(var_size));
+    }
+
+    prog_.AddQuadraticCost(2 * MatrixXd::Identity(N_+1, N_+1), VectorXd::Zero(N_+1), y);
+    for (int i = 0; i < N_+1; i++) {
+      MatrixXd A_discounted = discount_factor * A;
+
+      MatrixXd M_1(A_discounted.rows(), A_discounted.cols() + var_size);
+      MatrixXd M_2(A_discounted.rows(), A_discounted.cols() + var_size);
+      M_1 << A_discounted, -MatrixXd::Identity(var_size, var_size);
+      M_2 << -A_discounted, -MatrixXd::Identity(var_size, var_size);
+      VectorXd b = A_discounted * x_desired_.at(i).segment(start_idx, var_size);
+
+      drake::solvers::VariableRefList vars;
+      vars.push_back(x_.at(i).segment(start_idx, var_size));
+      vars.push_back(s.at(i));
+      drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
+      Eigen::VectorXd lower_bound = Eigen::VectorXd::Constant(var_size, -std::numeric_limits<double>::infinity());
+    
+      // [A, -I] [x, s]ᵀ <= A(xd), equiv to A(x-xd) <= s
+      // [-A, -I] [x, s]ᵀ <= -A(xd), equiv to -A(x-xd) <= s
+      prog_.AddLinearConstraint(M_1, lower_bound, b, z);
+      prog_.AddLinearConstraint(M_2, lower_bound, -b, z);
+
+      prog_.AddLinearConstraint(VectorXd::Ones(var_size).transpose() * s.at(i) <= y(i)); // y is a 1d vector
+      prog_.AddLinearConstraint(VectorXd::Zero(var_size) <= s.at(i));
+
+      discount_factor *= options_.gamma;
+    }
+    prog_.AddLinearConstraint(VectorXd::Zero(N_+1) <= y);
+
+  }
+
+  // u l1 cost
+  if (variable == 3) {
+    int discount_factor = 1;
+    drake::solvers::VectorXDecisionVariable y;
+    std::vector<drake::solvers::VectorXDecisionVariable> s;
+
+    y = prog_.NewContinuousVariables(N_);
+    for (int i = 0; i < N_; i++) {
+      s.push_back(prog_.NewContinuousVariables(var_size));
+    }
+
+    prog_.AddQuadraticCost(2 * MatrixXd::Identity(N_, N_), VectorXd::Zero(N_), y);
+    for (int i = 0; i < N_; i++) {
+      MatrixXd A_discounted = discount_factor * A;
+
+      MatrixXd M_1(A_discounted.rows(), A_discounted.cols() + var_size);
+      MatrixXd M_2(A_discounted.rows(), A_discounted.cols() + var_size);
+      M_1 << A_discounted, -MatrixXd::Identity(var_size, var_size);
+      M_2 << -A_discounted, -MatrixXd::Identity(var_size, var_size);
+      VectorXd b = A_discounted * u_desired_.at(i).segment(start_idx, var_size);
+
+      drake::solvers::VariableRefList vars;
+      vars.push_back(u_.at(i).segment(start_idx, var_size));
+      vars.push_back(s.at(i));
+      drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
+      Eigen::VectorXd lower_bound = Eigen::VectorXd::Constant(var_size, -std::numeric_limits<double>::infinity());
+    
+      // [A, -I] [x, s]ᵀ <= A(xd), equiv to A(x-xd) <= s
+      // [-A, -I] [x, s]ᵀ <= -A(xd), equiv to -A(x-xd) <= s
+      prog_.AddLinearConstraint(M_1, lower_bound, b, z);
+      prog_.AddLinearConstraint(M_2, lower_bound, -b, z);
+
+      prog_.AddLinearConstraint(VectorXd::Ones(var_size).transpose() * s.at(i) <= y(i)); // y is a 1d vector
+      prog_.AddLinearConstraint(VectorXd::Zero(var_size) <= s.at(i));
+
+      discount_factor *= options_.gamma;
+    }
+    prog_.AddLinearConstraint(VectorXd::Zero(N_) <= y);
+  }
+
+
+}
+
+// y - quadratic slack variables
+// v,w - positive/negative outlier slack variables
+void C3::AddHuberCost(vector<MatrixXd> L, double delta, CostVariable variable, int start_idx) {
+  int var_size = L[0].rows();
+
+  if (variable == 1 || variable == 2) {
+    vector<drake::solvers::VectorXDecisionVariable> y;
+    vector<drake::solvers::VectorXDecisionVariable> v;
+    vector<drake::solvers::VectorXDecisionVariable> w;
+
+    for (int i = 0; i < N_+1; i++) {
+      y.push_back(prog_.NewContinuousVariables(var_size));
+      v.push_back(prog_.NewContinuousVariables(var_size));
+      w.push_back(prog_.NewContinuousVariables(var_size));
+    }
+        
+    
+    for (int i = 0; i < N_+1; i++) {
+      prog_.AddQuadraticCost(MatrixXd::Identity(var_size, var_size), VectorXd::Zero(var_size), y.at(i));
+      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, v.at(i));
+      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, w.at(i));
+
+      MatrixXd M(var_size, 4 * var_size);
+      M << L.at(i).transpose(), -MatrixXd::Identity(var_size, var_size), 
+        -MatrixXd::Identity(var_size, var_size), MatrixXd::Identity(var_size, var_size);
+
+      drake::solvers::VariableRefList vars;
+      vars.push_back(x_.at(i).segment(start_idx, var_size));
+      vars.push_back(y.at(i));
+      vars.push_back(v.at(i));
+      vars.push_back(w.at(i));
+      drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
+    
+
+      prog_.AddLinearEqualityConstraint(M, L.at(i).transpose() * x_desired_.at(i).segment(start_idx, var_size), z);
+      prog_.AddLinearConstraint(MatrixXd::Identity(var_size, var_size), -delta * VectorXd::Ones(var_size), 
+                                  delta * VectorXd::Ones(var_size), y.at(i));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), v.at(i));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), w.at(i));
+    }
+  }
+
+  if (variable == 3) {
+    vector<drake::solvers::VectorXDecisionVariable> y;
+    vector<drake::solvers::VectorXDecisionVariable> v;
+    vector<drake::solvers::VectorXDecisionVariable> w;
+
+    for (int i = 0; i < N_; i++) {
+      y.push_back(prog_.NewContinuousVariables(var_size));
+      v.push_back(prog_.NewContinuousVariables(var_size));
+      w.push_back(prog_.NewContinuousVariables(var_size));
+    }
+        
+    
+    for (int i = 0; i < N_; i++) {
+      prog_.AddQuadraticCost(MatrixXd::Identity(var_size, var_size), VectorXd::Zero(var_size), y.at(i));
+      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, v.at(i));
+      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, w.at(i));
+
+      MatrixXd M(var_size, 4 * var_size);
+      M << L.at(i).transpose(), -MatrixXd::Identity(var_size, var_size), 
+        -MatrixXd::Identity(var_size, var_size), MatrixXd::Identity(var_size, var_size);
+
+      drake::solvers::VariableRefList vars;
+      vars.push_back(u_.at(i).segment(start_idx, var_size));
+      vars.push_back(y.at(i));
+      vars.push_back(v.at(i));
+      vars.push_back(w.at(i));
+      drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
+    
+
+      prog_.AddLinearEqualityConstraint(M, L.at(i).transpose() * u_desired_.at(i), z);
+      prog_.AddLinearConstraint(MatrixXd::Identity(var_size, var_size), -delta * VectorXd::Ones(var_size), 
+                                  delta * VectorXd::Ones(var_size), y.at(i));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), v.at(i));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), w.at(i));
+    }
+  }
+}
+
+
 const std::vector<LinearConstraintBinding>& C3::GetLinearConstraints() {
   return user_constraints_;
 }
