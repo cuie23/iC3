@@ -32,7 +32,7 @@ using drake::multibody::ContactResults;
 namespace c3 {
 namespace systems {
 
-class iC3 : public drake::systems::LeafSystem<double> {
+class iC3 {
 
 public:
 
@@ -49,6 +49,14 @@ public:
     C3ControllerOptions controller_options, iC3Options ic3_options, 
     int example_idx);
 
+ explicit iC3(
+    MultibodyPlant<double>& plant,
+    MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    MultibodyPlant<double>& plant_rollout,
+    MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
+    C3::CostMatrices& costs, C3ControllerOptions controller_options,
+    iC3Options ic3_options, C3ControllerOptions tracking_controller_options,
+    int example_idx);
 
   // Outputs
   // 0: x_hat for each iC3 iteration
@@ -78,6 +86,10 @@ private:
                                               VectorXd lower_bound_u, VectorXd upper_bound_u, vector<MatrixXd> K, 
                                               vector<VectorXd> k_ff, double alpha);
  
+  tuple<LCS, MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0,MatrixXd u_hat, 
+                                              LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
+                                              vector<VectorXd> g, vector<VectorXd> x_targets, int start_idx);
+
   MatrixXd RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u);
 
   tuple<MatrixXd, MatrixXd> RolloutUHatHand(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u,
@@ -109,6 +121,7 @@ private:
 
   // removes num_timesteps_to_remove timesteps from the front of the LCS
   LCS ShortenLCSFront(LCS lcs, int num_timesteps_to_remove);
+  LCS TruncateLCS(LCS lcs, int num_timesteps_to_keep);
 
   C3::CostMatrices ShortenCostsFront(int num_timesteps_to_remove);
 
@@ -129,6 +142,7 @@ private:
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
   iC3Options ic3_options_;
+  C3ControllerOptions tracking_c3_controller_options_;
 
   // Convenience variables for dimensions.
   int n_q_;       ///< Number of generalized positions.

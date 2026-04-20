@@ -1523,13 +1523,23 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
 	for (auto geom_id : fingertip_collision_geoms) {
 		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
   }
-  // fingertip-ground contact pairs
-  for (auto geom_id : fingertip_collision_geoms) {
-		contact_pairs.emplace_back(geom_id, ground_collision_geom);
+
+  if (example == 0) {
+    // fingertip-ground contact pairs
+    for (auto geom_id : fingertip_collision_geoms) {
+      contact_pairs.emplace_back(geom_id, ground_collision_geom);
+    }
   }
+
   // cube-ground contact pairs
-  for (int i = 1; i < cube_collision_geoms.size(); i++) {
-		contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+  if (example == 0) {
+    for (int i = 1; i <= 8; i++) {
+      contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+    }
+  } else if (example == 1) {
+    for (int i = 1; i <= 4; i++) {
+      contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+    }    
   }
 
 
@@ -1564,13 +1574,23 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
 	for (auto geom_id : fingertip_collision_geoms_rollout) {
 		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[0], geom_id);
   }
-  // fingertip-ground contact pairs
-  for (auto geom_id : fingertip_collision_geoms_rollout) {
-		contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
+  if (example == 0) {
+    // fingertip-ground contact pairs
+    for (auto geom_id : fingertip_collision_geoms_rollout) {
+      contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
+    }
   }
-  // cube-ground contact pairs
-  for (int i = 1; i < cube_collision_geoms_rollout.size(); i++) {
-		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
+
+  if (example == 0) {
+    // cube-ground contact pairs
+    for (int i = 1; i <= 8; i++) {
+      contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
+    }
+  } else if (example == 1) {
+    // cube-ground contact pairs
+    for (int i = 1; i <= 4; i++) {
+      contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
+    }
   }
 
   // Build the main diagram.
@@ -1654,12 +1674,20 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
       plant_rollout, plant_diagram_rollout_context.get());
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
 
-  auto ic3_controller = systems::iC3(plant_for_lcs, *plant_lcs_autodiff, 
-      plant_rollout, *plant_rollout_autodiff, cost, options, ic3_options, 2);
-  
+  std::unique_ptr<systems::iC3> ic3_controller;
+  if (example == 0) {
+    ic3_controller = std::make_unique<systems::iC3>(plant_for_lcs, *plant_lcs_autodiff, 
+        plant_rollout, *plant_rollout_autodiff, cost, options, ic3_options, 2);
+  } else if (example == 1) {
+    std::string c3_tracking_options_file = "examples/resources/multifinger_hand/point_hand_180_c3_tracking_options.yaml";
+    C3ControllerOptions tracking_c3_options = drake::yaml::LoadYamlFile<C3ControllerOptions>(c3_tracking_options_file);
+    ic3_controller = std::make_unique<systems::iC3>(plant_for_lcs, *plant_lcs_autodiff, 
+        plant_rollout, *plant_rollout_autodiff, cost, options, ic3_options, tracking_c3_options, 2);
+  }
+
 
   auto [x_traj, u_traj, c3_x_traj, x_real_traj, H, g, K, k_ff] = 
-    ic3_controller.ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
+    ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
       plant_rollout_context, *plant_rollout_context_autodiff, contact_pairs, contact_pairs_rollout);
   std::cout << "computed traj" << std::endl;
 

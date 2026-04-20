@@ -100,6 +100,8 @@ class C3 {
   void UpdateTarget(const std::vector<Eigen::VectorXd>& x_des);
   void UpdateInputTarget(const std::vector<Eigen::VectorXd>& u_des);
 
+  void SetPenalizeChange(bool value) { penalize_change_ = value; }
+
   /**
    * @brief Updates the provided cost matrices with new or modified values.
    *
@@ -161,10 +163,15 @@ class C3 {
 
   void SetNPenalizeInputChange(int N) {N_penalize_input_change_ = N; }
 
+  void AddAccelerationCost(int n_q, int n_v, double weight);
+
   void AddL1Cost(Eigen::MatrixXd A, CostVariable variable, int start_idx);
 
-  // L = Cholesky decomposition of Q or R matrix
-  void AddHuberCost(std::vector<Eigen::MatrixXd> L, double delta, CostVariable variable, int start_idx);
+  // L = Cholesky decomposition of Q or R matrix, serves as a cost shaping term
+  // NOTE: L does NOT change the cost weight relative to other costs in the program
+  void AddHuberCost(Eigen::MatrixXd L, double weight, double delta, CostVariable variable, int start_idx, int frequency);
+
+  void UpdateFinalCost(const Eigen::MatrixXd Q_final, const Eigen::VectorXd bias);   
 
   /**
    * @brief Creates cost matrices from the provided C3Options.
@@ -232,7 +239,6 @@ class C3 {
      const std::vector<Eigen::VectorXd>& x_des, const C3Options& options,
      int z_size);
 
-  void UpdateFinalCost(const Eigen::MatrixXd Q_final, const Eigen::VectorXd bias);   
 
   std::vector<std::vector<Eigen::VectorXd>> warm_start_delta_;
   std::vector<std::vector<Eigen::VectorXd>> warm_start_binary_;
@@ -249,6 +255,7 @@ class C3 {
   int N_penalize_input_change_;
 
   bool use_parallelization_in_projection_ = true;
+  bool penalize_change_ = true;
 
   /*!
    * Project delta_c onto the LCP constraint.

@@ -1,35 +1,47 @@
-num_iters: 2
+num_iters: 4
 add_position_constraints: true
 add_input_constraints: true
 early_termination: true
 
-num_segments: 40
+num_segments: 20
 segment_rollout_frequency: 1
-
-N_penalize_input_change: 0
 
 rollout_dt_scaling: 10
 
 print_costs: true
 
-# rollout_Kp: [30, 30, 0, 30, 30, 0, 30, 30, 0]
+# rollout_Kp: [20, 20, 0, 20, 20, 0, 20, 20, 0]
 # rollout_Kd: [5, 5, 0, 5, 5, 0, 5, 5, 0]
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+penalize_acceleration: true 
+acceleration_cost_weight: 20
+
 position_l2_decoupling_weight: 0
 velocity_l2_decoupling_weight: 0
 input_l2_decoupling_weight: 0
-l2_decoupling_indices: [[0, 3, 6],
-                        [1, 4, 7]]
+# l2_decoupling_indices: [[0, 3, 6],
+#                         [1, 4, 7]]
+l2_decoupling_indices: []
 
-position_l1_weight: 1000
-velocity_l1_weight: 0.1
-input_l1_weight: 500
+# position_l1_weight: 1000
+# velocity_l1_weight: 0.1
+# input_l1_weight: 500
 
-position_huber_weight: 100000000
+position_huber_weight: 500000
 velocity_huber_weight: 10
-input_huber_weight: 100
+input_huber_weight: 1000
+
+position_l1_weight: 0
+velocity_l1_weight: 0
+input_l1_weight: 0
+
+# position_huber_weight: 0
+# velocity_huber_weight: 0
+# input_huber_weight: 0
+
 huber_delta: 0.01
+huber_frequency: 1 # 0 = No Huber cost
 
 ff_alpha: 0.4

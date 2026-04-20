@@ -22,7 +22,8 @@ using drake::solvers::SolverOptions;
  *
  * auto solver_options_from_yaml =
  *    drake::yaml::LoadYamlFile<SolverOptionsFromYaml>(filename);
- * auto osqp_solver_options = solver_options_from_yaml.GetAsSolverOptions(
+ * auto 
+ * _options = solver_options_from_yaml.GetAsSolverOptions(
  *    drake::solvers::OsqpSolver::id());
  *
  */

@@ -15,6 +15,12 @@ struct C3Options {
       true;  // Use results of current admm iteration as warm start for next
   bool penalize_input_change =
       false;  // Penalize change in input between iterations
+  double input_change_weight = 1;
+
+  bool penalize_x_change =
+      false;  // Penalize change in input between iterations
+  double x_change_weight = 1;
+
 
   // bool penalize_snap;  // Penalize change in input between adjacent u's
   // double snap_scaling;
@@ -94,6 +100,10 @@ struct C3Options {
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(warm_start));
     a->Visit(DRAKE_NVP(penalize_input_change));
+    a->Visit(DRAKE_NVP(input_change_weight));
+    a->Visit(DRAKE_NVP(penalize_x_change));
+    a->Visit(DRAKE_NVP(x_change_weight));
+
     // a->Visit(DRAKE_NVP(penalize_snap));
     // a->Visit(DRAKE_NVP(snap_scaling));
 
