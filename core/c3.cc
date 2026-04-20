@@ -343,61 +343,48 @@ void C3::Solve(const VectorXd& x0) {
       input_costs_[i]->UpdateCoefficients(
           2 * cost_matrices_.R.at(i),
           -2 * cost_matrices_.R.at(i) * u_desired_.at(i));
-
     }
   }
 
-  if (options_.penalize_input_change) {
-    for (int i = 0; i < N_penalize_input_change_; ++i) {
+  if (penalize_change_ && options_.penalize_input_change) {
+    if (u_sol_->size() < N_) {
+      std::cerr << "u sol not set, penalize input change" << std::endl;
+    }
+
+    for (int i = 0; i < N_; ++i) {
       // Penalize deviation from previous input solution:  input cost is
       // (u-u_prev)' * R * (u-u_prev).
       // input_costs_[i]->UpdateCoefficients(
       //     2 * cost_matrices_.R.at(i),
       //     -2 * cost_matrices_.R.at(i) * u_sol_->at(i));
 
-      const double w_sol = 1.0;
-      const double w_des = 10.0;
+      const double w_diff = options_.input_change_weight;
+      const double w_des = 1.0;
 
       input_costs_[i]->UpdateCoefficients(
-          2 * (w_sol + w_des) * cost_matrices_.R.at(i),
+          2 * (w_diff + w_des) * cost_matrices_.R.at(i),
           -2 * cost_matrices_.R.at(i) *
-              (w_sol * u_sol_->at(i) + w_des * u_desired_.at(i)));;
+              (w_diff * u_sol_->at(i) + w_des * u_desired_.at(i)));;
     }
   }
 
-
-
-  // EXPERIMENTAL
-  /*
-  if (options_.penalize_snap) {
-    std::cout << "PENALIZING SNAP???" << std::endl;
-    // (u[i] - u[i+1])' R (u[i] - u[i+1]) = u[i]' R u[i] - 2u[i]' R u[i+1] + u[i+1]' R u[i+1]
-    for (int i = 0; i < N_-1; ++i) {
-
-      prog_.AddQuadraticCost(
-          2 * (options_.snap_scaling) * cost_matrices_.R.at(i), 
-          Eigen::VectorXd::Zero(n_u_),
-          u_.at(i)
-      );
-      prog_.AddQuadraticCost(
-          2 * (options_.snap_scaling) * cost_matrices_.R.at(i), 
-          Eigen::VectorXd::Zero(n_u_),
-          u_.at(i+1)
-      );
-
-      // Add bilinear term
-      drake::symbolic::Expression cost_expr(0.0);
-      for (int j = 0; j < n_u_; j++) {
-        for (int k = 0; k < n_u_; k++) {
-            cost_expr += (-2 * (options_.snap_scaling) * 
-              cost_matrices_.R.at(i)(j,k) * u_.at(i)(j) * u_.at(i+1)(k));
-        }
-      }
-      prog_.AddQuadraticCost(cost_expr);
+  if (penalize_change_ && options_.penalize_x_change) {
+    if (x_sol_->size() < N_) {
+      std::cerr << "x sol not set, penalize x change" << std::endl;
     }
-    std::cout << "PENALIZING SNAP???" << std::endl;
+
+    for (int i = 0; i < N_; ++i) {
+      const double w_diff = options_.x_change_weight;
+      const double w_des = 1.0;
+
+      target_costs_[i]->UpdateCoefficients(
+          2 * (w_diff + w_des) * cost_matrices_.Q.at(i),
+          -2 * cost_matrices_.Q.at(i) *
+              (w_diff * x_sol_->at(i) + w_des * x_desired_.at(i)));
+    }
   }
-  */
+
+  
 
   VectorXd delta_init = VectorXd::Zero(n_z_);
   if (options_.delta_option == 1) {
@@ -496,6 +483,12 @@ void C3::SetInitialGuessQP(const Eigen::VectorXd& x0, int admm_iteration) {
     return;  // No warm start
 
   if (admm_iteration == 0) {
+    if (x_sol_->size() < N_) {
+      std::cerr << "x sol not set, warm-start" << std::endl;
+    }
+    if (u_sol_->size() < N_) {
+      std::cerr << "u sol not set, warm-start" << std::endl;
+    }
     for (int i = 0; i < N_; ++i) {
       prog_.SetInitialGuess(x_[i], x_sol_->at(i));
       prog_.SetInitialGuess(u_[i], u_sol_->at(i));
@@ -503,6 +496,7 @@ void C3::SetInitialGuessQP(const Eigen::VectorXd& x0, int admm_iteration) {
     prog_.SetInitialGuess(x_[N_], x_sol_->at(N_));
     return;
   } 
+ 
   int index = solve_time_ / lcs_.dt();
   double weight = (solve_time_ - index * lcs_.dt()) / lcs_.dt();
   for (int i = 0; i < N_ - 1; ++i) {
@@ -563,7 +557,6 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
       augmented_costs_[i]->UpdateCoefficients(2 * G.at(i),
                                               -2 * G.at(i) * WD.at(i));
   }
-
   SetInitialGuessQP(x0, admm_iteration);
 
   for (int i = 0; i < N_; i++) {
@@ -624,7 +617,6 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
     // std::cout << "Dual Res: " << details.dual_res << std::endl;
 
   }
-
   StoreQPResults(result, admm_iteration, is_final_solve);
 
   return *z_sol_;
@@ -819,45 +811,75 @@ void C3::AddL1Cost(MatrixXd A, CostVariable variable, int start_idx) {
 
 }
 
+void C3::AddAccelerationCost(int n_q, int n_v, double weight) {
+  DRAKE_DEMAND(n_q + n_v == n_x_);
+  // (v[i] - v[i+1])' Q_v (v[i] - v[i+1]) = v[i]' Q_v v[i] - 2v[i]' Q_v v[i+1] + v[i+1]' Q_v v[i+1]
+  for (int i = 0; i < N_; ++i) {
+
+    /* [Q, -Q
+        -Q, Q] */
+    MatrixXd cost_matrix(MatrixXd::Zero(2*n_v, 2*n_v));
+    // cost_matrix.block(0, 0, n_v, n_v) = cost_matrices_.Q.at(i).block(n_q, n_q, n_v, n_v);
+    // cost_matrix.block(n_v, n_v, n_v, n_v) = cost_matrices_.Q.at(i).block(n_q, n_q, n_v, n_v);
+    // cost_matrix.block(n_v, 0, n_v, n_v) = -1 * cost_matrices_.Q.at(i).block(n_q, n_q, n_v, n_v);
+    // cost_matrix.block(0, n_v, n_v, n_v) = -1 * cost_matrices_.Q.at(i).block(n_q, n_q, n_v, n_v);
+
+    cost_matrix.block(0, 0, n_v, n_v) = MatrixXd::Identity(n_v, n_v);
+    cost_matrix.block(n_v, n_v, n_v, n_v) = MatrixXd::Identity(n_v, n_v);
+    cost_matrix.block(n_v, 0, n_v, n_v) = -1 * MatrixXd::Identity(n_v, n_v);
+    cost_matrix.block(0, n_v, n_v, n_v) = -1 * MatrixXd::Identity(n_v, n_v);
+
+    drake::solvers::VariableRefList vars;
+    vars.push_back(x_.at(i).segment(n_q, n_v));
+    vars.push_back(x_.at(i+1).segment(n_q, n_v));
+    drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
+
+    prog_.AddQuadraticCost(
+        2 * weight * cost_matrix, VectorXd::Zero(2*n_v), z
+    );
+  }
+  
+} 
+
+
 // y - quadratic slack variables
 // v,w - positive/negative outlier slack variables
-void C3::AddHuberCost(vector<MatrixXd> L, double delta, CostVariable variable, int start_idx) {
-  int var_size = L[0].rows();
+// NOTE: L matrix is hardcoded to identity currently
+void C3::AddHuberCost(MatrixXd L, double weight, double delta, CostVariable variable, int start_idx, int frequency) {
+  int var_size = L.rows();
 
   if (variable == 1 || variable == 2) {
     vector<drake::solvers::VectorXDecisionVariable> y;
     vector<drake::solvers::VectorXDecisionVariable> v;
     vector<drake::solvers::VectorXDecisionVariable> w;
 
-    for (int i = 0; i < N_+1; i++) {
+    for (int i = N_; i >= 0 ; i -= frequency) {
       y.push_back(prog_.NewContinuousVariables(var_size));
       v.push_back(prog_.NewContinuousVariables(var_size));
       w.push_back(prog_.NewContinuousVariables(var_size));
     }
         
     
-    for (int i = 0; i < N_+1; i++) {
-      prog_.AddQuadraticCost(MatrixXd::Identity(var_size, var_size), VectorXd::Zero(var_size), y.at(i));
-      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, v.at(i));
-      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, w.at(i));
+    for (int i = N_; i >= 0 ; i -= frequency) {
+      prog_.AddQuadraticCost(2 * weight * MatrixXd::Identity(var_size, var_size), VectorXd::Zero(var_size), y.at(i / frequency));
+      prog_.AddLinearCost(weight * delta * Eigen::RowVectorXd::Ones(var_size), 0, v.at(i / frequency));
+      prog_.AddLinearCost(weight * delta * Eigen::RowVectorXd::Ones(var_size), 0, w.at(i / frequency));
 
       MatrixXd M(var_size, 4 * var_size);
-      M << L.at(i).transpose(), -MatrixXd::Identity(var_size, var_size), 
+      M << L.transpose(), -MatrixXd::Identity(var_size, var_size), 
         -MatrixXd::Identity(var_size, var_size), MatrixXd::Identity(var_size, var_size);
 
       drake::solvers::VariableRefList vars;
       vars.push_back(x_.at(i).segment(start_idx, var_size));
-      vars.push_back(y.at(i));
-      vars.push_back(v.at(i));
-      vars.push_back(w.at(i));
+      vars.push_back(y.at(i / frequency));
+      vars.push_back(v.at(i / frequency));
+      vars.push_back(w.at(i / frequency));
       drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
     
-
-      prog_.AddLinearEqualityConstraint(M, L.at(i).transpose() * x_desired_.at(i).segment(start_idx, var_size), z);
-      prog_.AddLinearConstraint(MatrixXd::Identity(var_size, var_size), -delta * VectorXd::Ones(var_size), 
-                                  delta * VectorXd::Ones(var_size), y.at(i));
-      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), v.at(i));
-      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), w.at(i));
+      prog_.AddLinearEqualityConstraint(M, L.transpose() * x_desired_.at(i).segment(start_idx, var_size), z);
+      prog_.AddBoundingBoxConstraint(-delta, delta, y.at(i / frequency));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), v.at(i / frequency));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), w.at(i / frequency));
     }
   }
 
@@ -866,35 +888,34 @@ void C3::AddHuberCost(vector<MatrixXd> L, double delta, CostVariable variable, i
     vector<drake::solvers::VectorXDecisionVariable> v;
     vector<drake::solvers::VectorXDecisionVariable> w;
 
-    for (int i = 0; i < N_; i++) {
+    for (int i = N_-1; i >= 0 ; i -= frequency) {
       y.push_back(prog_.NewContinuousVariables(var_size));
       v.push_back(prog_.NewContinuousVariables(var_size));
       w.push_back(prog_.NewContinuousVariables(var_size));
     }
         
     
-    for (int i = 0; i < N_; i++) {
-      prog_.AddQuadraticCost(MatrixXd::Identity(var_size, var_size), VectorXd::Zero(var_size), y.at(i));
-      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, v.at(i));
-      prog_.AddLinearCost(delta * Eigen::RowVectorXd::Ones(var_size), 0, w.at(i));
+    for (int i = N_-1; i >= 0 ; i -= frequency) {
+      prog_.AddQuadraticCost(2 * weight * MatrixXd::Identity(var_size, var_size), VectorXd::Zero(var_size), y.at(i / frequency));
+      prog_.AddLinearCost(weight * delta * Eigen::RowVectorXd::Ones(var_size), 0, v.at(i / frequency));
+      prog_.AddLinearCost(weight * delta * Eigen::RowVectorXd::Ones(var_size), 0, w.at(i / frequency));
 
       MatrixXd M(var_size, 4 * var_size);
-      M << L.at(i).transpose(), -MatrixXd::Identity(var_size, var_size), 
+      M << L.transpose(), -MatrixXd::Identity(var_size, var_size), 
         -MatrixXd::Identity(var_size, var_size), MatrixXd::Identity(var_size, var_size);
 
       drake::solvers::VariableRefList vars;
       vars.push_back(u_.at(i).segment(start_idx, var_size));
-      vars.push_back(y.at(i));
-      vars.push_back(v.at(i));
-      vars.push_back(w.at(i));
+      vars.push_back(y.at(i / frequency));
+      vars.push_back(v.at(i / frequency));
+      vars.push_back(w.at(i / frequency));
       drake::solvers::VectorXDecisionVariable z = drake::solvers::ConcatenateVariableRefList(vars);
     
 
-      prog_.AddLinearEqualityConstraint(M, L.at(i).transpose() * u_desired_.at(i), z);
-      prog_.AddLinearConstraint(MatrixXd::Identity(var_size, var_size), -delta * VectorXd::Ones(var_size), 
-                                  delta * VectorXd::Ones(var_size), y.at(i));
-      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), v.at(i));
-      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), w.at(i));
+      prog_.AddLinearEqualityConstraint(M, L.transpose() * u_desired_.at(i), z);
+      prog_.AddBoundingBoxConstraint(-delta, delta, y.at(i / frequency));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), v.at(i / frequency));
+      prog_.AddBoundingBoxConstraint(0, std::numeric_limits<double>::infinity(), w.at(i / frequency));
     }
   }
 }

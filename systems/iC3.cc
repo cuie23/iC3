@@ -36,15 +36,21 @@ namespace systems {
 iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
   MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     C3::CostMatrices& costs, C3ControllerOptions controller_options, iC3Options ic3_options, int example_idx)
+    : iC3(plant, plant_ad, plant_rollout, plant_ad_rollout, costs, controller_options, ic3_options, C3ControllerOptions(), example_idx) {}
+       
+iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
+  MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
+    C3::CostMatrices& costs, C3ControllerOptions controller_options, iC3Options ic3_options, 
+    C3ControllerOptions tracking_controller_options, int example_idx)
     : plant_(plant),
       plant_ad_(plant_ad),
       plant_rollout_(plant_rollout),
       plant_ad_rollout_(plant_ad_rollout),
       controller_options_(controller_options),
       ic3_options_(ic3_options),
+      tracking_c3_controller_options_(tracking_controller_options),
       N_(controller_options_.lcs_factory_options.N),
       example_idx_(example_idx) {
-  this->set_name("iC3");
 
   // Initialize dimensions
   n_q_ = plant_.num_positions();
@@ -140,8 +146,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       K_init, K_ff_init, 0);
     lambda_hat = lambda_hat_init_out;
 
-    vector<VectorXd> u_nominal(N_, gravity);
-    vector<VectorXd> u_sol_for_penalization(N_, gravity);
+
 
     VectorXd x_diff = xd - x0;
     for (int k = 0; k < N_+1; k++) {
@@ -149,6 +154,14 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       if (k < N_) u_hat.col(k) = gravity;
     }
 
+    vector<VectorXd> u_nominal(N_, gravity);
+    vector<VectorXd> u_sol_for_penalization(N_, gravity);
+
+    vector<VectorXd> x_sol_for_penalization;
+    for (int i = 0; i < N_; i++) {
+      x_sol_for_penalization.push_back(x_hat.col(i));
+    }
+    
     vector<MatrixXd> all_x_hats;
     vector<MatrixXd> all_u_hats;
     vector<MatrixXd> all_c3_x;
@@ -204,14 +217,14 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         lower_bound(0) = -0.2;
         lower_bound(1) = -0.2;
         lower_bound(2) = -0.2; 
-        lower_bound(3) = -0.6;
-        lower_bound(4) = -0.6;
+        lower_bound(3) = -0.67;
+        lower_bound(4) = -0.67;
 
         upper_bound(0) = 0.2;
         upper_bound(1) = 0.2;
         upper_bound(2) = 0.2;
-        upper_bound(3) = 0.6;
-        upper_bound(4) = 0.6;
+        upper_bound(3) = 0.67;
+        upper_bound(4) = 0.67;
 
         // Actuation limits
         A_u(2, 2) = 1;
@@ -265,17 +278,17 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           A(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
           // Offset from initial position
-          lower_bound(3*i) = x0(3*i) - 0.1;
-          lower_bound(3*i+1) = x0(3*i+1) - 0.1;
-          lower_bound(3*i+2) = x0(3*i+2) - 0.01;
+          lower_bound(3*i) = xd(3*i) - 0.1;
+          lower_bound(3*i+1) = xd(3*i+1) - 0.1;
+          lower_bound(3*i+2) = xd(3*i+2) - 0.01;
 
           lower_bound(16 + 3*i) = -0.2;
           lower_bound(16 + 3*i+1) = -0.2;
           lower_bound(16 + 3*i+2) = -0.08;
 
-          upper_bound(3*i) = x0(3*i) + 0.1;
-          upper_bound(3*i+1) = x0(3*i+1) + 0.1;
-          upper_bound(3*i+2) = x0(3*i+2) + 0.01;
+          upper_bound(3*i) = xd(3*i) + 0.1;
+          upper_bound(3*i+1) = xd(3*i+1) + 0.1;
+          upper_bound(3*i+2) = xd(3*i+2) + 0.01;
 
           upper_bound(16 + 3*i) = 0.2;
           upper_bound(16 + 3*i+1) = 0.2;
@@ -286,12 +299,12 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           A_u(3*i+1, 3*i+1) = 1;
           A_u(3*i+2, 3*i+2) = 1;
 
-          lower_bound_u(3*i) = -0.8;
-          lower_bound_u(3*i+1) = -0.8;
+          lower_bound_u(3*i) = -1;
+          lower_bound_u(3*i+1) = -1;
           lower_bound_u(3*i+2) = 0.15;
           
-          upper_bound_u(3*i) = 0.8;
-          upper_bound_u(3*i+1) = 0.8;
+          upper_bound_u(3*i) = 1;
+          upper_bound_u(3*i+1) = 1;
           upper_bound_u(3*i+2) = 0.25;
         }
       }
@@ -307,6 +320,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       VectorXd x_start = x_hat.col(0);
       int indexer = 0;
 
+      vector<VectorXd> x_sol_prev_iter = x_sol_for_penalization;
       vector<VectorXd> u_sol_prev_iter = u_sol_for_penalization;
 
       auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, xd, u_nominal[0], lcs);
@@ -315,6 +329,17 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       gs.push_back(g);
       Ks.push_back(K);
       k_ffs.push_back(k_ff);
+
+      vector<VectorXd> x_targets;
+      for (int k = 0; k < N_+1; k++) {
+        VectorXd target_k = target[k];
+        for (int j = 0; j < controller_options_.quaternion_indices.size(); j++) {
+          int index = controller_options_.quaternion_indices[j];
+          double norm = c3_quat_norms[j](k);
+          target_k.segment(index, 4) *= norm;
+        }
+        x_targets.push_back(target_k);
+      }
 
       for (int i = 0; i < ic3_options_.num_segments; i++) {
 
@@ -343,63 +368,60 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         }
 
         C3::CostMatrices shortened_costs = ShortenCostsFront(i * segment_length);
-        std::vector<VectorXd> shortened_targets;
+        std::vector<VectorXd> shortened_targets(x_targets.begin() + i * segment_length, x_targets.end());
 
         vector<MatrixXd> K_shortened(K.begin() + i * segment_length, K.end());
         vector<VectorXd> k_ff_shortened(k_ff.begin() + i * segment_length, k_ff.end());
-
-        // Scale quaternions in target based on previous iteration
-        for (int k = i * segment_length; k < N_+1; k++) {
-          VectorXd target_k = target[k];
-          for (int j = 0; j < controller_options_.quaternion_indices.size(); j++) {
-              int index = controller_options_.quaternion_indices[j];
-              double norm = c3_quat_norms[j](k);
-              target_k.segment(index, 4) *= norm;
-           }
-           shortened_targets.push_back(target_k);
-        }
 
         // Update c3_ to match new length
         c3_ = std::make_unique<C3Plus>(lcs, shortened_costs, shortened_targets,
                                  controller_options_.c3_options);
 
-        if (controller_options_.c3_options.penalize_input_change) {
-          int N_penalize = std::max(0, ic3_options_.N_penalize_input_change - i * segment_length);
-          c3_->SetNPenalizeInputChange(N_penalize);
-        }
         vector<VectorXd> u_nominal_short(u_nominal.begin() + i * segment_length, u_nominal.end());
         c3_->UpdateInputTarget(u_nominal_short);
 
         // HARDCODED
-        if (n_u_ == 9) {
+        if (n_u_ == 9 && ic3_options_.huber_frequency > 0) {
           // UpdateL1Costs(0, 9, 16, 9);
           UpdateHuberCosts(0, 9, 16, 9);
         }
 
-        if ((controller_options_.c3_options.penalize_input_change)) {
+        if (n_u_ == 9 && ic3_options_.penalize_acceleration) {
+          c3_->AddAccelerationCost(n_q_, n_v_, ic3_options_.acceleration_cost_weight);
+        }
+
+        if ((controller_options_.c3_options.penalize_x_change) || 
+            (controller_options_.c3_options.penalize_input_change) || 
+              (controller_options_.c3_options.warm_start)) {
+          vector<VectorXd> x_sol_keep;
           vector<VectorXd> u_sol_keep;
           if (i == 0) { 
             // Take from previous iC3 iteration
+            std::cout << "x for penal size i=0: " << x_sol_for_penalization.size() << std::endl;
             std::cout << "u for penal size i=0: " << u_sol_for_penalization.size() << std::endl;
+            x_sol_keep = x_sol_for_penalization;
             u_sol_keep = u_sol_for_penalization;
+
+            x_sol_for_penalization.clear();
             u_sol_for_penalization.clear();
           } else {
             //std::cout << "u sol size " << u_sol.size() << std::endl;
             //u_sol_keep = std::vector<VectorXd>(u_sol.begin() + segment_length, u_sol.end()); 
+            x_sol_keep = std::vector<VectorXd>(x_sol_prev_iter.begin() + i * segment_length, 
+                                              x_sol_prev_iter.end());    
             u_sol_keep = std::vector<VectorXd>(u_sol_prev_iter.begin() + i * segment_length, 
                                               u_sol_prev_iter.end());            
           } 
-          c3_->SetUSol(u_sol_keep);
-        }
-        
-        if ((controller_options_.c3_options.warm_start)) {
-          vector<VectorXd> warm_start_x;
-          for (int i = 0; i < N_ + 1; i++) {
-            warm_start_x.push_back(x_hat.col(i));
+          if (x_sol_keep.size() > 0) {
+            VectorXd last = x_sol_keep.at(x_sol_keep.size()-1); 
+
+            x_sol_keep.push_back(last); // c3 only returns N_ x_sol's, so need to pad back
+            c3_->SetXSol(x_sol_keep);
+            c3_->SetUSol(u_sol_keep);
           }
-          c3_->SetXSol(warm_start_x);
-          c3_->SetUSol(u_sol_prev_iter);
         }
+        // TODO: move this into options file
+        c3_->SetPenalizeChange(iter != 1);
 
         if (ic3_options_.add_position_constraints) {
           c3_->AddLinearConstraint(A, lower_bound, upper_bound,
@@ -411,6 +433,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         }
         // std::cout << "lcs size " << lcs.A().size() << std::endl;
         c3_->Solve(x_start);
+
         if (i % 5 == 0) {
           std::cout << "after c3 solve segment " << i << std::endl;
         }
@@ -439,6 +462,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           // }
 
           indexer++;
+          x_sol_for_penalization.push_back(x_sol[j]);
           u_sol_for_penalization.push_back(u_sol[j]);
         }
         if (example_idx_ == 2) {
@@ -447,15 +471,27 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           if (freq > 0 && (i + 1) % freq == 0) {
             MatrixXd segment_u_hat(MatrixXd::Zero(n_u_, segment_length));
             MatrixXd segment_c3_x_hat(MatrixXd::Zero(n_x_, segment_length));
+            vector<VectorXd> short_x_targets;
 
             int col_indexer = 0;
             for (int w = 0; w < segment_length; w++) {
               segment_c3_x_hat.col(w) = x_sol[w];
               segment_u_hat.col(w) = u_sol[w];
+              short_x_targets.push_back(x_targets[i*segment_length + w]);
             }
+            short_x_targets.push_back(x_targets[(i+1) * segment_length]);
+
             auto [lcs_out, x_hat_out, u_hat_out, lambda_hat_out] = DoLCSRollout(x_start, x_hat, segment_c3_x_hat, segment_u_hat, 
                 lcs_factory, lcs_factory_rollout, A, lower_bound, upper_bound, A_u, lower_bound_u, upper_bound_u, 
                 K_shortened, k_ff_shortened, ic3_options_.ff_alpha);
+
+            // if (iter  == 0) {
+            //   H = vector<MatrixXd>(N_+1, MatrixXd::Zero(n_x_, n_x_));
+            //   g = vector<VectorXd>(N_+1, VectorXd::Zero(n_x_));
+            // }
+            // auto [lcs_out, x_hat_out, u_hat_out, lambda_hat_out] = DoC3Rollout(x0, segment_u_hat, 
+            //               lcs_factory, lcs_factory_rollout, H, g, short_x_targets, i * segment_length);
+
             //std::cout << x_hat_out.middleRows(9, 4).transpose() << std::endl;
             x_start = x_hat_out.col(x_hat_out.cols()-1);
 
@@ -510,6 +546,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       for (int i = indexer; i < N_; i++) {
         c3_xs.col(i) = x_sol[i - indexer];
         u_hat.col(i) = u_sol[i - indexer]; 
+        x_sol_for_penalization.push_back(x_sol[i - indexer]);
         u_sol_for_penalization.push_back(u_sol[i - indexer]);
       } 
 
@@ -530,6 +567,15 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       auto [lcs_out, x_hat_out, u_hat_with_fb, lambda_hat_out] = DoLCSRollout(x0, x_hat, c3_xs, u_hat, lcs_factory,
           lcs_factory_rollout, A, lower_bound, upper_bound, A_u, lower_bound_u, upper_bound_u, 
           K, k_ff, ic3_options_.ff_alpha);
+
+      // auto [lcs_out, x_hat_out, u_hat_with_fb, lambda_hat_out] = DoC3Rollout(x0, u_hat, 
+      //               lcs_factory, lcs_factory_rollout, H, g, x_targets, 0);
+
+      std::cout << "lcs_out size " << lcs_out.A().size() << std::endl;
+      std::cout << "x_hat_out size " << x_hat_out.rows() << " x " << x_hat_out.cols() << std::endl;
+      std::cout << "u_hat_with_fb size " << u_hat_with_fb.rows() << " x " << u_hat_with_fb.cols() << std::endl;
+      std::cout << "lambda_hat_out " << lambda_hat_out.rows() << " x " << lambda_hat_out.cols() << std::endl;
+
       auto lcs_end = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> lcs_elapsed = lcs_end - lcs_start;
       std::cout << "LCS rollout time: " << lcs_elapsed.count() << " seconds\n";
@@ -609,6 +655,9 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
         double pos_cost_rollout = 0;
         double rot_angle_diff_rollout = 0;
+
+        double accel_cost = 0;
+        double accel_rollout_cost = 0;
 
         vector<VectorXd> xds;
         for (int k = 0; k < N_+1; k++) {
@@ -703,7 +752,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           //     Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - xd.segment(0, 3)) << std::endl << std::endl;
                  
 
-          if (example_idx_ == 2) {
+          if (ic3_options_.huber_frequency > 0 && example_idx_ == 2 && (N_-i) % ic3_options_.huber_frequency == 0) {
             double weight = ic3_options_.position_huber_weight;
             double delta = ic3_options_.huber_delta;
             for (int j = 0; j < 3; j++) {
@@ -725,6 +774,71 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
             }
           }
 
+          if (ic3_options_.penalize_acceleration && i < N_-1) {
+            double weight = ic3_options_.acceleration_cost_weight;
+            VectorXd v_diff = c3_xs.col(i).tail(n_v_) - c3_xs.col(i+1).tail(n_v_);
+            VectorXd v_diff_rollout = x_hat.col(i).tail(n_v_) - x_hat.col(i+1).tail(n_v_);
+
+            accel_cost += weight * v_diff.transpose() * Q_[i].block(n_q_, n_q_, n_v_, n_v_) * v_diff;
+            accel_rollout_cost += weight * v_diff_rollout.transpose() * Q_[i].block(n_q_, n_q_, n_v_, n_v_) * v_diff_rollout;
+
+          }
+          
+          if (controller_options_.c3_options.penalize_x_change) {
+            VectorXd x_prev = x_sol_for_penalization[i];
+            double weight = controller_options_.c3_options.x_change_weight;
+
+            x_cost += weight * (x_curr - x_prev).transpose() * Q_[i] * (x_curr - x_prev);
+
+            rot_cost += weight * (x_curr.segment(quat_idx, 4) - x_prev.segment(quat_idx, 4)).transpose() * 
+                Q_[i].block(quat_idx, quat_idx, 4, 4) * (x_curr.segment(quat_idx, 4) - x_prev.segment(quat_idx, 4));
+            rot_cost_rollout += weight * (x_rollout.segment(quat_idx, 4) - x_prev.segment(quat_idx, 4)).transpose() * 
+                Q_[i].block(quat_idx, quat_idx, 4, 4) * (x_rollout.segment(quat_idx, 4) - x_prev.segment(quat_idx, 4));
+
+            VectorXd v_curr = x_curr.tail(n_v_);    
+            VectorXd v_prev = x_prev.tail(n_v_);    
+
+            v_cost += weight * (v_curr - v_prev).transpose() * Q_[i].bottomRightCorner(n_v_, n_v_) * (v_curr - v_prev);
+
+
+            plate_pos_cost += (x_curr.segment(0, 3) - x_prev.segment(0, 3)).transpose() * 
+                Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - x_prev.segment(0, 3));
+
+            if (example_idx_ == 1) {
+              index_pos_cost += (x_curr.segment(0, 4) - x_prev.segment(0, 4)).transpose() * 
+                  Q_[i].block(0, 0, 4, 4) * (x_curr.segment(0, 4) - x_prev.segment(0, 4));
+              middle_pos_cost += (x_curr.segment(4, 4) - x_prev.segment(4, 4)).transpose() * 
+                  Q_[i].block(4, 4, 4, 4) * (x_curr.segment(4, 4) - x_prev.segment(4, 4));
+              ring_pos_cost += (x_curr.segment(8, 4) - x_prev.segment(8, 4)).transpose() * 
+                  Q_[i].block(8, 8, 4, 4) * (x_curr.segment(8, 4) - x_prev.segment(8, 4));
+              thumb_pos_cost += (x_curr.segment(12, 4) - x_prev.segment(12, 4)).transpose() * 
+                  Q_[i].block(12, 12, 4, 4) * (x_curr.segment(12, 4) - x_prev.segment(12, 4));
+            } else if (example_idx_ == 2) {
+              index_pos_cost += (x_curr.segment(0, 3) - x_prev.segment(0, 3)).transpose() * 
+                  Q_[i].block(0, 0, 3, 3) * (x_curr.segment(0, 3) - x_prev.segment(0, 3));
+              middle_pos_cost += (x_curr.segment(3, 3) - x_prev.segment(3, 3)).transpose() * 
+                  Q_[i].block(3, 3, 3, 3) * (x_curr.segment(3, 3) - x_prev.segment(3, 3));
+              ring_pos_cost += (x_curr.segment(6, 3) - x_prev.segment(6, 3)).transpose() * 
+                  Q_[i].block(6, 6, 3, 3) * (x_curr.segment(6, 3) - x_prev.segment(6, 3));
+            }
+
+
+            int cube_pos_idx;
+            if (example_idx_ == 0) {
+              cube_pos_idx = 9;
+            } else if (example_idx_ == 1) {
+              cube_pos_idx = 20;
+            } else if (example_idx_ == 2) {
+              cube_pos_idx = 13;
+            }
+
+            cube_pos_cost += (x_curr.segment(cube_pos_idx, 3) - x_prev.segment(cube_pos_idx, 3)).transpose() * 
+                Q_[i].block(cube_pos_idx, cube_pos_idx, 3, 3) * (x_curr.segment(cube_pos_idx, 3) - x_prev.segment(cube_pos_idx, 3));
+
+            pos_cost_rollout += (x_rollout.segment(cube_pos_idx, 3) - x_prev.segment(cube_pos_idx, 3)).transpose() * 
+                Q_[i].block(cube_pos_idx, cube_pos_idx, 3, 3) * (x_rollout.segment(cube_pos_idx, 3) - x_prev.segment(cube_pos_idx, 3));
+                  
+          }
 
           VectorXd u_curr = u_hat.col(i);
           // if (i < 5 && !is_franka_) {
@@ -742,7 +856,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
             if (!R_[i].allFinite()) {
               std::cout << "R not all finite" << i << std::endl;
             }
-            u_cost += (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev);
+            u_cost += controller_options_.c3_options.input_change_weight * (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev);
             u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr - gravity);
           } else {
             u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr-gravity);
@@ -759,9 +873,11 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           std::cout << "finger 1 position cost: " << index_pos_cost << std::endl;
           std::cout << "finger 2 position cost: " << middle_pos_cost << std::endl;
           std::cout << "finger 3 position cost: " << ring_pos_cost << std::endl;
-          std::cout << "finger 1 huber cost: " << finger_1_huber_cost << std::endl;
-          std::cout << "finger 2 huber cost: " << finger_2_huber_cost << std::endl;
-          std::cout << "finger 3 huber cost: " << finger_3_huber_cost << std::endl;
+          if (ic3_options_.huber_frequency > 0) {
+            std::cout << "finger 1 huber cost: " << finger_1_huber_cost << std::endl;
+            std::cout << "finger 2 huber cost: " << finger_2_huber_cost << std::endl;
+            std::cout << "finger 3 huber cost: " << finger_3_huber_cost << std::endl;
+          } 
           if (example_idx_ == 1) {
             std::cout << "finger 4 position cost: " << thumb_pos_cost << std::endl;
           }
@@ -773,6 +889,10 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         std::cout << "avg rotation angle diff: " << rot_angle_diff_rollout / N_ << std::endl;
         std::cout << "v cost " << v_cost << std::endl;
         std::cout << "u cost " << u_cost << std::endl;
+        if (ic3_options_.penalize_acceleration) {
+          std::cout << "accel cost " << accel_cost << std::endl;
+          std::cout << "accel rollout cost " << accel_rollout_cost << std::endl;
+        }
 
         // terminate early if rotation goal met
         if (ic3_options_.early_termination) {
@@ -853,8 +973,15 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     VectorXd x_next;
 
     // HARDCODED
-    int q_idx = 9;
-    int v_idx = 16;
+    int q_idx;
+    int v_idx;
+    if (x0.size() == 23) {
+      q_idx = 0;
+      v_idx = 12;
+    } else if (x0.size() == 31) {
+      q_idx = 0;
+      v_idx = 16;
+    }
 
     for (int k = 0; k < N*factor; k++) {
 
@@ -871,11 +998,11 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         }
       }
 
-      // VectorXd u_k = u_nominal + Kp * (x_nominal.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
-      //   + Kd * (x_nominal.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
+      VectorXd u_k = u_nominal + Kp * (x_nominal.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
+        + Kd * (x_nominal.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
 
       // VectorXd u_k = u_nominal + K[k / factor] * (x_curr - x_nominal) + alpha * k_ff[k / factor];
-      VectorXd u_k = u_nominal;
+      // VectorXd u_k = u_nominal;
       u_hat_fb.col(k) = u_k;
 
       rollout_factory.UpdateStateAndInput(x_curr, u_k);
@@ -911,7 +1038,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     }
     x_hat_downsampled.col(N) = x_hat.col(N * factor);
 
-    LCS output_lcs = MakeTimeVaryingLCS(x_hat_downsampled, u_hat, factory);
+    LCS output_lcs = MakeTimeVaryingLCS(x_hat_downsampled, u_hat_fb_downsampled, factory);
 
     if ((x_hat_downsampled.array().isNaN()).any()) {
       std::cout << "XHAT NOT FINITE" << std::endl;
@@ -920,6 +1047,211 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
   }
 
+  tuple<LCS, MatrixXd, MatrixXd, MatrixXd> iC3::DoC3Rollout(VectorXd x0, MatrixXd u_hat, 
+                                              LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
+                                              vector<VectorXd> g, vector<VectorXd> x_targets, int start_idx) {
+    // Assume that x_targets, and u_hat correspond to the same time-horizon (tail of entire horizon)
+    // Assume that H, g correspond to the entire iC3 horizon
+
+    DRAKE_DEMAND(start_idx < N_);
+    DRAKE_DEMAND(H.size() == N_ + 1);
+    DRAKE_DEMAND(g.size() == N_ + 1);
+
+    int N = u_hat.cols();
+    DRAKE_DEMAND(x_targets.size() == N + 1);
+
+    int factor = ic3_options_.rollout_dt_scaling;
+
+    MatrixXd x_hat(n_x_, N*factor + 1);
+    MatrixXd lambda_hat(n_lambda_, N*factor);
+    MatrixXd u_hat_fb(n_u_, N*factor);
+
+    x_hat.col(0) = x0;
+    VectorXd x_curr = x0;
+    VectorXd x_next;
+
+    if (!controller_options_.x_des.has_value()) std::cerr << "Set x des" << std::endl;
+    std::vector<double> x_des = controller_options_.x_des.value();
+    VectorXd xd = Eigen::Map<VectorXd>(x_des.data(), x_des.size());
+
+    int tracking_N = tracking_c3_controller_options_.lcs_factory_options.N;
+    double tracking_dt = tracking_c3_controller_options_.lcs_factory_options.dt;
+
+    // Ensure tracking dt is a multiple of iC3 dt
+    if (std::abs(std::floor(tracking_dt / dt_) - tracking_dt / dt_) > 1e-4) {
+      std::cerr << " tracking dt and iC3 dt INCOMPATIBLE " << std::endl;
+    }
+    int dt_factor = (int)(tracking_dt / dt_);
+
+    factory.SetNewDt(tracking_dt);
+    rollout_factory.SetNewDt(dt_ / factor);
+
+    // std::cout << "Before cost matrices" << std::endl;
+    // Make costs, accounting for dt factor
+    vector<MatrixXd> Q(Q_.begin() + start_idx, Q_.begin() + start_idx + N + 1);
+    vector<MatrixXd> R(R_.begin() + start_idx, R_.begin() + start_idx + N);
+    vector<MatrixXd> G(G_.begin() + start_idx, G_.begin() + start_idx + N);
+    vector<MatrixXd> U(U_.begin() + start_idx, U_.begin() + start_idx + N);
+    C3::CostMatrices costs(Q, R, G, U); 
+    // std::cout << "After cost matrices" << std::endl;
+
+    for (int k = 0; k < N; k++) {
+      VectorXd u_nominal = u_hat.col(k);
+      // std::cout << "u nom: " << u_nominal.transpose() << std::endl;
+
+      // Make LCS for tracking C3
+      factory.UpdateStateAndInput(x_curr, u_nominal);
+      LCS lcs_long = factory.GenerateLCS();     
+      LCS lcs = TruncateLCS(lcs_long, tracking_N);
+
+      // Make targets for tracking C3
+      vector<VectorXd> x_targets_shortened;
+      vector<VectorXd> u_targets_shortened;
+      for (int i = 0; i < tracking_N + 1; i++) {
+        int x_idx = std::min(N, k + i * dt_factor);
+        int u_idx = std::min(N-1, k + i * dt_factor);
+
+        x_targets_shortened.push_back(x_targets.at(x_idx));
+        if (i < tracking_N) {
+          u_targets_shortened.push_back(u_hat.col(u_idx));
+        }
+      }
+
+      std::unique_ptr<C3> c3_tracking = std::make_unique<C3Plus>(lcs, costs, x_targets_shortened,
+                                    tracking_c3_controller_options_.c3_options);
+      c3_tracking->UpdateInputTarget(u_targets_shortened);
+
+
+      // Add linear constraints
+      MatrixXd A(MatrixXd::Zero(n_x_, n_x_));
+      MatrixXd A_u(MatrixXd::Zero(n_u_, n_u_));
+      VectorXd lower_bound(VectorXd::Zero(n_x_));
+      VectorXd upper_bound(VectorXd::Zero(n_x_));
+      VectorXd lower_bound_u(VectorXd::Zero(n_u_));
+      VectorXd upper_bound_u(VectorXd::Zero(n_u_));
+
+      // HARDCODED
+      if (n_u_ == 5) { // plate
+        
+      } else if (n_u_ == 9) { // trifinger
+
+        for (int i = 0; i < 3; i++) {
+          // Position constraints
+          A(3*i, 3*i) = 1;
+          A(3*i+1, 3*i+1) = 1;
+          A(3*i+2, 3*i+2) = 1;
+
+          // Velocity constraints
+          A(16 + 3*i, 16 + 3*i) = 1;
+          A(16 + 3*i + 1, 16 + 3*i + 1) = 1;
+          A(16 + 3*i + 2, 16 + 3*i + 2) = 1;
+
+          // Offset from initial position
+          lower_bound(3*i) = xd(3*i) - 0.08;
+          lower_bound(3*i+1) = xd(3*i+1) - 0.08;
+          lower_bound(3*i+2) = xd(3*i+2) - 0.01;
+
+          lower_bound(16 + 3*i) = -0.15;
+          lower_bound(16 + 3*i+1) = -0.15;
+          lower_bound(16 + 3*i+2) = -0.05;
+
+          upper_bound(3*i) = xd(3*i) + 0.08;
+          upper_bound(3*i+1) = xd(3*i+1) + 0.08;
+          upper_bound(3*i+2) = xd(3*i+2) + 0.01;
+
+          upper_bound(16 + 3*i) = 0.15;
+          upper_bound(16 + 3*i+1) = 0.15;
+          upper_bound(16 + 3*i+2) = 0.05;
+
+
+          A_u(3*i, 3*i) = 1;
+          A_u(3*i+1, 3*i+1) = 1;
+          A_u(3*i+2, 3*i+2) = 1;
+
+          lower_bound_u(3*i) = -1;
+          lower_bound_u(3*i+1) = -1;
+          lower_bound_u(3*i+2) = 0.15;
+          
+          upper_bound_u(3*i) = 1;
+          upper_bound_u(3*i+1) = 1;
+          upper_bound_u(3*i+2) = 0.25;
+
+        }
+      }
+      
+      c3_tracking->AddLinearConstraint(A, lower_bound, upper_bound,
+                                ConstraintVariable::STATE);
+      c3_tracking->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
+                                ConstraintVariable::INPUT);
+
+      // If tracking c3 horizon goes past iC3 N, just use last H, g
+      int lqr_idx = std::min(start_idx + k + dt_factor * tracking_N, N_); 
+      c3_tracking->UpdateFinalCost(H[lqr_idx], g[lqr_idx]);
+
+      c3_tracking->Solve(x_curr);
+
+      vector<Eigen::VectorXd> z_sol = c3_tracking->GetFullSolution();
+      VectorXd c3_u = z_sol[0].segment(n_x_ + n_lambda_, n_u_);
+      VectorXd c3_x = z_sol[0].segment(0, n_x_);
+
+      // std::cout << "c3 u: " << c3_u.transpose() << std::endl << std::endl;
+
+      // Rollout this u with LCS
+      for (int i = 0; i < factor; i++) {
+        // Apply PD to C3 plan
+        int q_idx;
+        int v_idx;
+        if (n_u_ == 5) {
+          q_idx = 0;
+          v_idx = 12;
+        } else if (n_u_ == 9) {
+          q_idx = 0;
+          v_idx = 16;
+        }
+        MatrixXd Kp = ic3_options_.rollout_Kp.asDiagonal();
+        MatrixXd Kd = ic3_options_.rollout_Kd.asDiagonal();
+        VectorXd u_tracking = c3_u + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
+          + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
+        // std::cout << "tracking u " << u_tracking.transpose() << std::endl;
+
+
+        rollout_factory.UpdateStateAndInput(x_curr, u_tracking);
+        LCS lcs_rollout = rollout_factory.GenerateLCS();  
+
+        auto pair = lcs_rollout.SimulateAndReturnForce(x_curr, u_tracking, true);
+        x_next = pair.first;
+
+        if (example_idx_ == 2) {
+          for (int j = 0; j < A.rows(); j++) {
+            if (A(j, j) != 0) { // Assumes diagonal
+              x_next(j) = std::min(std::max(x_next(j), lower_bound(j)), upper_bound(j));
+            }
+          }
+        }
+        x_hat.col(factor * k + i + 1) = x_next;
+        lambda_hat.col(factor * k + i) = pair.second;
+        u_hat_fb.col(factor * k + i) = u_tracking;
+
+        x_curr = x_next;
+      }
+    }
+
+    MatrixXd x_hat_downsampled(MatrixXd::Zero(n_x_, N + 1));
+    MatrixXd u_hat_downsampled(MatrixXd::Zero(n_u_, N));
+    MatrixXd lambda_hat_downsampled(MatrixXd::Zero(n_lambda_, N));
+
+    for (int i = 0; i < N; i++) {
+      x_hat_downsampled.col(i) = x_hat.col(i * factor);
+      u_hat_downsampled.col(i) = u_hat_fb.col(i * factor);
+      lambda_hat_downsampled.col(i) = lambda_hat.col(i * factor);
+    }
+    x_hat_downsampled.col(N) = x_hat.col(N * factor);
+
+    factory.SetNewDt(dt_);
+    LCS output_lcs = MakeTimeVaryingLCS(x_hat_downsampled.leftCols(N), u_hat_downsampled, factory);
+
+    return {output_lcs, x_hat_downsampled, u_hat_downsampled, lambda_hat_downsampled};                                              
+  }
 
   MatrixXd iC3::RolloutUHatPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u) {
     DiagramBuilder<double> builder;
@@ -1243,6 +1575,8 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
 
   LCS iC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory) {
+    DRAKE_DEMAND(x_hat.cols() >= u_hat.cols());
+
     vector<Eigen::MatrixXd> A;
     vector<Eigen::MatrixXd> B;
     vector<Eigen::MatrixXd> D;
@@ -1273,6 +1607,51 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
       c.push_back(lcs.c()[0]);      
     }
 
+    for (int k = 0; k < N; k++) {
+      if (A[k].array().isNaN().any()) {
+        std::cerr << "A " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+
+      }
+      if (B[k].array().isNaN().any()) {
+        std::cerr << "B " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+      if (D[k].array().isNaN().any()) {
+        std::cerr << "D " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+      if (d[k].array().isNaN().any()) {
+        std::cerr << "d " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+      if (E[k].array().isNaN().any()) {
+        std::cerr << "E " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+      if (F[k].array().isNaN().any()) {
+        std::cerr << "F " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+      if (H[k].array().isNaN().any()) {
+        std::cerr << "H " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+      if (c[k].array().isNaN().any()) {
+        std::cerr << "c " << k << " has NaN" << std::endl;
+        std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
+        std::cerr << "u hat " << u_hat.col(k).transpose() << std::endl << std::endl;
+      }
+
+    }
+
     return LCS(A, B, D, d, E, F, H, c, dt_);
   }
 
@@ -1295,6 +1674,21 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     vector<Eigen::MatrixXd> F(lcs.F().begin() + num_timesteps_to_remove, lcs.F().end());
     vector<Eigen::MatrixXd> H(lcs.H().begin() + num_timesteps_to_remove, lcs.H().end());
     vector<Eigen::VectorXd> c(lcs.c().begin() + num_timesteps_to_remove, lcs.c().end());
+
+    return LCS(A, B, D, d, E, F, H, c, dt_);
+  }
+
+  LCS iC3::TruncateLCS(LCS lcs, int num_timesteps_to_keep) {
+    DRAKE_DEMAND(num_timesteps_to_keep <= lcs.A().size());
+
+    vector<Eigen::MatrixXd> A(lcs.A().begin(), lcs.A().begin() + num_timesteps_to_keep);
+    vector<Eigen::MatrixXd> B(lcs.B().begin(), lcs.B().begin() + num_timesteps_to_keep);
+    vector<Eigen::MatrixXd> D(lcs.D().begin(), lcs.D().begin() + num_timesteps_to_keep);
+    vector<Eigen::VectorXd> d(lcs.d().begin(), lcs.d().begin() + num_timesteps_to_keep);
+    vector<Eigen::MatrixXd> E(lcs.E().begin(), lcs.E().begin() + num_timesteps_to_keep);
+    vector<Eigen::MatrixXd> F(lcs.F().begin(), lcs.F().begin() + num_timesteps_to_keep);
+    vector<Eigen::MatrixXd> H(lcs.H().begin(), lcs.H().begin() + num_timesteps_to_keep);
+    vector<Eigen::VectorXd> c(lcs.c().begin(), lcs.c().begin() + num_timesteps_to_keep);
 
     return LCS(A, B, D, d, E, F, H, c, dt_);
   }
@@ -1425,33 +1819,16 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
   void iC3::UpdateHuberCosts(int position_idx, int num_positions, int velocity_idx, int num_velocities) {
 
-    // Get Cholesky Decompositions
-    vector<MatrixXd> L_position;
-    vector<MatrixXd> L_velocity;
-    vector<MatrixXd> L_input;
+    MatrixXd I_pos = MatrixXd::Identity(num_positions, num_positions);
+    MatrixXd I_vel = MatrixXd::Identity(num_velocities, num_velocities);
+    MatrixXd I_u = MatrixXd::Identity(n_u_, n_u_);
 
-    double discount_factor = 1;
-    for (int i = 0; i < N_+1; i++) {
-      Eigen::LLT<Eigen::MatrixXd> lltOfQ(discount_factor * 
-          ic3_options_.position_huber_weight * MatrixXd::Identity(num_positions, num_positions));
-      L_position.push_back(lltOfQ.matrixL());
-
-      Eigen::LLT<Eigen::MatrixXd> lltOfQ_velo(discount_factor * 
-          ic3_options_.velocity_huber_weight * MatrixXd::Identity(num_velocities, num_velocities));
-      L_velocity.push_back(lltOfQ_velo.matrixL());
-
-      if (i < N_) {
-        Eigen::LLT<Eigen::MatrixXd> lltOfR(discount_factor * 
-          ic3_options_.input_huber_weight * MatrixXd::Identity(n_u_, n_u_));
-        L_input.push_back(lltOfR.matrixL());     
-      }
-
-      discount_factor *= controller_options_.c3_options.gamma;
-    }
-
-    c3_->AddHuberCost(L_position, ic3_options_.huber_delta, CostVariable::POSITION, position_idx);
-    c3_->AddHuberCost(L_velocity, ic3_options_.huber_delta, CostVariable::VELOCITY, velocity_idx);
-    c3_->AddHuberCost(L_input, ic3_options_.huber_delta, CostVariable::INPUTS, 0);
+    c3_->AddHuberCost(I_pos, ic3_options_.position_huber_weight, ic3_options_.huber_delta, 
+                      CostVariable::POSITION, position_idx, ic3_options_.huber_frequency);
+    c3_->AddHuberCost(I_vel, ic3_options_.velocity_huber_weight, ic3_options_.huber_delta, 
+                      CostVariable::VELOCITY, velocity_idx, ic3_options_.huber_frequency);
+    c3_->AddHuberCost(I_u, ic3_options_.input_huber_weight, ic3_options_.huber_delta, 
+                      CostVariable::INPUTS, 0, ic3_options_.huber_frequency);
 
   }
   

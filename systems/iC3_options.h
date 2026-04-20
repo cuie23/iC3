@@ -16,8 +16,6 @@ struct iC3Options {
   // does lcs rollout after this many segments
   int segment_rollout_frequency;
 
-  int N_penalize_input_change;
-
   bool early_termination;
 
   bool print_costs;
@@ -27,6 +25,9 @@ struct iC3Options {
   VectorXd rollout_Kp;
   VectorXd rollout_Kd;
 
+  bool penalize_acceleration;  // Penalize change in input between adjacent v's
+  double acceleration_cost_weight;
+  
   double ff_alpha;
 
   double position_l2_decoupling_weight;
@@ -42,11 +43,11 @@ struct iC3Options {
   double velocity_huber_weight;
   double input_huber_weight;  
   double huber_delta;
+  int huber_frequency;
 
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(num_iters));
-    a->Visit(DRAKE_NVP(N_penalize_input_change));
     a->Visit(DRAKE_NVP(add_position_constraints));
     a->Visit(DRAKE_NVP(add_input_constraints));
     a->Visit(DRAKE_NVP(early_termination));
@@ -56,6 +57,8 @@ struct iC3Options {
     a->Visit(DRAKE_NVP(rollout_dt_scaling));
     a->Visit(DRAKE_NVP(rollout_Kp));
     a->Visit(DRAKE_NVP(rollout_Kd));
+    a->Visit(DRAKE_NVP(penalize_acceleration));
+    a->Visit(DRAKE_NVP(acceleration_cost_weight));
     a->Visit(DRAKE_NVP(ff_alpha));
     a->Visit(DRAKE_NVP(position_l2_decoupling_weight));
     a->Visit(DRAKE_NVP(velocity_l2_decoupling_weight));
@@ -68,6 +71,8 @@ struct iC3Options {
     a->Visit(DRAKE_NVP(velocity_huber_weight));
     a->Visit(DRAKE_NVP(input_huber_weight));
     a->Visit(DRAKE_NVP(huber_delta));
+    a->Visit(DRAKE_NVP(huber_frequency));
+
 
   }
 };
