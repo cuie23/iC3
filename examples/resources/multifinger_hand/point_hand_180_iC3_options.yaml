@@ -3,7 +3,7 @@ add_position_constraints: true
 add_input_constraints: true
 early_termination: true
 
-num_segments: 20
+num_segments: 32
 segment_rollout_frequency: 1
 
 rollout_dt_scaling: 10
