@@ -44,15 +44,15 @@ lcs_factory_options:
 
   # 3 fingertip-cube, 4 cube-ground
   mu: [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8 ] #, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
-  N: 150
+  N: 160
   dt: 0.02
 
 c3_options:
   penalize_input_change: true # Currently combines u-u_prev and u-u_des
-  input_change_weight: 10000 # ratio of u-u_prev weight to u-u_des weight
+  input_change_weight: 70000 # ratio of u-u_prev weight to u-u_des weight
 
   penalize_x_change: true # Currently combines x-x_prev and x-x_des
-  x_change_weight: 100 # ratio of x-x_prev weight to x-x_des weight
+  x_change_weight: 2000 # ratio of x-x_prev weight to x-x_des weight
 
   # EXPERIMENTAL
   # penalize_snap: false
