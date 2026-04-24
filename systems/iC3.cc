@@ -148,10 +148,11 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     lambda_hat = lambda_hat_init_out;
 
 
-
+    // HACK 
     VectorXd x_diff = xd - x0;
-    for (int k = 0; k < N_+1; k++) {
-      x_hat.col(k) = x0 + k * x_diff / (N_+1);
+    
+    for (int k = 25; k < N_+1; k++) {
+      x_hat.col(k) = x0 + (k-25) * x_diff / (N_-25);
       if (k < N_) {
         u_hat.col(k) = gravity;
         c3_u_hat.col(k) = gravity;
@@ -284,7 +285,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
           lower_bound(16 + 3*i) = -0.2;
           lower_bound(16 + 3*i+1) = -0.2;
-          lower_bound(16 + 3*i+2) = -0.08;
+          lower_bound(16 + 3*i+2) = -0.05;
 
           upper_bound(3*i) = xd(3*i) + 0.1;
           upper_bound(3*i+1) = xd(3*i+1) + 0.1;
@@ -448,19 +449,19 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           int freq = ic3_options_.segment_rollout_frequency;
           
           if (freq > 0 && (i + 1) % freq == 0) {
-            MatrixXd segment_u_hat(MatrixXd::Zero(n_u_, segment_length));
+            MatrixXd segment_c3_u_hat(MatrixXd::Zero(n_u_, segment_length));
             MatrixXd segment_c3_x_hat(MatrixXd::Zero(n_x_, segment_length));
             vector<VectorXd> short_x_targets;
 
             int col_indexer = 0;
             for (int w = 0; w < segment_length; w++) {
               segment_c3_x_hat.col(w) = x_sol[w];
-              segment_u_hat.col(w) = u_sol[w];
+              segment_c3_u_hat.col(w) = u_sol[w];
               short_x_targets.push_back(x_targets[i*segment_length + w]);
             }
             short_x_targets.push_back(x_targets[(i+1) * segment_length]);
 
-            auto [lcs_out, x_hat_out, u_hat_out, lambda_hat_out] = DoLCSRollout(x_start, x_hat, segment_c3_x_hat, segment_u_hat, 
+            auto [lcs_out, x_hat_out, u_hat_out, lambda_hat_out] = DoLCSRollout(x_start, x_hat, segment_c3_x_hat, segment_c3_u_hat, 
                 lcs_factory, lcs_factory_rollout, A, lower_bound, upper_bound, A_u, lower_bound_u, upper_bound_u, 
                 K_shortened, k_ff_shortened, ic3_options_.ff_alpha);
 
@@ -761,7 +762,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
           }
           
-          if (controller_options_.c3_options.penalize_x_change) {
+          if (controller_options_.c3_options.penalize_x_change && iter > 0) {
             VectorXd x_prev = all_c3_x[iter-1].col(i);
 
             double weight = controller_options_.c3_options.x_change_weight;
@@ -822,7 +823,9 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           // if (i < 5 && !is_franka_) {
           //   std::cout << "u_" << i << ": " << u_curr.transpose() << std::endl;
           // }
-          if (controller_options_.c3_options.penalize_input_change){
+          u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr-gravity);
+
+          if (controller_options_.c3_options.penalize_input_change && iter > 0) {
             VectorXd u_prev = all_c3_u[iter-1].col(i);
             if (!u_prev.allFinite()) {
               std::cout << "u prev not all finite " << i << std::endl;
@@ -834,9 +837,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
               std::cout << "R not all finite" << i << std::endl;
             }
             u_cost += controller_options_.c3_options.input_change_weight * (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev);
-            u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr - gravity);
           } else {
-            u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr-gravity);
           }
           
           //std::cout << "u cost " << i << ": " << (u_curr - u_prev).transpose() * R_[i] * (u_curr - u_prev) << std::endl;;
@@ -1129,16 +1130,16 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           lower_bound(3*i+1) = xd(3*i+1) - 0.1;
           lower_bound(3*i+2) = xd(3*i+2) - 0.01;
 
-          lower_bound(16 + 3*i) = -0.2;
-          lower_bound(16 + 3*i+1) = -0.2;
+          lower_bound(16 + 3*i) = -0.3;
+          lower_bound(16 + 3*i+1) = -0.3;
           lower_bound(16 + 3*i+2) = -0.05;
 
           upper_bound(3*i) = xd(3*i) + 0.1;
           upper_bound(3*i+1) = xd(3*i+1) + 0.1;
           upper_bound(3*i+2) = xd(3*i+2) + 0.01;
 
-          upper_bound(16 + 3*i) = 0.2;
-          upper_bound(16 + 3*i+1) = 0.2;
+          upper_bound(16 + 3*i) = 0.3;
+          upper_bound(16 + 3*i+1) = 0.3;
           upper_bound(16 + 3*i+2) = 0.05;
 
 
