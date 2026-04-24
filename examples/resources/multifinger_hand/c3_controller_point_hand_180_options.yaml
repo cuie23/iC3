@@ -6,13 +6,13 @@ publish_frequency: 0
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 800
+Q_quaternion_weight: 350
 
 quaternion_regularizer_fraction: 0.0
 
-x_init: [0, 0.08, 0.05,  # finger 1  
-         0.07, -0.06, 0.05,   # finger 2
-         -0.07, -0.06, 0.05,   # finger 3
+x_init: [0, 0.07, 0.05,  # finger 1  
+         0.06, -0.06, 0.05,   # finger 2
+         -0.06, -0.06, 0.05,   # finger 3
          1, 0, 0, 0,  # cube orientation
          0, 0, 0.051,  # cube position
          0, 0, 0,     # finger 1 velo
@@ -22,9 +22,9 @@ x_init: [0, 0.08, 0.05,  # finger 1
          0, 0, 0]   	# cube velo
 
 
-x_des: [0, 0.08, 0.05,  # finger 1  
-         0.07, -0.06, 0.05,   # finger 2
-         -0.07, -0.06, 0.05,   # finger 3
+x_des: [0, 0.07, 0.05,  # finger 1  
+         0.06, -0.06, 0.05,   # finger 2
+         -0.06, -0.06, 0.05,   # finger 3
          0, 0, 0, 1,  # cube orientation (180 about z)
          0, 0, 0.051,  # cube position
          0, 0, 0,     # finger 1 velo
@@ -49,10 +49,10 @@ lcs_factory_options:
 
 c3_options:
   penalize_input_change: true # Currently combines u-u_prev and u-u_des
-  input_change_weight: 70000 # ratio of u-u_prev weight to u-u_des weight
+  input_change_weight: 1000 # ratio of u-u_prev weight to u-u_des weight
 
   penalize_x_change: true # Currently combines x-x_prev and x-x_des
-  x_change_weight: 2000 # ratio of x-x_prev weight to x-x_des weight
+  x_change_weight: 1000 # ratio of x-x_prev weight to x-x_des weight
 
   # EXPERIMENTAL
   # penalize_snap: false
@@ -73,13 +73,13 @@ c3_options:
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
   w_G: 100 #Penalty on all decision variables, assuming scalar
-  w_U: 5 #State Tracking Error, assuming diagonal
+  w_U: 10 #State Tracking Error, assuming diagonal
 
-  q_vector: [50000, 50000, 5000,    # finger 1
-             50000, 50000, 5000,    # finger 2
-             50000, 50000, 5000,    # finger 3
+  q_vector: [40000, 40000, 4000,    # finger 1
+             40000, 40000, 4000,    # finger 2
+             40000, 40000, 4000,    # finger 3
              1, 1, 1, 1,
-             80000, 80000, 20000,
+             80000, 80000, 80000,
              1, 1, 1,          # finger 1 velo
              1, 1, 1,          # finger 2 velo
              1, 1, 1,          # finger 3 velo 

@@ -71,7 +71,7 @@ c3_options:
   gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
-  w_R: 100000000 #Penalty on all decision variables, assuming scalar
+  w_R: 10000 #Penalty on all decision variables, assuming scalar
   w_G: 30 #Penalty on all decision variables, assuming scalar
   w_U: 5 #State Tracking Error, assuming diagonal
 
