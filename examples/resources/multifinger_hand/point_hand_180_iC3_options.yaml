@@ -1,9 +1,9 @@
-num_iters: 3
+num_iters: 2
 add_position_constraints: true
 add_input_constraints: true
 early_termination: true
 
-num_segments: 40
+num_segments: 30
 segment_rollout_frequency: 1
 
 rollout_dt_scaling: 10
@@ -29,7 +29,7 @@ l2_decoupling_indices: []
 # velocity_l1_weight : 0.1
 # input_l1_weight: 500
 
-position_huber_weight: 100000
+position_huber_weight: 500000
 velocity_huber_weight: 10
 input_huber_weight: 1000
 

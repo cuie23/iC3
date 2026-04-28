@@ -347,6 +347,7 @@ void C3::Solve(const VectorXd& x0) {
   }
 
   if (penalize_change_ && options_.penalize_input_change) {
+    std::cout << "penalizing change " << std::endl;
     if (u_sol_->size() < N_) {
       std::cerr << "u sol not set, penalize input change" << std::endl;
     }
