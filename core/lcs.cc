@@ -66,7 +66,7 @@ const VectorXd LCS::Simulate(VectorXd& x_init, VectorXd& u,
   drake::solvers::MobyLCPSolver<double> LCPSolver;
   if (regularized) {
     flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -2);
   } else {
     flag = LCPSolver.SolveLcpLemke(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }
@@ -103,13 +103,19 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
   if (!(E_[0] * x_init + c_[0] + H_[0] * u).allFinite()) {
     std::cout << "q not all finite" << std::endl;
   }
-  auto eigs = Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(F_[0]).eigenvalues();
-  double max_eig = eigs.maxCoeff();
-  double min_eig = eigs.minCoeff();
+
+  Eigen::EigenSolver<Eigen::MatrixXd> es(F_[0]);
+  auto eigenvalues = es.eigenvalues();
+
+  auto min_it = std::min_element(eigenvalues.data(), eigenvalues.data() + eigenvalues.size(),
+      [](const std::complex<double>& a, const std::complex<double>& b) {
+          return a.real() < b.real();
+      });
+  // std::cout << "min eig " << min_it->real() << std::endl;
 
   if (regularized) {
     flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 2, 2);
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -10);
   } else {
     flag = LCPSolver.SolveLcpFast(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }

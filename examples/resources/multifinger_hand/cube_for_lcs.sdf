@@ -5,6 +5,17 @@
       <link name="cube">
         <pose>0 0 0 0 0 0</pose> 
         <inertial>
+          <mass>0.15</mass>
+          <inertia>
+            <ixx>0.000249</ixx>
+            <iyy>0.000249</iyy>
+            <izz>0.000249</izz>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <!-- <inertial>
           <mass>0.2</mass>
           <inertia>
             <ixx>0.000332</ixx>
@@ -14,7 +25,7 @@
             <ixz>0.0</ixz>
             <iyz>0.0</iyz>
           </inertia>
-        </inertial>
+        </inertial> -->
         <!-- <inertial>
           <mass>0.5</mass>
           <inertia>
