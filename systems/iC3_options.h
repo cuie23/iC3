@@ -13,6 +13,8 @@ struct iC3Options {
   bool add_input_constraints;
   int num_segments;
 
+  bool first_iter_warm_start;
+
   // does lcs rollout after this many segments
   int segment_rollout_frequency;
 
@@ -50,6 +52,7 @@ struct iC3Options {
     a->Visit(DRAKE_NVP(num_iters));
     a->Visit(DRAKE_NVP(add_position_constraints));
     a->Visit(DRAKE_NVP(add_input_constraints));
+    a->Visit(DRAKE_NVP(first_iter_warm_start));
     a->Visit(DRAKE_NVP(early_termination));
     a->Visit(DRAKE_NVP(num_segments));
     a->Visit(DRAKE_NVP(segment_rollout_frequency));

@@ -117,7 +117,8 @@ private:
       MatrixXd lambda_hat, VectorXd xd, VectorXd ud, LCS lcs);
 
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory);
-  LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, VectorXd ee_position, int ee_idx, int num_ee);
+  LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, 
+        VectorXd ee_position, int ee_idx, int num_ee, int segment_length);
 
   // removes num_timesteps_to_remove timesteps from the front of the LCS
   LCS ShortenLCSFront(LCS lcs, int num_timesteps_to_remove);

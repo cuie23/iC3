@@ -1148,7 +1148,7 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(10);
+  const std::chrono::milliseconds period(200);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
@@ -1399,7 +1399,7 @@ int RunHandTestiC3(drake::lcm::DrakeLcm& lcm) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(10);
+  const std::chrono::milliseconds period(200);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
@@ -1783,7 +1783,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(10);
+  const std::chrono::milliseconds period(200);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
