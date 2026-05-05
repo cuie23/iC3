@@ -115,7 +115,7 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
 
   if (regularized) {
     flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -10);
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -6);
   } else {
     flag = LCPSolver.SolveLcpFast(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }

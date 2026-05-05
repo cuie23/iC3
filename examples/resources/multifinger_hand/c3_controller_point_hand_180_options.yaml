@@ -6,7 +6,7 @@ publish_frequency: 0
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 500
+Q_quaternion_weight: 800
 
 quaternion_regularizer_fraction: 0.0
 
@@ -43,13 +43,13 @@ lcs_factory_options:
   spring_stiffness: 0
 
   # 3 fingertip-cube, 4 cube-ground
-  mu: [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8 ] #, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
-  N: 150
+  mu: [0.8, 0.8, 0.8, 0.5, 0.5, 0.5, 0.5 ] #, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+  N: 210
   dt: 0.02
 
 c3_options:
   penalize_input_change: true # Currently combines u-u_prev and u-u_des
-  input_change_weight: 10000 # ratio of u-u_prev weight to u-u_des weight
+  input_change_weight: 1000 # ratio of u-u_prev weight to u-u_des weight
 
   penalize_x_change: true # Currently combines x-x_prev and x-x_des
   x_change_weight: 1000 # ratio of x-x_prev weight to x-x_des weight
@@ -68,18 +68,18 @@ c3_options:
   M: 1000
 
   admm_iter: 10
-  gamma: 1.0
+  gamma: 1.00
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 88 #Penalty on all decision variables, assuming scalar
+  w_G: 185 #Penalty on all decision variables, assuming scalar
   w_U: 5 #State Tracking Error, assuming diagonal
 
-  q_vector: [60000, 60000, 6000,    # finger 1
-             60000, 60000, 6000,    # finger 2
-             60000, 60000, 6000,    # finger 3
+  q_vector: [30000, 30000, 3000,    # finger 1
+             30000, 30000, 3000,    # finger 2
+             30000, 30000, 3000,    # finger 3
              1, 1, 1, 1,
-             80000, 80000, 80000,
+             150000, 150000, 80000,
              1, 1, 1,          # finger 1 velo
              1, 1, 1,          # finger 2 velo
              1, 1, 1,          # finger 3 velo 
@@ -99,7 +99,7 @@ c3_options:
   g_lambda: [75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75]
    #, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75] 
   
-  g_eta_slack: [3, 3, 3, 3, 3, 3, 3] #, 3, 3, 3, 3, 3, 3, 3]
+  g_eta_slack: [2, 3, 3, 3, 3, 3, 3] #, 3, 3, 3, 3, 3, 3, 3]
   g_eta_n: [3, 3, 3, 3, 3, 3, 3] #, 3, 3, 3, 3, 3, 3, 3] 
   g_eta_t: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3] 
       #, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3] 
@@ -116,7 +116,7 @@ c3_options:
 
   u_lambda: [75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75] 
             # , 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75] 
-  u_u: [30, 30, 30, 30, 30, 30, 30, 30, 30]
+  u_u: [50, 50, 50, 50, 50, 50, 50, 50, 50]
 
   u_eta_slack: [3, 3, 3, 3, 3, 3, 3] #, 3, 3, 3, 3, 3, 3, 3] 
   u_eta_n: [3, 3, 3, 3, 3, 3, 3] #, 3, 3, 3, 3, 3, 3, 3] 

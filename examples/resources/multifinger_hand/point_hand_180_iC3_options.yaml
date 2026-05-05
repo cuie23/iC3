@@ -3,6 +3,8 @@ add_position_constraints: true
 add_input_constraints: true
 early_termination: true
 
+first_iter_warm_start: false
+
 num_segments: 30
 segment_rollout_frequency: 1
 
@@ -10,13 +12,13 @@ rollout_dt_scaling: 10
 
 print_costs: true
 
-# rollout_Kp: [50, 50, 0, 50, 50, 0, 50, 50, 0]
-# rollout_Kd: [10, 10, 0, 10, 10, 0, 10, 10, 0]
+# rollout_Kp: [10, 10, 0, 10, 10, 0, 10, 10, 0]
+# rollout_Kd: [1, 1, 0, 1, 1, 0, 1, 1, 0]
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 penalize_acceleration: true 
-acceleration_cost_weight: 20
+acceleration_cost_weight: 50
 
 position_l2_decoupling_weight: 0
 velocity_l2_decoupling_weight: 0
@@ -29,7 +31,7 @@ l2_decoupling_indices: []
 # velocity_l1_weight : 0.1
 # input_l1_weight: 500
 
-position_huber_weight: 500000
+position_huber_weight: 300000
 velocity_huber_weight: 10
 input_huber_weight: 1000
 

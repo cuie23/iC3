@@ -8,6 +8,7 @@
 #include "core/c3_plus.h"
 #include "core/c3_qp.h"
 #include "multibody/lcs_factory.h"
+#include "multibody/geom_geom_collider.h"
 #include "common/quaternion_error_hessian.h"
 
 #include "drake/common/text_logging.h"
@@ -279,20 +280,20 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           A(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
           // Offset from initial position
-          lower_bound(3*i) = xd(3*i) - 0.09;
-          lower_bound(3*i+1) = xd(3*i+1) - 0.09;
+          lower_bound(3*i) = xd(3*i) - 0.08;
+          lower_bound(3*i+1) = xd(3*i+1) - 0.08;
           lower_bound(3*i+2) = xd(3*i+2) - 0.01;
 
-          lower_bound(16 + 3*i) = -0.2;
-          lower_bound(16 + 3*i+1) = -0.2;
+          lower_bound(16 + 3*i) = -0.4;
+          lower_bound(16 + 3*i+1) = -0.4;
           lower_bound(16 + 3*i+2) = -0.05;
 
-          upper_bound(3*i) = xd(3*i) + 0.09;
-          upper_bound(3*i+1) = xd(3*i+1) + 0.09;
+          upper_bound(3*i) = xd(3*i) + 0.08;
+          upper_bound(3*i+1) = xd(3*i+1) + 0.08;
           upper_bound(3*i+2) = xd(3*i+2) + 0.01;
 
-          upper_bound(16 + 3*i) = 0.2;
-          upper_bound(16 + 3*i+1) = 0.2;
+          upper_bound(16 + 3*i) = 0.4;
+          upper_bound(16 + 3*i+1) = 0.4;
           upper_bound(16 + 3*i+2) = 0.05;
 
 
@@ -348,22 +349,22 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         // }
 
 
-        // int ee_idx;
-        // int num_ee;
-        // if (example_idx_ == 0) {
-        //   ee_idx = 0;
-        //   num_ee = 5;
-        // } else if (example_idx_ == 2) {
-        //   ee_idx = 0;
-        //   num_ee = 9;
-        // }
-        // lcs = MakeTimeVaryingLCSWithEE(x_hat.rightCols(x_hat.cols() - i * segment_length), 
-        //       u_hat.rightCols(u_hat.cols() - i * segment_length), lcs_factory, 
-        //         x_start.segment(ee_idx, num_ee), ee_idx, num_ee);
-
-        if (i != 0) {
-          lcs = ShortenLCSFront(lcs, segment_length);  
+        int ee_idx;
+        int num_ee;
+        if (example_idx_ == 0) {
+          ee_idx = 0;
+          num_ee = 5;
+        } else if (example_idx_ == 2) {
+          ee_idx = 0;
+          num_ee = 9;
         }
+        lcs = MakeTimeVaryingLCSWithEE(x_hat.rightCols(x_hat.cols() - i * segment_length), 
+              u_hat.rightCols(u_hat.cols() - i * segment_length), lcs_factory, 
+                x_start.segment(ee_idx, num_ee), ee_idx, num_ee, segment_length);
+
+        // if (i != 0) {
+        //   lcs = ShortenLCSFront(lcs, segment_length);  
+        // }
 
         C3::CostMatrices shortened_costs = ShortenCostsFront(i * segment_length);
         std::vector<VectorXd> shortened_targets(x_targets.begin() + i * segment_length, x_targets.end());
@@ -387,9 +388,10 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         if (n_u_ == 9 && ic3_options_.penalize_acceleration) {
           c3_->AddAccelerationCost(n_q_, n_v_, ic3_options_.acceleration_cost_weight);
         }
-
-        if (((iter > 1 && controller_options_.c3_options.penalize_x_change) || 
-            (iter > 1 && controller_options_.c3_options.penalize_input_change) || 
+        
+        int iter_add = (ic3_options_.first_iter_warm_start) ? 1 : 0;
+        if (((iter > 1 + iter_add && controller_options_.c3_options.penalize_x_change) || 
+            (iter > 1 + iter_add && controller_options_.c3_options.penalize_input_change) || 
               (controller_options_.c3_options.warm_start))) {
           vector<VectorXd> x_sol_keep;
           vector<VectorXd> u_sol_keep;
@@ -409,8 +411,10 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
             c3_->SetUSol(u_sol_keep);
           }
         }
-        // TODO: move this into options file
-        c3_->SetPenalizeChange(iter != 1);
+
+        // TODO: move this into options file 
+        bool penal_change = !((iter == 1) || (ic3_options_.first_iter_warm_start && iter == 2));
+        c3_->SetPenalizeChange(penal_change);
 
         if (ic3_options_.add_position_constraints) {
           c3_->AddLinearConstraint(A, lower_bound, upper_bound,
@@ -468,13 +472,30 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
             // auto [lcs_out, x_hat_out, u_hat_out, lambda_hat_out] = DoC3Rollout(x0, segment_u_hat, 
             //               lcs_factory, lcs_factory_rollout, H, g, short_x_targets, i * segment_length);
 
+
+            // Sanity check that lambdas are reasonable 
+            VectorXd u_test(VectorXd::Zero(n_u_));
+            VectorXd c3_x = x_sol[0];
+            VectorXd c3_u = u_sol[0];
+            VectorXd c3_lambda = z_sol[0].segment(n_x_, n_lambda_);
+            VectorXd c3_phi = lcs.E()[0] * c3_x + lcs.F()[0] * c3_lambda + lcs.H()[0] * c3_u + lcs.c()[0];
+
+            auto [x_test, lambda_test] = lcs.SimulateAndReturnForce(x_start, c3_u, true);
+            for (int i = 0; i < 3; i++) {
+              plant_.SetPositionsAndVelocities(&context, x_start);
+              multibody::GeomGeomCollider collider(plant_, contact_geoms[i]);
+              auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions);
+              std::cout << "finger " << i << " phi " << phi << ", lambda " << lambda_test.segment(4*i, 4).transpose() << std::endl;
+              // std::cout << "finger " << i << " c3 phi " << c3_phi.segment(4*i, 4).transpose() << std::endl << std::endl;
+            }
+            //std::cout << "x test " << x_start.segment(9, 7).transpose() << std::endl;
+
             //std::cout << x_hat_out.middleRows(9, 4).transpose() << std::endl;
             x_start = x_hat_out.col(x_hat_out.cols()-1);
 
             std::cout << "x start ee " << x_start.segment(0, 9).transpose() << std::endl;
             std::cout << "x start " << x_start.segment(9,4).normalized().transpose() 
-              << "   " << x_start.segment(13, 3).transpose() << std::endl << std::endl;;
-
+              << "   " << x_start.segment(13, 3).transpose() << std::endl << std::endl << std::endl;
 
             // Make new linear interpolation for LCS
             // int n_remaining_timesteps = N_ - indexer;
@@ -542,10 +563,28 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         auto [lcs_out, x_hat_out, u_hat_with_fb_out, lambda_hat_out] = DoLCSRollout(x0, x_hat, c3_x_hat, 
             c3_u_hat, lcs_factory, lcs_factory_rollout, A, lower_bound, upper_bound, A_u, 
             lower_bound_u, upper_bound_u, K, k_ff, ic3_options_.ff_alpha);
-        lcs = lcs_out;
-        x_hat = x_hat_out;
         lambda_hat = lambda_hat_out;
         u_hat = u_hat_with_fb_out;
+
+        if (ic3_options_.first_iter_warm_start && iter == 1) {
+          // HARDCODED
+          int ee_start_idx;
+          int ee_size;
+          if (n_x_ == 23) {
+            ee_start_idx = 0;
+            ee_size = 5;
+          } else if (n_x_ == 31) {
+            ee_start_idx = 0;
+            ee_size = 9;
+          }
+          // Only set end effector positions, keep initial guess for object the same
+          x_hat.middleRows(ee_start_idx, ee_size) = x_hat_out.middleRows(ee_start_idx, ee_size);
+          lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
+        } else { 
+          x_hat = x_hat_out;
+          lcs = lcs_out;
+        }
+
       } else {
         auto [lcs_out, x_hat_out, u_hat_with_fb_out, lambda_hat_out] = DoC3Rollout(x0, c3_u_hat, 
                     lcs_factory, lcs_factory_rollout, H, g, x_targets, 0);
@@ -762,7 +801,8 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
 
           }
           
-          if (controller_options_.c3_options.penalize_x_change && iter > 1) {
+          int iter_add = (ic3_options_.first_iter_warm_start) ? 1 : 0;
+          if (controller_options_.c3_options.penalize_x_change && iter > 1 + iter_add) {
             VectorXd x_prev = all_c3_x[iter-1].col(i);
 
             double weight = controller_options_.c3_options.x_change_weight;
@@ -825,7 +865,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           // }
           u_cost += (u_curr - gravity).transpose() * R_[i] * (u_curr-gravity);
 
-          if (controller_options_.c3_options.penalize_input_change && iter > 1) {
+          if (controller_options_.c3_options.penalize_input_change && iter > 1 + iter_add) {
             VectorXd u_prev = all_c3_u[iter-1].col(i);
             if (!u_prev.allFinite()) {
               std::cout << "u prev not all finite " << i << std::endl;
@@ -872,7 +912,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         }
 
         // terminate early if rotation goal met
-        if (ic3_options_.early_termination) {
+        if (ic3_options_.early_termination && !(ic3_options_.first_iter_warm_start && iter == 1)) {
           int matched_count = 0;
           vector<int> quat_idxs = controller_options_.quaternion_indices;
 
@@ -1125,20 +1165,20 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           A(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
           // Offset from initial position
-          lower_bound(3*i) = xd(3*i) - 0.09;
-          lower_bound(3*i+1) = xd(3*i+1) - 0.09;
+          lower_bound(3*i) = xd(3*i) - 0.08;
+          lower_bound(3*i+1) = xd(3*i+1) - 0.08;
           lower_bound(3*i+2) = xd(3*i+2) - 0.01;
 
-          lower_bound(16 + 3*i) = -0.3;
-          lower_bound(16 + 3*i+1) = -0.3;
+          lower_bound(16 + 3*i) = -0.4;
+          lower_bound(16 + 3*i+1) = -0.4;
           lower_bound(16 + 3*i+2) = -0.05;
 
-          upper_bound(3*i) = xd(3*i) + 0.09;
-          upper_bound(3*i+1) = xd(3*i+1) + 0.09;
+          upper_bound(3*i) = xd(3*i) + 0.08;
+          upper_bound(3*i+1) = xd(3*i+1) + 0.08;
           upper_bound(3*i+2) = xd(3*i+2) + 0.01;
 
-          upper_bound(16 + 3*i) = 0.3;
-          upper_bound(16 + 3*i+1) = 0.3;
+          upper_bound(16 + 3*i) = 0.4;
+          upper_bound(16 + 3*i+1) = 0.4;
           upper_bound(16 + 3*i+2) = 0.05;
 
 
@@ -1634,10 +1674,14 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
   }
 
   LCS iC3::MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, 
-              VectorXd ee_position, int ee_idx, int num_ee) {
+              VectorXd ee_position, int ee_idx, int num_ee, int segment_length) {
     DRAKE_DEMAND(ee_position.size() == num_ee);
-    for (int i = 0; i < x_hat.cols(); i++) {
-      x_hat.col(i).segment(ee_idx, num_ee) = ee_position;
+
+    VectorXd ee_end = x_hat.col(segment_length).segment(ee_idx, num_ee);
+    VectorXd ee_diff = ee_end - ee_position;
+
+    for (int i = 0; i < segment_length; i++) {
+      x_hat.col(i).segment(ee_idx, num_ee) = ee_position + i * (ee_diff / (double)(segment_length));
     }    
     return MakeTimeVaryingLCS(x_hat, u_hat, factory);
   }
