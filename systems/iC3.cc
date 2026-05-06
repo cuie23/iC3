@@ -284,16 +284,16 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           lower_bound(3*i+1) = xd(3*i+1) - 0.08;
           lower_bound(3*i+2) = xd(3*i+2) - 0.01;
 
-          lower_bound(16 + 3*i) = -0.4;
-          lower_bound(16 + 3*i+1) = -0.4;
+          lower_bound(16 + 3*i) = -0.25;
+          lower_bound(16 + 3*i+1) = -0.25;
           lower_bound(16 + 3*i+2) = -0.05;
 
           upper_bound(3*i) = xd(3*i) + 0.08;
           upper_bound(3*i+1) = xd(3*i+1) + 0.08;
           upper_bound(3*i+2) = xd(3*i+2) + 0.01;
 
-          upper_bound(16 + 3*i) = 0.4;
-          upper_bound(16 + 3*i+1) = 0.4;
+          upper_bound(16 + 3*i) = 0.25;
+          upper_bound(16 + 3*i+1) = 0.25;
           upper_bound(16 + 3*i+2) = 0.05;
 
 
@@ -1169,16 +1169,16 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
           lower_bound(3*i+1) = xd(3*i+1) - 0.08;
           lower_bound(3*i+2) = xd(3*i+2) - 0.01;
 
-          lower_bound(16 + 3*i) = -0.4;
-          lower_bound(16 + 3*i+1) = -0.4;
+          lower_bound(16 + 3*i) = -0.25;
+          lower_bound(16 + 3*i+1) = -0.25;
           lower_bound(16 + 3*i+2) = -0.05;
 
           upper_bound(3*i) = xd(3*i) + 0.08;
           upper_bound(3*i+1) = xd(3*i+1) + 0.08;
           upper_bound(3*i+2) = xd(3*i+2) + 0.01;
 
-          upper_bound(16 + 3*i) = 0.4;
-          upper_bound(16 + 3*i+1) = 0.4;
+          upper_bound(16 + 3*i) = 0.25;
+          upper_bound(16 + 3*i+1) = 0.25;
           upper_bound(16 + 3*i+2) = 0.05;
 
 
