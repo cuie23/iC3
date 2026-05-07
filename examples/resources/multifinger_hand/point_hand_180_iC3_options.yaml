@@ -18,7 +18,7 @@ rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 penalize_acceleration: true 
-acceleration_cost_weight: 50
+acceleration_cost_weight: 20
 
 position_l2_decoupling_weight: 0
 velocity_l2_decoupling_weight: 0
@@ -44,6 +44,6 @@ input_l1_weight: 0
 # input_huber_weight: 0
 
 huber_delta: 0.01
-huber_frequency: 1 # 0 = No Huber cost
+huber_frequency: 0 # 0 = No Huber cost
 
 ff_alpha: 0.4
