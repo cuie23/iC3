@@ -86,6 +86,27 @@ cc_library( name = "iC3",
     ],
 )
 
+cc_library( name = "MSiC3",
+    srcs = [
+        "MSiC3.cc",
+    ],
+    hdrs = [
+        "MSiC3.h",
+    ],
+    deps = [
+        ":options",
+        ":framework",
+        "//core:c3",
+        "//core:lcs",
+        "//core:options",
+        "//systems:ms_ic3_options",
+        "//systems:PdInputSource",
+        "//multibody:lcs_factory",
+        "//systems:quaternion_error_hessian",
+        "@drake//:drake_shared_library",
+    ],
+)
+
 cc_library( name = "PdInputSource",
     srcs = [
         "PdInputSource.cc",
@@ -146,6 +167,15 @@ cc_library(
     name = "ic3_options",
     hdrs = [
         "iC3_options.h",
+    ],
+    deps = [
+    ]
+)
+
+cc_library(
+    name = "ms_ic3_options",
+    hdrs = [
+        "MSiC3_options.h",
     ],
     deps = [
     ]
