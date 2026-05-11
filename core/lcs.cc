@@ -105,23 +105,24 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
   }
 
   Eigen::EigenSolver<Eigen::MatrixXd> es(F_[0]);
-  auto eigenvalues = es.eigenvalues();
+  auto eigenvalues = es.eigenvalues().real();
+  double min_eig = eigenvalues.minCoeff();
+  double max_eig = eigenvalues.maxCoeff();
 
-  auto min_it = std::min_element(eigenvalues.data(), eigenvalues.data() + eigenvalues.size(),
-      [](const std::complex<double>& a, const std::complex<double>& b) {
-          return a.real() < b.real();
-      });
-  // std::cout << "min eig " << min_it->real() << std::endl;
 
   if (regularized) {
     flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -8);
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -4);
   } else {
     flag = LCPSolver.SolveLcpFast(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }
 
   if (flag == 0) {
     std::cout << "LCP failed: returning x_init" << std::endl;
+    std::cout << "min eig " << min_eig << std::endl;
+    std::cout << "max eig " << max_eig << std::endl;
+    std::cout << force.transpose() << std::endl;
+
     //std::cout << x_init.transpose() << std::endl;
     return std::make_pair(x_init, VectorXd::Zero(F_[0].cols()));
   }

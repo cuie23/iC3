@@ -1,0 +1,39 @@
+num_iters: 10
+
+N: 390
+num_segments: 13
+
+
+add_position_constraints: true
+add_input_constraints: true
+
+early_termination: true
+
+print_costs: true
+rollout_dt_scaling: 5
+
+penalize_acceleration: true
+acceleration_cost_weight: 20
+
+defect_quaternion_weight: 20
+defect_quaternion_regularizer_fraction: 0
+
+w_P: 10
+p_vector: [6000, 6000, 6000, 
+           6000, 6000, 6000, 
+           6000, 6000, 6000, 
+           1, 1, 1, 1,          # gets overwritten by quaternion logic
+           1000, 1000, 1000,
+           1, 1, 1,
+           1, 1, 1, 
+           1, 1, 1, 
+           1, 1, 1,
+           1, 1, 1]
+
+# rollout_Kp: [30, 30, 0, 30, 30, 0, 30, 30, 0]
+# rollout_Kd: [2, 2, 0, 2, 2, 0, 2, 2, 0]
+rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
+rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+alpha_ee: 0.5
+alpha_object: 0.7

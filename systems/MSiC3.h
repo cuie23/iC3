@@ -44,7 +44,6 @@ public:
     MultibodyPlant<drake::AutoDiffXd>& plant_ad,
     MultibodyPlant<double>& plant_rollout,
     MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
-    C3::CostMatrices& costs, 
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
     int example_idx);
 
@@ -66,6 +65,9 @@ public:
 
 private:
   
+  VectorXd ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
+                                  VectorXd x_init, int start_idx, int q_size); 
+
   tuple<LCS, MatrixXd, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd x_hat_prev, MatrixXd c3_x_hat, MatrixXd u_hat, 
                                               LCSFactory factory, LCSFactory rollout_factory, MatrixXd A_constraint_x, 
                                               VectorXd lower_bound_x, VectorXd upper_bound_x, MatrixXd A_constraint_u, 
@@ -77,18 +79,12 @@ private:
   // lcs, H, g, x_targets are all over the entire iC3 time horizon, indexing done in function
   // start_idx is the timestep w.r.t the entire iC3 time horizon to start from
   // returns x_hat, u_hat, lambda_hat
-  tuple<MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd u_hat, LCS lcs, 
-                                              LCSFactory rollout_factory, vector<MatrixXd> H, 
-                                              vector<VectorXd> g, vector<VectorXd> x_targets, int start_idx);
-
-  MatrixXd DrakeRolloutPlate(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u);
-
-  tuple<MatrixXd, MatrixXd> DrakeRolloutPointHand(VectorXd x0, MatrixXd c3_x, MatrixXd c3_u,
-       const vector<SortedPair<GeometryId>>& contact_geoms);
-
-  // TODO: FIX THIS
-  VectorXd GetLambdaFromContacts(ContactResults<double> contact_results,
-      const vector<SortedPair<GeometryId>>& contact_geoms);
+  // TODO: context and contact_geoms only get used for debugging
+  tuple<MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
+                                              LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
+                                              vector<VectorXd> g, vector<VectorXd> x_targets, int start_idx,                                          
+                                              MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
+                                              MatrixXd A_u, VectorXd lb_u, VectorXd ub_u);
 
 
   // For affine time-varying LQR problem get value function
@@ -105,6 +101,8 @@ private:
                             LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects);
 
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory);
+  LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, VectorXd ee_pose, int ee_idx);
+
   LCS GetLCSSegment(LCS lcs, int start_idx, int length);
 
   // x_hat (N by n_x), kth row is x at time k
@@ -128,9 +126,6 @@ private:
   int n_lambda_;  // Number of Lagrange multipliers.
   int n_u_;       // Number of control inputs.
   double dt_;     // Time step for c3
-
-  // C3 solver instance.
-  mutable std::unique_ptr<C3> c3_;
 
   // Cost matrices for optimization.
   mutable std::vector<Eigen::MatrixXd> Q_;  ///< State cost matrices.

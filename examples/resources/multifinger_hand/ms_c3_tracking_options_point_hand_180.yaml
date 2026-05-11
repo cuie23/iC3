@@ -1,0 +1,127 @@
+projection_type: "C3+"
+
+solve_time_filter_alpha: 0.0
+#set to 0 to publish as fast as possible
+publish_frequency: 0
+state_prediction_joints: []
+
+quaternion_indices: [9]
+Q_quaternion_weight: 1200
+
+quaternion_regularizer_fraction: 0.0
+
+x_init: [0, 0.07, 0.05,  # finger 1 
+         0.07, -0.055, 0.05,   # finger 2
+         -0.07, -0.055, 0.05,   # finger 3
+         1, 0, 0, 0, # cube orientation
+         0, 0, 0.051,  # cube position
+         0, 0, 0,     # finger 1 velo
+         0, 0, 0,     # finger 2 velo
+         0, 0, 0,     # finger 3 velo
+         0, 0, 0,     # cube ang velo
+         0, 0, 0]   	# cube velo
+
+
+x_des: [0, 0.07, 0.05,  # finger 1  
+         0.07, -0.055, 0.05,   # finger 2
+         -0.07, -0.055, 0.05,   # finger 3
+         0, 0, 0, 1,  # cube orientation (180 about z)
+         0, 0, 0.051,  # cube position
+         0, 0, 0,     # finger 1 velo
+         0, 0, 0,     # finger 2 velo
+         0, 0, 0,     # finger 3 velo
+         0, 0, 0,     # cube ang velo
+         0, 0, 0]     # cube velo
+
+        
+lcs_factory_options:
+  #options are 'stewart_and_trinkle' or 'anitescu'
+  # contact_model : 'stewart_and_trinkle'
+  contact_model: "anitescu"
+  num_friction_directions: 2
+  num_contacts: 7
+  spring_stiffness: 0
+
+  # 3 fingertip-cube, 4 cube-ground
+  mu: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6] #, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+  N: 10
+  dt: 0.01
+
+c3_options:
+  penalize_input_change: false # Currently combines u-u_prev and u-u_des
+  input_change_weight: 1000 # ratio of u-u_prev weight to u-u_des weight
+
+  penalize_x_change: false # Currently combines x-x_prev and x-x_des
+  x_change_weight: 1000 # ratio of x-x_prev weight to x-x_des weight
+
+  # EXPERIMENTAL
+  # penalize_snap: false
+  # snap_scaling: 1 # If too big, can cause non-convexity
+
+  warm_start: false     
+  end_on_qp_step: true
+  scale_lcs: true
+
+  num_threads: 10
+  delta_option: 1
+
+  M: 1000
+
+  admm_iter: 10
+  gamma: 1.00
+  rho_scale: 1.1 #matrix scaling
+  w_Q: 5
+  w_R: 500 #Penalty on all decision variables, assuming scalar
+  w_G: 50 #Penalty on all decision variables, assuming scalar
+  w_U: 5 #State Tracking Error, assuming diagonal
+
+  q_vector: [20000, 20000, 20000,    # finger 1
+             20000, 20000, 20000,    # finger 2
+             20000, 20000, 20000,    # finger 3
+             1, 1, 1, 1,
+             150000, 150000, 80000,
+             1, 1, 1,          # finger 1 velo
+             1, 1, 1,          # finger 2 velo
+             1, 1, 1,          # finger 3 velo 
+             0.2, 0.2, 0.2,
+             5, 5, 5]
+
+  r_vector: [1, 1, 1,        # finger 1 actuation
+             1, 1, 1,        # finger 2 actuation
+             1, 1, 1]        # finger 3 actuation
+
+  g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,    # hand pos
+        50, 50, 50, 50, 100, 100, 50,                      	# cube pos
+        1, 1, 1, 1, 1, 1, 1, 1, 1,  						  # hand velo
+        1, 1, 1, 1, 1, 1]                                 # cube velo
+
+
+  g_lambda: [80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80]
+  
+  g_eta_slack: [2, 2, 2, 2, 2, 2, 2] 
+  g_eta_n: [2, 2, 2, 2, 2, 2, 2] 
+  g_eta_t: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] 
+  g_eta: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] 
+  g_u: [50, 50, 50, 50, 50, 50, 50, 50, 50] 
+
+
+
+  u_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,   # hand pos
+        50, 50, 50, 50, 100, 100, 50,                       # cube pos
+        1, 1, 1, 1, 1, 1, 1, 1, 1,   # hand velo
+        1, 1, 1, 1, 1, 1]                           # cube velo
+
+  u_lambda: [80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80] 
+  u_u: [50, 50, 50, 50, 50, 50, 50, 50, 50]
+
+  u_eta_slack: [2, 2, 2, 2, 2, 2, 2] 
+  u_eta_n: [2, 2, 2, 2, 2, 2, 2] 
+  u_eta_t: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] 
+  u_eta: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+
+  g_gamma: []
+  g_lambda_n: []
+  g_lambda_t: []
+  u_gamma: [] 
+  u_lambda_n: [] 
+  u_lambda_t: []

@@ -58,6 +58,13 @@ C3::C3(const LCS& lcs, const CostMatrices& costs,
       h_is_zero_(lcs.H()[0].isZero(0)),
       prog_(MathematicalProgram()),
       osqp_(OsqpSolver()) {
+
+  DRAKE_DEMAND(cost_matrices_.Q.size() == N_+1);
+  DRAKE_DEMAND(cost_matrices_.R.size() == N_);
+  DRAKE_DEMAND(cost_matrices_.G.size() == N_);
+  DRAKE_DEMAND(cost_matrices_.U.size() == N_);
+  DRAKE_DEMAND(lcs_.N() == N_);
+
   if (warm_start_) {
     warm_start_x_.resize(options_.admm_iter + 1);
     warm_start_lambda_.resize(options_.admm_iter + 1);
@@ -347,7 +354,7 @@ void C3::Solve(const VectorXd& x0) {
   }
 
   if (penalize_change_ && options_.penalize_input_change) {
-    std::cout << "penalizing change " << std::endl;
+    std::cout << "penalizing change u " << std::endl;
     if (u_sol_->size() < N_) {
       std::cerr << "u sol not set, penalize input change" << std::endl;
     }
@@ -370,6 +377,7 @@ void C3::Solve(const VectorXd& x0) {
   }
 
   if (penalize_change_ && options_.penalize_x_change) {
+    std::cout << "penalizing change x" << std::endl;
     if (x_sol_->size() < N_) {
       std::cerr << "x sol not set, penalize x change" << std::endl;
     }
@@ -610,6 +618,7 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
       drake::log()->warn("Iterations: {}", details.iter);
       drake::log()->warn("Primal Res: {}", details.primal_res);
       drake::log()->warn("Dual Res: {}", details.dual_res);
+      std::cout << "x0 " << x0.transpose() << std::endl;
 
   } else {
     // const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();

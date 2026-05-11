@@ -12,6 +12,8 @@ cc_library(
         ":ic3_options",
         ":c3_controller",
         ":iC3",
+        ":MSiC3",
+        ":ms_ic3_options",
         ":manual_input",
         ":lcs_simulator",
         ":lcs_factory_system",

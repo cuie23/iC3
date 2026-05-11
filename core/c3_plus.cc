@@ -47,10 +47,17 @@ C3Plus::C3Plus(const LCS& lcs, const CostMatrices& costs,
       -1 * MatrixXd::Identity(n_lambda_, n_lambda_);
   eta_constraints_.resize(N_);
   for (int i = 0; i < N_; ++i) {
+
     EtaLinEq.block(0, 0, n_lambda_, n_x_) = lcs_.E().at(i);
     EtaLinEq.block(0, n_x_, n_lambda_, n_lambda_) = lcs_.F().at(i);
     EtaLinEq.block(0, n_x_ + n_lambda_, n_lambda_, n_u_) = lcs_.H().at(i);
 
+    if (EtaLinEq.array().isNaN().any()) {
+      std::cout << EtaLinEq.rows() << " x " << EtaLinEq.cols() << std::endl;
+      Eigen::Index row, col;
+      EtaLinEq.array().isNaN().maxCoeff(&row, &col);
+    }
+    
     eta_constraints_[i] =
         prog_
             .AddLinearEqualityConstraint(

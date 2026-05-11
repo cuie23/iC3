@@ -43,7 +43,6 @@ cc_binary(
     data = [
         ":example_data",
         "@drake_models//:franka_description",
-        "@drake_models//:allegro_hand_description",
     ],
     deps = [
         "//core:c3",
@@ -55,5 +54,9 @@ cc_binary(
         "//systems:system_utils",
         "@drake//:drake_shared_library",
         "@gflags"
-    ]
+    ],
+    linkopts = [
+        "-L/lib/x86_64-linux-gnu",
+        "-lopenblas",
+    ],
 )
