@@ -1,4 +1,4 @@
-num_iters: 10
+num_iters: 15
 
 N: 390
 num_segments: 13
@@ -18,7 +18,7 @@ acceleration_cost_weight: 20
 defect_quaternion_weight: 20
 defect_quaternion_regularizer_fraction: 0
 
-w_P: 10
+w_P: 5
 p_vector: [6000, 6000, 6000, 
            6000, 6000, 6000, 
            6000, 6000, 6000, 
