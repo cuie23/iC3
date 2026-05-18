@@ -38,6 +38,8 @@ struct MSiC3Options {
   double alpha_ee;
   double alpha_object;
 
+  double alpha_ee_step;
+  double alpha_object_step;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -59,6 +61,8 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(rollout_Kd));
     a->Visit(DRAKE_NVP(alpha_ee));
     a->Visit(DRAKE_NVP(alpha_object));
+    a->Visit(DRAKE_NVP(alpha_ee_step));
+    a->Visit(DRAKE_NVP(alpha_object_step));
 
     Eigen::VectorXd p_diag = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
       this->p_vector.data(), this->p_vector.size());

@@ -1,7 +1,7 @@
-num_iters: 15
+num_iters: 5
 
-N: 390
-num_segments: 13
+N: 450
+num_segments: 15
 
 
 add_position_constraints: true
@@ -13,15 +13,15 @@ print_costs: true
 rollout_dt_scaling: 5
 
 penalize_acceleration: true
-acceleration_cost_weight: 20
+acceleration_cost_weight: 30
 
-defect_quaternion_weight: 20
+defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
 
-w_P: 5
-p_vector: [6000, 6000, 6000, 
-           6000, 6000, 6000, 
-           6000, 6000, 6000, 
+w_P: 0
+p_vector: [5000, 5000, 5000, 
+           5000, 5000, 5000, 
+           5000, 5000, 5000, 
            1, 1, 1, 1,          # gets overwritten by quaternion logic
            1000, 1000, 1000,
            1, 1, 1,
@@ -35,5 +35,8 @@ p_vector: [6000, 6000, 6000,
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.5
-alpha_object: 0.7
+alpha_ee: 0.7
+alpha_ee_step: 0.065
+
+alpha_object: 0.8
+alpha_object_step: 0.04

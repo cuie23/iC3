@@ -1,6 +1,7 @@
 #include "MSiC3.h"
 
 #include <cmath>
+#include <chrono>
 
 #include <Eigen/Dense>
 
@@ -168,45 +169,42 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.1;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.1;
+      lower_bound_x(3*i) = xd(3*i) - 0.08;
+      lower_bound_x(3*i+1) = xd(3*i+1) - 0.08;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.25;
-      lower_bound_x(16 + 3*i+1) = -0.25;
+      lower_bound_x(16 + 3*i) = -0.3;
+      lower_bound_x(16 + 3*i+1) = -0.3;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.1;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.1;
+      upper_bound_x(3*i) = xd(3*i) + 0.08;
+      upper_bound_x(3*i+1) = xd(3*i+1) + 0.08;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.25;
-      upper_bound_x(16 + 3*i+1) = 0.25;
+      upper_bound_x(16 + 3*i) = 0.3;
+      upper_bound_x(16 + 3*i+1) = 0.3;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -0.4;
-      lower_bound_u(3*i+1) = -0.4;
+      lower_bound_u(3*i) = -0.5;
+      lower_bound_u(3*i+1) = -0.5;
       lower_bound_u(3*i+2) = 0.15;
       
-      upper_bound_u(3*i) = 0.4;
-      upper_bound_u(3*i+1) = 0.4;
+      upper_bound_u(3*i) = 0.5;
+      upper_bound_u(3*i+1) = 0.5;
       upper_bound_u(3*i+2) = 0.25;
     }
     A_x(13, 13) = 1;
     A_x(14, 14) = 1;
-    A_x(15, 15) = 1;
 
-    lower_bound_x(13) = -0.06;
-    lower_bound_x(14) = -0.06;
-    lower_bound_x(15) = -0.06;
+    lower_bound_x(13) = -0.05;
+    lower_bound_x(14) = -0.05;
 
-    upper_bound_x(13) = 0.06;
-    upper_bound_x(14) = 0.06;
-    upper_bound_x(15) = 0.06;
+    upper_bound_x(13) = 0.05;
+    upper_bound_x(14) = 0.05;
   }
 
 
@@ -262,8 +260,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
   int num_iters = ms_ic3_options_.num_iters;
   for (int iter = 1; iter <= num_iters; iter++) {
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "iC3 iteration " << iter << std::endl;
+
     UpdateQuaternionCosts(x_hat, xd); // Note: this overrides R, G, U as well
 
     // Backwards Pass - Compute Value Function
@@ -276,6 +276,12 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     MatrixXd new_x_anchors(MatrixXd::Zero(n_x_, num_segments_+1));
     new_x_anchors.col(0) = x0;
 
+    // Update anchor for next segment
+    double alpha_ee = std::min(1.0, ms_ic3_options_.alpha_ee + (iter-1) * ms_ic3_options_.alpha_ee_step);
+    double alpha_object = std::min(1.0, ms_ic3_options_.alpha_object + (iter-1) * ms_ic3_options_.alpha_object_step);
+
+    std::cout << "alpha ee " << alpha_ee << " alpha object " << alpha_object << std::endl;
+
     // Forwards Pass - Do C3 MPC with value function terminal cost
     for (int i = 0; i < num_segments_; i++) {
 
@@ -286,10 +292,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
          DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), 
                       lcs_factory, lcs_factory_rollout, H, g, x_targets, i*L_,
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u);
-
-      // Update anchor for next segment
-      double alpha_ee = ms_ic3_options_.alpha_ee;
-      double alpha_object = ms_ic3_options_.alpha_object;
 
       // HARDCODED INDICES
       if (example_idx_ == 1) {
@@ -381,11 +383,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       std::cout << "CUBE ROT DEFECT COST: " << total_cube_rot_defect_cost << std::endl;
       std::cout << "CUBE POS DEFECT COST: " << total_cube_pos_defect_cost << std::endl;
       std::cout << "TOTAL DEFECT COST: " << total_defect_cost << std::endl;
-      std::cout << "\n\n" << std::endl;
+      std::cout << std::endl;
 
     
     }
     
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    std::cout << "Iteration runtime: " << duration.count() << " seconds\n\n " << std::endl;
 
   }
   UpdateQuaternionCosts(x_hat, xd);
@@ -409,9 +414,10 @@ VectorXd MSiC3::ProjectContact(drake::systems::Context<double>& context, SortedP
     auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
         drake::multibody::JacobianWrtVariable::kQDot);
 
+    // HARDCODED: project slightly more than 1 unit out
     if (phi < 0) {
       VectorXd contact_normal = J.row(0).segment(start_idx, q_size);
-      x_out.segment(start_idx, q_size) = x_init.segment(start_idx, q_size) - (phi / (contact_normal.transpose() * contact_normal)) * contact_normal;
+      x_out.segment(start_idx, q_size) = x_init.segment(start_idx, q_size) - 1.05 * (phi / (contact_normal.transpose() * contact_normal)) * contact_normal;
     }
     
     return x_out;
