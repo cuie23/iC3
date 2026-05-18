@@ -176,10 +176,12 @@ drake::systems::EventStatus C3Controller::ComputePlan(
 
   // Measure solve time
   auto finish = std::chrono::high_resolution_clock::now();
-  double time_ellapsed =
+  double time_elapsed =
       std::chrono::duration_cast<std::chrono::microseconds>(finish - start)
-          .count() /
-      1e6;
+          .count() / 1e6;
+
+  std::chrono::duration<double> duration = finish - start;
+  std::cout << "c3 solve time " << duration.count() << std::endl;
 
   // Update solve time in the discrete state
   if (publish_frequency_ > 0) {
@@ -187,7 +189,7 @@ drake::systems::EventStatus C3Controller::ComputePlan(
     filtered_solve_time = 1.0 / publish_frequency_;
   } else {
     // Update to solve time using a moving average filter
-    filtered_solve_time = (1 - solve_time_filter_constant_) * time_ellapsed +
+    filtered_solve_time = (1 - solve_time_filter_constant_) * time_elapsed +
                           solve_time_filter_constant_ * filtered_solve_time;
   }
 
@@ -305,7 +307,6 @@ void C3Controller::UpdateQuaternionCosts(
   Q_.push_back(discount_factor * controller_options_.c3_options.Q); 
 
   for (int index : controller_options_.quaternion_indices) {
-    std::cout << "quat idx " << index << std::endl;
     Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4);
     Eigen::VectorXd quat_des_i = x_des.segment(index, 4);
 

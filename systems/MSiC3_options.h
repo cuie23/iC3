@@ -9,6 +9,7 @@ namespace systems {
 struct MSiC3Options {
 
   int num_iters;
+  int num_warmup_iters;
 
   int N;
   int num_segments;
@@ -41,9 +42,12 @@ struct MSiC3Options {
   double alpha_ee_step;
   double alpha_object_step;
 
+  double warm_start_alpha;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(num_iters));
+    a->Visit(DRAKE_NVP(num_warmup_iters));
     a->Visit(DRAKE_NVP(N));
     a->Visit(DRAKE_NVP(num_segments));
     a->Visit(DRAKE_NVP(add_position_constraints));
@@ -63,6 +67,7 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(alpha_object));
     a->Visit(DRAKE_NVP(alpha_ee_step));
     a->Visit(DRAKE_NVP(alpha_object_step));
+    a->Visit(DRAKE_NVP(warm_start_alpha));
 
     Eigen::VectorXd p_diag = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
       this->p_vector.data(), this->p_vector.size());

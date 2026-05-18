@@ -2,40 +2,34 @@ projection_type: "C3+"
 
 solve_time_filter_alpha: 0.0
 #set to 0 to publish as fast as possible
-publish_frequency: 100
+publish_frequency: 1000
 state_prediction_joints: []
 
-quaternion_indices: [12]
-Q_quaternion_weight: 10000
+quaternion_indices: [9]
+Q_quaternion_weight: 4000
 
 quaternion_regularizer_fraction: 0.0
 
-x_init: [0, 0, -0.0,     # index
-         0, 0, 0.0,     # middle
-         0, 0, 0.0,     # ring   
-         0, 0, 0.0,     # thumb
-         1, 0, 0, 0,  # cube orientation
-         0, 0, 0.05,  # cube position
-         0, 0, 0,     # index velo
-         0, 0, 0,     # middle velo
-         0, 0, 0,     # ring velo
-         0, 0, 0,     # thumb velo
+x_init: [-0.01, 0.08, 0.05,  # finger 1 
+         0.07, -0.055, 0.05,   # finger 2
+         -0.07, -0.055, 0.05,   # finger 3
+         0.92, 0, 0, 0.38, # cube orientation
+         0, 0, 0.051,  # cube position
+         0, 0, 0,     # finger 1 velo
+         0, 0, 0,     # finger 2 velo
+         0, 0, 0,     # finger 3 velo
          0, 0, 0,     # cube ang velo
          0, 0, 0]   	# cube velo
 
 
-x_des: [0, 0, 0.0,      # index
-         0, 0, 0.0,     # middle
-         0, 0, 0.0,     # ring   
-         0, 0, 0.0,     # thumb
-         0, 0, 1, 0,  # cube orientation
-         #0.707, 0, 0, 0.707,  # cube orientation
-         #0, 0, 0, 1,  # cube orientation
-         0, 0, 0.05,  # cube position
-         0, 0, 0,     # index velo
-         0, 0, 0,     # middle velo
-         0, 0, 0,     # ring velo
-         0, 0, 0,     # thumb velo
+x_des: [0, 0.07, 0.05,  # finger 1  
+         0.07, -0.055, 0.05,   # finger 2
+         -0.07, -0.055, 0.05,   # finger 3
+         0, 0, 0, 1,  # cube orientation (180 about z)
+         0, 0, 0.051,  # cube position
+         0, 0, 0,     # finger 1 velo
+         0, 0, 0,     # finger 2 velo
+         0, 0, 0,     # finger 3 velo
          0, 0, 0,     # cube ang velo
          0, 0, 0]     # cube velo
 
@@ -45,91 +39,89 @@ lcs_factory_options:
   # contact_model : 'stewart_and_trinkle'
   contact_model: "anitescu"
   num_friction_directions: 2
-  num_contacts: 16
+  num_contacts: 7
   spring_stiffness: 0
-  mu: [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
-  N: 10
-  dt: 0.04
+
+  # 3 fingertip-cube, 4 cube-ground
+  mu: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6] #, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+  N: 8
+  dt: 0.01
 
 c3_options:
   penalize_input_change: false # Currently combines u-u_prev and u-u_des
+  input_change_weight: 1000 # ratio of u-u_prev weight to u-u_des weight
+
+  penalize_x_change: false # Currently combines x-x_prev and x-x_des
+  x_change_weight: 1000 # ratio of x-x_prev weight to x-x_des weight
 
   # EXPERIMENTAL
   # penalize_snap: false
-  # snap_scaling: 0.5 # If too big, can cause non-convexity
+  # snap_scaling: 1 # If too big, can cause non-convexity
 
-  warm_start: false
+  warm_start: false     
   end_on_qp_step: true
-  scale_lcs: false
+  scale_lcs: true
 
   num_threads: 10
   delta_option: 1
 
   M: 1000
 
-  admm_iter: 3
+  admm_iter: 9
   gamma: 1.00
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
-  w_R: 0.1 #Penalty on all decision variables, assuming scalar
-  w_G: 100 #Penalty on all decision variables, assuming scalar
-  w_U: 10  #State Tracking Error, assuming diagonal
+  w_R: 500 #Penalty on all decision variables, assuming scalar
+  w_G: 70 #Penalty on all decision variables, assuming scalar
+  w_U: 1 #State Tracking Error, assuming diagonal
 
-  q_vector: [100, 100, 1000,    # index
-             100, 100, 1000,    # middle
-             100, 100, 1000,    # ring   
-             100, 100, 1000,    # thumb 
+  q_vector: [60000, 60000, 60000,    # finger 1
+             60000, 60000, 60000,    # finger 2
+             60000, 60000, 60000,    # finger 3
              1, 1, 1, 1,
-             200, 200, 1000,
-             0.1, 0.1, 0.1,          # index velo
-             0.1, 0.1, 0.1,          # middle velo
-             0.1, 0.1, 0.1,          # ring velo 
-             0.1, 0.1, 0.1,          # thumb velo
-             0.1, 0.1, 0.1,
-             0.1, 0.1, 0.1]
+             200000, 200000, 80000,
+             1, 1, 1,          # finger 1 velo
+             1, 1, 1,          # finger 2 velo
+             1, 1, 1,          # finger 3 velo 
+             0.2, 0.2, 0.2,
+             5, 5, 5]
 
-  r_vector: [1, 1, 1,        # index actuation
-             1, 1, 1,        # middle actuation
-             1, 1, 1,        # ring actuation
-             1, 1, 1]        # thumb actuation
-  
-  #Penalty on matching projected variables
-  g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,   # hand pos
-        100, 100, 100, 100, 50, 50, 50,                      	# cube pos
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  						  # hand velo
+  r_vector: [1, 1, 1,        # finger 1 actuation
+             1, 1, 1,        # finger 2 actuation
+             1, 1, 1]        # finger 3 actuation
+
+  g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,    # hand pos
+        50, 50, 50, 50, 50, 50, 50,                      	# cube pos
+        10, 10, 10, 10, 10, 10, 10, 10, 10,  						  # hand velo
         1, 1, 1, 1, 1, 1]                                 # cube velo
-  g_gamma: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_lambda_n: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_lambda_t: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-               1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_lambda: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-  g_u: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10] 
+
+
+  g_lambda: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
   
-  g_eta_slack: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_eta_n: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_eta_t: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_eta: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  g_eta_slack: [3, 3, 3, 3, 3, 3, 3] 
+  g_eta_n: [3, 3, 3, 3, 3, 3, 3] 
+  g_eta_t: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3] 
+  g_eta: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3] 
+  g_u: [50, 50, 50, 50, 50, 50, 50, 50, 50] 
 
 
-  #Penalty on matching the QP variables
-  u_x: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,   # hand pos
-        100, 100, 100, 100, 50, 50, 50,                       # cube pos
-        10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,   # hand velo
-        10, 10, 10, 10, 10, 10]                           # cube velo
-  u_gamma: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_lambda_n: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_lambda_t: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-               1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_lambda: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-  u_u: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
 
-  u_eta_slack: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_eta_n: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_eta_t: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_eta: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  u_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,   # hand pos
+        50, 50, 50, 50, 50, 50, 50,                       # cube pos
+        10, 10, 10, 10, 10, 10, 10, 10, 10,   # hand velo
+        1, 1, 1, 1, 1, 1]                           # cube velo
+
+  u_lambda: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5] 
+  u_u: [50, 50, 50, 50, 50, 50, 50, 50, 50]
+
+  u_eta_slack: [6, 6, 6, 6, 6, 6, 6] 
+  u_eta_n: [6, 6, 6, 6, 6, 6, 6] 
+  u_eta_t: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6] 
+  u_eta: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+
+  g_gamma: []
+  g_lambda_n: []
+  g_lambda_t: []
+  u_gamma: [] 
+  u_lambda_n: [] 
+  u_lambda_t: []

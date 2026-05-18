@@ -136,9 +136,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
         x_hat.col(k).segment(idx, 4) = v_interpolated;
 
       } else {
-        x_hat.col(k).segment(idx, 4) = q0.slerp(rotation, qd).coeffs(); 
+        Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
+        x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
       }
-
     }
 
     if (k < N_) {
@@ -169,16 +169,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.08;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.08;
+      lower_bound_x(3*i) = xd(3*i) - 0.06;
+      lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
       lower_bound_x(16 + 3*i) = -0.3;
       lower_bound_x(16 + 3*i+1) = -0.3;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.08;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.08;
+      upper_bound_x(3*i) = xd(3*i) + 0.06;
+      upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
       upper_bound_x(16 + 3*i) = 0.3;
@@ -200,11 +200,11 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     A_x(13, 13) = 1;
     A_x(14, 14) = 1;
 
-    lower_bound_x(13) = -0.05;
-    lower_bound_x(14) = -0.05;
+    lower_bound_x(13) = -0.03;
+    lower_bound_x(14) = -0.03;
 
-    upper_bound_x(13) = 0.05;
-    upper_bound_x(14) = 0.05;
+    upper_bound_x(13) = 0.03;
+    upper_bound_x(14) = 0.03;
   }
 
 
@@ -238,7 +238,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   }
 
 
-
   vector<VectorXd> u_nominal(N_, gravity);
 
   vector<MatrixXd> all_x_hats;
@@ -259,19 +258,27 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   LCS lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
 
   int num_iters = ms_ic3_options_.num_iters;
-  for (int iter = 1; iter <= num_iters; iter++) {
+  int num_warmup_iters = ms_ic3_options_.num_warmup_iters;
+
+  for (int iter = 1 - num_warmup_iters; iter <= num_iters; iter++) {
     auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "iC3 iteration " << iter << std::endl;
+    
+    bool is_warmup = (iter < 1);
 
     UpdateQuaternionCosts(x_hat, xd); // Note: this overrides R, G, U as well
 
     // Backwards Pass - Compute Value Function
     auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
-    Hs.push_back(H);
-    gs.push_back(g);
-    Ks.push_back(K);
-    k_ffs.push_back(k_ff);
+
+    // Don't store warmup iters
+    if (!is_warmup) {
+      Hs.push_back(H);
+      gs.push_back(g);
+      Ks.push_back(K);
+      k_ffs.push_back(k_ff);
+    }
 
     MatrixXd new_x_anchors(MatrixXd::Zero(n_x_, num_segments_+1));
     new_x_anchors.col(0) = x0;
@@ -279,6 +286,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     // Update anchor for next segment
     double alpha_ee = std::min(1.0, ms_ic3_options_.alpha_ee + (iter-1) * ms_ic3_options_.alpha_ee_step);
     double alpha_object = std::min(1.0, ms_ic3_options_.alpha_object + (iter-1) * ms_ic3_options_.alpha_object_step);
+    if (is_warmup) {
+      alpha_ee = ms_ic3_options_.warm_start_alpha; // Don't update alpha if warmup
+      alpha_object = 0; // Don't update object anchor if warmup
+    } 
 
     std::cout << "alpha ee " << alpha_ee << " alpha object " << alpha_object << std::endl;
 
@@ -294,11 +305,39 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u);
 
       // HARDCODED INDICES
+      VectorXd x_L = x_hat_out.col(L_);
+      VectorXd x_anchor_next = x_anchors.col(i+1);
+
       if (example_idx_ == 1) {
-        new_x_anchors.col(i+1).segment(0, 9) = x_hat_out.col(L_).segment(0, 9) - (1-alpha_ee) * (x_hat_out.col(L_) - x_anchors.col(i+1)).segment(0, 9);
-        new_x_anchors.col(i+1).segment(16, 9) = x_hat_out.col(L_).segment(16, 9) - (1-alpha_ee) * (x_hat_out.col(L_) - x_anchors.col(i+1)).segment(16, 9);
-        new_x_anchors.col(i+1).segment(9, 7) = x_hat_out.col(L_).segment(9, 7) - (1-alpha_ee) * (x_hat_out.col(L_) - x_anchors.col(i+1)).segment(9, 7);
-        new_x_anchors.col(i+1).segment(25, 6) = x_hat_out.col(L_).segment(25, 6) - (1-alpha_ee) * (x_hat_out.col(L_) - x_anchors.col(i+1)).segment(25, 6);
+        // Update ee anchors
+        new_x_anchors.col(i+1).segment(0, 9) = x_L.segment(0, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(0, 9);
+        new_x_anchors.col(i+1).segment(16, 9) = x_L.segment(16, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(16, 9);
+        
+        // Update object anchors
+        new_x_anchors.col(i+1).segment(13, 3) = x_L.segment(13, 3) - (1-alpha_ee) * (x_L - x_anchor_next).segment(13, 3);
+        new_x_anchors.col(i+1).segment(25, 6) = x_L.segment(25, 6) - (1-alpha_ee) * (x_L - x_anchor_next).segment(25, 6);
+
+        // Linearly interpolate quaternions correctly for object
+        for (auto idx : controller_options_.quaternion_indices) {
+          Eigen::Quaterniond q0(x_anchor_next(idx), x_anchor_next(idx+1), x_anchor_next(idx+2), x_anchor_next(idx+3));
+          Eigen::Quaterniond qf(x_L(idx), x_L(idx+1), x_L(idx+2), x_L(idx+3));
+          VectorXd v0 = x_anchor_next.segment(idx, 4);
+          VectorXd vf = x_L.segment(idx, 4);
+
+          if (-1e-3 < q0.dot(qf) && q0.dot(qf) < 1e-3) { 
+            // Fallback for antipodal points, use linear interpolation in R3 to get default axis
+            Eigen::Vector4d mid = v0 + vf;
+            Eigen::Vector4d tangent = (mid - mid.dot(v0) * v0).normalized();
+
+            double theta = std::acos(std::clamp(v0.dot(vf), -1.0, 1.0)); 
+            Eigen::Vector4d v_interpolated = v0 * std::cos(alpha_object * theta) + tangent * std::sin(alpha_object * theta);
+
+            new_x_anchors.col(i+1).segment(idx, 4) = v_interpolated;
+          } else {
+            Eigen::Quaterniond slerp = q0.slerp(alpha_object, qf);
+            new_x_anchors.col(i+1).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
+          }
+        }
       }
       
       // Ensure anchors don't have penetration
@@ -321,8 +360,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
       defects.col(i+1) = x_hat_out.col(L_) - new_x_anchors.col(i+1);
 
-
-      x_hat.middleCols(i*L_, L_) = x_hat_out.leftCols(L_);
+      // Don't update initial x guess during warm start
+      if (!is_warmup) {
+        x_hat.middleCols(i*L_, L_) = x_hat_out.leftCols(L_);
+      }
       u_hat.middleCols(i*L_, L_) = u_hat_out.leftCols(L_);
       lambda_hat.middleCols(i*L_, L_) = lambda_hat_out.leftCols(L_);
 
@@ -336,10 +377,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     // Linearize about new nominal trajectory
     lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
     
-    all_x_hats.push_back(x_hat);
-    all_u_hats.push_back(u_hat);
-    all_defects.push_back(defects);
-    all_x_anchors.push_back(x_anchors);
+    // Don't store if warmup
+    if (!is_warmup) {
+      all_x_hats.push_back(x_hat);
+      all_u_hats.push_back(u_hat);
+      all_defects.push_back(defects);
+      all_x_anchors.push_back(x_anchors);
+    }
+
 
     // Think up some logic for this, probably looking at some norm of the defects
     if (ms_ic3_options_.early_termination) {
@@ -349,41 +394,41 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     // Print costs
     if (ms_ic3_options_.print_costs) {
 
-      std::cout << "finger defect costs: ";
-      for (int j = 0; j < num_segments_+1; j++) {
-        std::cout << defects.col(j).segment(0, 9).transpose() * P_[j*L_].block(0, 0, 9, 9) * defects.col(j).segment(0, 9) << ", ";
-      }
-      std::cout << std::endl;
+      // std::cout << "finger defect costs: ";
+      // for (int j = 0; j < num_segments_+1; j++) {
+      //   std::cout << defects.col(j).segment(0, 9).transpose() * P_[j*L_].block(0, 0, 9, 9) * defects.col(j).segment(0, 9) << ", ";
+      // }
+      // std::cout << std::endl;
 
-      std::cout << "cube rotation defect costs: ";
-      for (int j = 0; j < num_segments_+1; j++) {
-        std::cout <<   defects.col(j).segment(9, 4).transpose() * P_[j*L_].block(9, 9, 4, 4) * defects.col(j).segment(9, 4) << ", ";
-      }
-      std::cout << std::endl;
+      // std::cout << "cube rotation defect costs: ";
+      // for (int j = 0; j < num_segments_+1; j++) {
+      //   std::cout <<   defects.col(j).segment(9, 4).transpose() * P_[j*L_].block(9, 9, 4, 4) * defects.col(j).segment(9, 4) << ", ";
+      // }
+      // std::cout << std::endl;
 
-      std::cout << "cube position defect costs: ";
-      for (int j = 0; j < num_segments_+1; j++) {
-        std::cout << defects.col(j).segment(13, 3).transpose() * P_[j*L_].block(13, 13, 3, 3) * defects.col(j).segment(13, 3) << ", ";
-      }
-      std::cout << "\n " << std::endl;
+      // std::cout << "cube position defect costs: ";
+      // for (int j = 0; j < num_segments_+1; j++) {
+      //   std::cout << defects.col(j).segment(13, 3).transpose() * P_[j*L_].block(13, 13, 3, 3) * defects.col(j).segment(13, 3) << ", ";
+      // }
+      // std::cout << "\n " << std::endl;
 
-      double total_finger_defect_cost = 0;
-      double total_cube_rot_defect_cost = 0;
-      double total_cube_pos_defect_cost = 0;
-      double total_defect_cost = 0;
+      // double total_finger_defect_cost = 0;
+      // double total_cube_rot_defect_cost = 0;
+      // double total_cube_pos_defect_cost = 0;
+      // double total_defect_cost = 0;
 
-       for (int j = 0; j < num_segments_+1; j++) {
-        total_finger_defect_cost += defects.col(j).segment(0, 9).transpose() *  P_[j*L_].block(0, 0, 9, 9) * defects.col(j).segment(0, 9);
-        total_cube_rot_defect_cost += defects.col(j).segment(9, 4).transpose() *  P_[j*L_].block(9, 9, 4, 4) * defects.col(j).segment(9, 4);
-        total_cube_pos_defect_cost += defects.col(j).segment(13, 3).transpose() *  P_[j*L_].block(13, 13, 3, 3) * defects.col(j).segment(13, 3);
+      //  for (int j = 0; j < num_segments_+1; j++) {
+      //   total_finger_defect_cost += defects.col(j).segment(0, 9).transpose() *  P_[j*L_].block(0, 0, 9, 9) * defects.col(j).segment(0, 9);
+      //   total_cube_rot_defect_cost += defects.col(j).segment(9, 4).transpose() *  P_[j*L_].block(9, 9, 4, 4) * defects.col(j).segment(9, 4);
+      //   total_cube_pos_defect_cost += defects.col(j).segment(13, 3).transpose() *  P_[j*L_].block(13, 13, 3, 3) * defects.col(j).segment(13, 3);
 
-        total_defect_cost += defects.col(j).transpose() * P_[j*L_] * defects.col(j);
-      }
-      std::cout << "FINGER DEFECT COST: " << total_finger_defect_cost << std::endl;
-      std::cout << "CUBE ROT DEFECT COST: " << total_cube_rot_defect_cost << std::endl;
-      std::cout << "CUBE POS DEFECT COST: " << total_cube_pos_defect_cost << std::endl;
-      std::cout << "TOTAL DEFECT COST: " << total_defect_cost << std::endl;
-      std::cout << std::endl;
+      //   total_defect_cost += defects.col(j).transpose() * P_[j*L_] * defects.col(j);
+      // }
+      // std::cout << "FINGER DEFECT COST: " << total_finger_defect_cost << std::endl;
+      // std::cout << "CUBE ROT DEFECT COST: " << total_cube_rot_defect_cost << std::endl;
+      // std::cout << "CUBE POS DEFECT COST: " << total_cube_pos_defect_cost << std::endl;
+      // std::cout << "TOTAL DEFECT COST: " << total_defect_cost << std::endl;
+      // std::cout << std::endl;
 
     
     }

@@ -1939,37 +1939,23 @@ int RunPointHandMPC() {
   parser_for_lcs.AddModels(cube_file_lcs);
   parser_for_lcs.AddModels(ground_file_lcs);
 
-  RigidTransform<double> X_G_lcs = RigidTransform<double>(
+  RigidTransform<double> X_G = RigidTransform<double>(
     drake::math::RotationMatrix<double>(), {0, 0, 0.0});
-
-  // RigidTransform<double> X_1_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
-  // RigidTransform<double> X_2_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
-  // RigidTransform<double> X_3_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
-  // RigidTransform<double> X_4_lcs = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
-
-  RigidTransform<double> X_1_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
-  RigidTransform<double> X_2_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
-  RigidTransform<double> X_3_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
-  RigidTransform<double> X_4_lcs = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
+  RigidTransform<double> X_1 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {0.0, 0, 0.0});
+  RigidTransform<double> X_2 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {-0.0, -0.0, 0.0});
+  RigidTransform<double> X_3 = RigidTransform<double>(
+    drake::math::RotationMatrix<double>(), {-0.0, 0.0, 0.0});
 
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-                          plant_for_lcs.GetFrameByName("base_link_1"), X_1_lcs);
+                   plant_for_lcs.GetFrameByName("base_link_1"), X_1);
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-                          plant_for_lcs.GetFrameByName("base_link_2"), X_2_lcs);
+                   plant_for_lcs.GetFrameByName("base_link_2"), X_2);
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-                          plant_for_lcs.GetFrameByName("base_link_3"), X_3_lcs);
+                   plant_for_lcs.GetFrameByName("base_link_3"), X_3);                                            
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-                          plant_for_lcs.GetFrameByName("base_link_4"), X_4_lcs);                                                  
-  plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-                          plant_for_lcs.GetFrameByName("ground"), X_G_lcs);
+                   plant_for_lcs.GetFrameByName("ground"), X_G);
 
   plant_for_lcs.Finalize();
 
@@ -1992,10 +1978,9 @@ int RunPointHandMPC() {
     u_idx++;
 	}
 
-
   // Build the plant diagram.
   auto plant_diagram = plant_builder.Build();
-
+  
   // Retrieve collision geometries for relevant bodies.
   GeometryId ground_collision_geom = 
     plant_for_lcs.GetCollisionGeometriesForBody(
@@ -2012,9 +1997,6 @@ int RunPointHandMPC() {
   fingertip_collision_geoms.push_back(
     plant_for_lcs.GetCollisionGeometriesForBody(
         plant_for_lcs.GetBodyByName("fingertip_3"))[0]);
-  fingertip_collision_geoms.push_back(
-    plant_for_lcs.GetCollisionGeometriesForBody(
-        plant_for_lcs.GetBodyByName("fingertip_4"))[0]); 
 
 	std::vector<GeometryId> cube_collision_geoms;
   for (int i = 0; i <= 8; i++) {
@@ -2022,7 +2004,6 @@ int RunPointHandMPC() {
 			plant_for_lcs.GetCollisionGeometriesForBody(
           plant_for_lcs.GetBodyByName("cube"))[i]);
 	}
-
   // Define contact pairs for the LCS system.
   std::vector<SortedPair<GeometryId>> contact_pairs;
 
@@ -2031,13 +2012,10 @@ int RunPointHandMPC() {
 		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
   }
 
-  for (auto geom_id : fingertip_collision_geoms) {
-		contact_pairs.emplace_back(geom_id, ground_collision_geom);
-  }
   // cube-ground contact pairs
-  for (int i = 1; i < cube_collision_geoms.size(); i++) {
-		contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
-  }
+  for (int i = 1; i <= 4; i++) {
+    contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+  }    
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
@@ -2052,35 +2030,12 @@ int RunPointHandMPC() {
   parser.AddModels(cube_file);
   parser.AddModels(ground_file);
 
-  RigidTransform<double> X_G = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, 0, 0.0});
-
-  // RigidTransform<double> X_1 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, -0.08, 0.05});
-  // RigidTransform<double> X_2 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
-  // RigidTransform<double> X_3 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {-0.05, 0.08, 0.05});
-  // RigidTransform<double> X_4 = RigidTransform<double>(
-  //   drake::math::RotationMatrix<double>(), {0.04, -0.08, 0.05});
-
-  RigidTransform<double> X_1 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0.08, 0, 0.05});
-  RigidTransform<double> X_2 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {-0.08, 0, 0.05});
-  RigidTransform<double> X_3 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, 0.08, 0.05});
-  RigidTransform<double> X_4 = RigidTransform<double>(
-    drake::math::RotationMatrix<double>(), {0, -0.08, 0.05});
-
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("base_link_1"), X_1);
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("base_link_2"), X_2);
   plant.WeldFrames(plant.world_frame(),
-                   plant.GetFrameByName("base_link_3"), X_3);
-  plant.WeldFrames(plant.world_frame(),
-                   plant.GetFrameByName("base_link_4"), X_4);                                                  
+                   plant.GetFrameByName("base_link_3"), X_3);                                               
   plant.WeldFrames(plant.world_frame(),
                    plant.GetFrameByName("ground"), X_G);
 
@@ -2121,29 +2076,63 @@ int RunPointHandMPC() {
 	std::cout << "After add C3 controller" << std::endl;
 
   // Add linear constraints to the controller.
-  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(37, 37);
-  
-  Eigen::VectorXd lower_bound(VectorXd::Zero(37));
-  Eigen::VectorXd upper_bound(VectorXd::Zero(37));
+  Eigen::MatrixXd A_x = Eigen::MatrixXd::Zero(31, 31);
+  Eigen::MatrixXd A_u = Eigen::MatrixXd::Zero(9, 9);
 
-  for (int i = 0; i < 4; i++) {
-    A(3*i, 3*i) = 1;
-    A(3*i + 1, 3*i + 1) = 1;
-    A(3*i + 2, 3*i + 2) = 1;
+  Eigen::VectorXd lower_bound_x(VectorXd::Zero(31));
+  Eigen::VectorXd upper_bound_x(VectorXd::Zero(31));
+  Eigen::VectorXd lower_bound_u(VectorXd::Zero(9));
+  Eigen::VectorXd upper_bound_u(VectorXd::Zero(9));
 
-    lower_bound(3*i) = -0.04;
-    lower_bound(3*i+1) = -0.04;
-    lower_bound(3*i+2) = -0.04;
-    upper_bound(3*i) = 0.04;
-    upper_bound(3*i+1) = 0.04;
-    upper_bound(3*i+2) = 0.04;
+  for (int i = 0; i < 3; i++) {
+    A_x(3*i, 3*i) = 1;
+    A_x(3*i+1, 3*i+1) = 1;
+    A_x(3*i+2, 3*i+2) = 1;
+
+    lower_bound_x(3*i) = -0.08;
+    lower_bound_x(3*i+1) = -0.08;
+    lower_bound_x(3*i+2) = -0.08;
+    upper_bound_x(3*i) = 0.08;
+    upper_bound_x(3*i+1) = 0.08;
+    upper_bound_x(3*i+2) = 0.08;
+
+    A_x(16+3*i, 16+3*i) = 1;
+    A_x(16+ 3*i+1, 16+3*i+1) = 1;
+    A_x(3*i+2, 3*i+2) = 1;
+
+    lower_bound_x(16+3*i) = -0.3;
+    lower_bound_x(16+3*i+1) = -0.3;
+    lower_bound_x(16+3*i+2) = -0.3;
+    upper_bound_x(16+3*i) = 0.3;
+    upper_bound_x(16+3*i+1) = 0.3;
+    upper_bound_x(16+3*i+2) = 0.3;
+
+    A_u(3*i, 3*i) = 1; 
+    A_u(3*i+1, 3*i+1) = 1; 
+    A_u(3*i+2, 3*i+2) = 1; 
+
+    lower_bound_u(3*i) = -0.5;
+    lower_bound_u(3*i+1) = -0.5;
+    lower_bound_u(3*i+2) = 0.15;
+    
+    upper_bound_u(3*i) = 0.5;
+    upper_bound_u(3*i+1) = 0.5;
+    upper_bound_u(3*i+2) = 0.25;
   }
-  c3_controller->AddLinearConstraint(A, lower_bound, upper_bound,
+  // A_x(13, 13) = 1;
+  // A_x(14, 14) = 1;
+  // lower_bound_x(13) = -0.05;
+  // lower_bound_x(14) = -0.05;
+  // upper_bound_x(13) = 0.05;
+  // upper_bound_x(14) = 0.05;
+
+  c3_controller->AddLinearConstraint(A_x, lower_bound_x, upper_bound_x,
                                      ConstraintVariable::STATE);
 
-  Eigen::VectorXd xd(37);
-  //xd << 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
-	xd << 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  // c3_controller->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
+  //                                    ConstraintVariable::INPUT);
+
+  Eigen::VectorXd xd(31);
 
   std::vector<double> x_des = *options.x_des;
   xd = Eigen::Map<Eigen::VectorXd>(x_des.data(), x_des.size()); 
@@ -2155,7 +2144,7 @@ int RunPointHandMPC() {
 
   // Add a vector-to-timestamped-vector converter.
   auto vector_to_timestamped_vector =
-      builder.AddSystem<Vector2TimestampedVector>(37);
+      builder.AddSystem<Vector2TimestampedVector>(31);
   builder.Connect(plant.get_state_output_port(),
                   vector_to_timestamped_vector->get_input_port_state());
 
@@ -2170,7 +2159,7 @@ int RunPointHandMPC() {
                   c3_controller->get_input_port_target());
 
   // Add and connect the C3 solution input system.
-  auto c3_input = builder.AddSystem<C3Solution2Input>(12);
+  auto c3_input = builder.AddSystem<C3Solution2Input>(9);
   builder.Connect(c3_controller->get_output_port_c3_solution(),
                   c3_input->get_input_port_c3_solution());
 
@@ -2180,7 +2169,7 @@ int RunPointHandMPC() {
   // Add a ZeroOrderHold system for state updates.
   auto input_zero_order_hold =
       builder.AddSystem<drake::systems::ZeroOrderHold<double>>(
-          1 / options.publish_frequency, 12);
+          1 / options.publish_frequency, 9);
   builder.Connect(c3_input->get_output_port_c3_input(),
                   input_zero_order_hold->get_input_port());
   builder.Connect(
@@ -2191,11 +2180,11 @@ int RunPointHandMPC() {
 
 
 
-	Eigen::Vector4d q_vec = xd.segment(12, 4);
+	Eigen::Vector4d q_vec = xd.segment(9, 4);
 	Eigen::Quaterniond q(q_vec(0), q_vec(1), q_vec(2), q_vec(3));
 	q.normalize();
   RotationMatrixd R_target(q);
-	RigidTransformd X_WF(R_target, xd.segment(16, 3));
+	RigidTransformd X_WF(R_target, xd.segment(13, 3));
 
   // Set up Meshcat visualizer.
   auto meshcat = std::make_shared<drake::geometry::Meshcat>();
@@ -2240,7 +2229,7 @@ int RunPointHandMPC() {
   auto diagram_context = diagram->CreateDefaultContext();
 
   // Set the initial state of the system.
-  Eigen::VectorXd x0(37);
+  Eigen::VectorXd x0(31);
 
   std::vector<double> x_init = *options.x_init;
   x0 = Eigen::Map<Eigen::VectorXd>(x_init.data(), x_init.size());
@@ -2255,7 +2244,9 @@ int RunPointHandMPC() {
                                               std::move(diagram_context));
   simulator.set_target_realtime_rate(1.0);  // Run simulation at real-time speed.
   simulator.Initialize();
-  simulator.AdvanceTo(120.0);  // Run simulation for 10 seconds.
+
+  std::cout << "Before run sim" << std::endl;
+  simulator.AdvanceTo(240.0);  // Run simulation for 10 seconds.
 
   return 0;
 }
