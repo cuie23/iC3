@@ -72,12 +72,12 @@ c3_options:
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 12 #Penalty on all decision variables, assuming scalar
+  w_G: 11 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  q_vector: [80000, 80000, 80000,    # finger 1
-             80000, 80000, 80000,    # finger 2
-             80000, 80000, 80000,    # finger 3
+  q_vector: [75000, 75000, 75000,    # finger 1
+             75000, 75000, 75000,    # finger 2
+             75000, 75000, 75000,    # finger 3
              1, 1, 1, 1,
              200000, 200000, 80000,
              1, 1, 1,          # finger 1 velo
