@@ -23,6 +23,6 @@ double_options:
   delta: 1e-6
   adaptive_rho_tolerance: 5
   adaptive_rho_fraction: 0.4
-  time_limit: 0.5
+  time_limit: 1.0
 
 string_options: {}
