@@ -65,6 +65,9 @@ public:
 
 private:
   
+  VectorXd ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
+                                VectorXd x_init, int z_idx);
+
   VectorXd ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
                                   VectorXd x_init, int start_idx, int q_size); 
 

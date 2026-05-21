@@ -1162,6 +1162,260 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
   return 0;
 }
 
+// TODO: Make this actually work
+int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder;
+  auto [plant_for_lcs, scene_graph_for_lcs] =
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+  Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
+
+  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
+	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
+
+  parser_for_lcs.AddModels(plate_file_lcs);
+  parser_for_lcs.AddModels(cube_file_lcs);
+
+  plant_for_lcs.Finalize();
+
+  // Build the plant diagram.
+  auto plant_diagram = plant_builder.Build();
+
+  // Retrieve collision geometries for relevant bodies.
+  drake::geometry::GeometryId plate_collision_geom =
+      plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("plate"))[0];
+	std::vector<drake::geometry::GeometryId> cube_collision_geoms;
+  for (int i = 1; i <= 8; i++) {
+		cube_collision_geoms.push_back(
+			plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("cube"))[i]);
+	}
+
+  // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs;
+
+	for (GeometryId geom_id : cube_collision_geoms) {
+		contact_pairs.emplace_back(plate_collision_geom, geom_id);
+	}
+
+  // Build the main diagram.
+  DiagramBuilder<double> builder;
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  Parser parser(&plant, &scene_graph);
+  const std::string plate_file = "examples/resources/plate/plate.sdf";
+	const std::string cube_file = "examples/resources/plate/cube.sdf";
+
+  parser.AddModels(plate_file);
+  parser.AddModels(cube_file);
+
+  plant.Finalize();
+
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
+      "examples/resources/plate/ms_c3_tracking_options.yaml");
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
+      "examples/resources/plate/ms_ic3_options.yaml");
+  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
+      options.c3_options, options.lcs_factory_options.N);
+
+  // Create contexts for the plant and LCS factory system.
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
+      plant_diagram->CreateDefaultContext();
+  auto plant_autodiff =
+      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
+  auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
+      plant_for_lcs, plant_diagram_context.get());
+  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
+
+  std::unique_ptr<systems::MSiC3> ms_ic3_controller =
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, 
+        plant_for_lcs, *plant_autodiff, options, ms_ic3_options, 0);
+
+  auto [x_traj, u_traj, H, g, K, k_ff] = 
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
+      plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
+
+  std::cout << "computed traj" << std::endl;
+
+  // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
+  auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);
+  traj_source_x->set_name("traj_source_x");
+  auto traj_source_u = builder.AddSystem<TrajToLcmSystem>(u_traj);
+  traj_source_u->set_name("traj_source_u");
+
+  auto traj_source_value_function = builder.AddSystem<ValueFunctionToLCMSystem>(H, g, K, k_ff);
+  traj_source_value_function->set_name("traj_source_value_function");
+
+  auto traj_publisher_x = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_X", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_u = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_U", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  auto traj_publisher_lqr_value_function = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_lqr_output>(
+          "iC3_LQR", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
+  builder.Connect(traj_source_x->get_output_port(),
+                    traj_publisher_x->get_input_port());
+  builder.Connect(traj_source_u->get_output_port(),
+                    traj_publisher_u->get_input_port());
+  builder.Connect(traj_source_value_function->get_output_port(),
+                    traj_publisher_lqr_value_function->get_input_port());
+  // Build the diagram.
+  auto diagram = builder.Build();
+
+  if (!FLAGS_diagram_path.empty())
+    c3::systems::common::DrawAndSaveDiagramGraph(*diagram, FLAGS_diagram_path);
+
+  // Create a default context for the diagram.
+  auto diagram_context = diagram->CreateDefaultContext();
+
+  // Set the initial state of the system.
+  Eigen::VectorXd x0(23);
+	x0 << 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+
+  // x0 << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  std::vector<double> x_init = *options.x_init;
+  x0 = Eigen::Map<Eigen::VectorXd>(x_init.data(), x_init.size());
+	//std::cout << "x0: " << x0.transpose() << std::endl;
+
+	auto& plant_context =
+      diagram->GetMutableSubsystemContext(plant, diagram_context.get());
+  plant.SetPositionsAndVelocities(&plant_context, x0);
+
+
+  std::signal(SIGINT, SigIntHandler);
+  auto output = diagram->AllocateOutput();
+
+  const std::chrono::milliseconds period(200);
+  while (g_run.load()) {
+    diagram->CalcOutput(*diagram_context, output.get()); 
+    diagram->ForcedPublish(*diagram_context);
+    std::this_thread::sleep_for(period);
+  }
+
+
+  return 0;
+}
+
+
+int OptunaPlateTestMSiC3() {
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder;
+  auto [plant_for_lcs, scene_graph_for_lcs] =
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+  Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
+
+  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
+	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
+
+  parser_for_lcs.AddModels(plate_file_lcs);
+  parser_for_lcs.AddModels(cube_file_lcs);
+
+  plant_for_lcs.Finalize();
+
+  // Build the plant diagram.
+  auto plant_diagram = plant_builder.Build();
+
+  // Retrieve collision geometries for relevant bodies.
+  drake::geometry::GeometryId plate_collision_geom =
+      plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("plate"))[0];
+	std::vector<drake::geometry::GeometryId> cube_collision_geoms;
+  for (int i = 1; i <= 8; i++) {
+		cube_collision_geoms.push_back(
+			plant_for_lcs.GetCollisionGeometriesForBody(
+          plant_for_lcs.GetBodyByName("cube"))[i]);
+	}
+
+  // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs;
+
+	for (GeometryId geom_id : cube_collision_geoms) {
+		contact_pairs.emplace_back(plate_collision_geom, geom_id);
+	}
+
+  // Build the main diagram.
+  DiagramBuilder<double> builder;
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  Parser parser(&plant, &scene_graph);
+  const std::string plate_file = "examples/resources/plate/plate.sdf";
+	const std::string cube_file = "examples/resources/plate/cube.sdf";
+
+  parser.AddModels(plate_file);
+  parser.AddModels(cube_file);
+
+  plant.Finalize();
+
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
+      "examples/resources/plate/optuna_ms_c3_tracking_options.yaml");
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
+      "examples/resources/plate/optuna_ms_ic3_options.yaml");
+  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
+      options.c3_options, options.lcs_factory_options.N);
+
+  // Create contexts for the plant and LCS factory system.
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
+      plant_diagram->CreateDefaultContext();
+  auto plant_autodiff =
+      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
+  auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
+      plant_for_lcs, plant_diagram_context.get());
+  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
+
+
+  std::unique_ptr<systems::MSiC3> ms_ic3_controller =
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, 
+        plant_for_lcs, *plant_autodiff, options, ms_ic3_options, 0);
+
+  auto [x_traj, u_traj, H, g, K, k_ff] = 
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
+      plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
+
+  double metric = 0;
+  double total_angle_diff = 0;
+  double z_cost = 0;
+
+  MatrixXd x_hat_final = x_traj.at(x_traj.size() - 1);
+
+  for (int i = 1; i < 8; i++) {
+    VectorXd x_last = x_hat_final.col(x_hat_final.cols() - i);
+
+    // Extract final angle difference
+    int quat_idx = options.quaternion_indices[0];
+
+    Eigen::VectorXd xd(23);
+    std::vector<double> x_des = *options.x_des;
+    xd = Eigen::Map<Eigen::VectorXd>(x_des.data(), x_des.size());
+
+    Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
+    Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
+
+    // Get z height of object
+    double z_diff = x_last(11);
+    
+    z_cost += 5000 * z_diff * z_diff;
+    total_angle_diff += qd.angularDistance(qf) * 180 / M_PI;
+  }
+  
+
+  std::cout << "z_cost: " << z_cost << std::endl;
+  std::cout << "total_angle_diff: " << total_angle_diff << std::endl;
+  std::cout << "FINAL_METRIC: " << (z_cost + total_angle_diff) << std::endl;
+  return 0;
+
+
+  return 0;
+}
+
 int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
   
   // Build the plant and scene graph for the pivoting system.
@@ -1545,6 +1799,8 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
   }
   return 0;
 }
+
+
 
 
 // TODO: Pivoting probably broken rn due to simplified lcs model
@@ -2544,33 +2800,41 @@ int main(int argc, char* argv[]) {
   if (FLAGS_experiment_type == "cartpole_softwalls") {
     std::cout << "Running Cartpole Softwalls Test..." << std::endl;
     return RunCartpoleTest();
+
   } else if (FLAGS_experiment_type == "cube_pivoting") {
-    std::cout << "Running Cube Pivoting Test..." << std::endl;
     return RunPivotingTest();
+
   } else if (FLAGS_experiment_type == "plate") {
     std::cout << "Running Plate Test..." << std::endl;
     return RunPlateTest();
-  } else if (FLAGS_experiment_type == "iC3") {
-    std::cout << "Running iC3 plate Test..." << std::endl;
+
+  } else if (FLAGS_experiment_type == "iC3_plate") {
     return RunPlateTestiC3(lcm);
+
+  } else if (FLAGS_experiment_type == "MSiC3_plate") {
+    return RunPlateTestMSiC3(lcm);
+
+  } else if (FLAGS_experiment_type == "MSiC3_plate_optuna") {
+    return OptunaPlateTestMSiC3();
+
   } else if (FLAGS_experiment_type == "iC3_point_hand") {
-    std::cout << "Running iC3 point hand Test..." << std::endl;
     return RunPointHandTestiC3(lcm, 0);
+
   } else if (FLAGS_experiment_type == "iC3_point_hand_180") {
-    std::cout << "Running iC3 point hand Test..." << std::endl;
     return RunPointHandTestiC3(lcm, 1);
+
   } else if (FLAGS_experiment_type == "MSiC3_point_hand") {
-    std::cout << "Running iC3 point hand Test..." << std::endl;
     return RunPointHandTestMSiC3(lcm, 0);
+
   } else if (FLAGS_experiment_type == "MSiC3_point_hand_180") {
-    std::cout << "Running iC3 point hand Test..." << std::endl;
     return RunPointHandTestMSiC3(lcm, 1);
+
   } else if (FLAGS_experiment_type == "MSiC3_point_hand_180_optuna") {
-    std::cout << "Running iC3 optuna point hand Test..." << std::endl;
     return OptunaPointHandTestMSiC3(1);
+
   } else if (FLAGS_experiment_type == "point_hand_mpc") {
-    std::cout << "Running iC3 point hand MPC Test..." << std::endl;
     return RunPointHandMPC();
+
   } else {
     std::cerr
         << "Unknown experiment type: " << FLAGS_experiment_type

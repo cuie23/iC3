@@ -113,12 +113,18 @@ void GeomGeomCollider<T>::ComputeGeneralGeometryDistance(
   const SignedDistancePair<T> signed_distance_pair =
       query_object.ComputeSignedDistancePairClosestPoints(geometry_id_A_,
                                                           geometry_id_B_);
+
   distance = signed_distance_pair.distance;
   nhat_BA_W = signed_distance_pair.nhat_BA_W;
   p_ACa = inspector.GetPoseInFrame(geometry_id_A_).template cast<T>() *
           signed_distance_pair.p_ACa;
   p_BCb = inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
           signed_distance_pair.p_BCb;
+
+  // Fallback for full penetration, necessary for MSiC3 since the initial guess can have penetration
+  if (nhat_BA_W.hasNaN()) {
+    nhat_BA_W = Eigen::Vector3d::UnitZ();
+  }
 }
 
 // Computes and returns all relevant geometry query results for the collider

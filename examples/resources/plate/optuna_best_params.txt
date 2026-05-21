@@ -1,0 +1,19 @@
+=========================================
+       BEST HYPERPARAMETERS SO FAR       
+=========================================
+Best Trial Number: 74
+Best Metric Value: 324.237
+
+Parameters:
+  admm_iter: 7
+  w_G: 88
+  plate_z_cost: 3600
+  tracking_N: 8
+  quat_weight: 3500
+  num_warmup_iters: 4
+  warm_start_alpha: 0.799767036328722
+  num_segments: 6
+  num_iters: 5
+  alpha_ee: 0.44512585019857487
+  alpha_object: 0.4510188638893246
+=========================================

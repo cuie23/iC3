@@ -5,8 +5,8 @@ import subprocess
 import optuna
 
 # Define paths to your parameter files
-CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_ms_c3_tracking_options_point_hand_180.yaml"
-MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_ms_ic3_options_point_hand_180.yaml"
+CONTORLLER_PARAMS = "examples/resources/plate/optuna_ms_c3_tracking_options_point_hand_180.yaml"
+MSiC3_PARAMS = "examples/resources/plate/optuna_ms_ic3_options_point_hand_180.yaml"
 
 
 def objective(trial):
@@ -102,7 +102,7 @@ def log_best_callback(study, trial):
         print(f"--> New best metric found: {study.best_value}. Saving to file...")
         
         # Open in "w" (write) mode to overwrite the file with the fresh best data
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180_results.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_15_segments.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -119,7 +119,7 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///optuna_results.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_15_segments.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(

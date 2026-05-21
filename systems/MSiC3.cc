@@ -58,6 +58,8 @@ MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& p
   n_lambda_ = multibody::LCSFactory::GetNumContactVariables(
       controller_options_.lcs_factory_options);
 
+  std::cout << "n x " << n_x_ << std::endl;
+  std::cout << "n u " << n_u_ << std::endl;
   std::cout << "n lambda: " << n_lambda_ << std::endl;
 
   num_segments_ = ms_ic3_options_.num_segments;
@@ -155,6 +157,37 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   VectorXd upper_bound_u(VectorXd::Zero(n_u_));
   // HARDCODED
   if (n_u_ == 5) { // plate
+    A_x(0, 0) = 1;
+    A_x(1, 1) = 1;
+    A_x(2, 2) = 1;
+    A_x(3, 3) = 1;
+    A_x(4, 4) = 1;
+
+    lower_bound_x(0) = -0.2;
+    lower_bound_x(1) = -0.2;
+    lower_bound_x(2) = -0.5; 
+    lower_bound_x(3) = -0.6;
+    lower_bound_x(4) = -0.6;
+
+    upper_bound_x(0) = 0.2;
+    upper_bound_x(1) = 0.2;
+    upper_bound_x(2) = 0.5;
+    upper_bound_x(3) = 0.6;
+    upper_bound_x(4) = 0.6;
+
+    // Actuation limits
+    A_u(2, 2) = 1;
+    A_u(3, 3) = 1;
+    A_u(4, 4) = 1;
+
+    lower_bound_u(2) = 0;
+    lower_bound_u(3) = -1;
+    lower_bound_u(4) = -1;
+
+    upper_bound_u(2) = 15;
+    upper_bound_u(3) = 1;
+    upper_bound_u(4) = 1;
+
   } else if (n_u_ == 9) { // trifinger
 
     for (int i = 0; i < 3; i++) {
@@ -218,22 +251,32 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   lambda_hat = lambda_hat_init_out;
 
   for (int i = 0; i < num_segments_+1; i++) {
-    // Ensure anchors don't have penetration
     VectorXd x_projected = x_hat.col(i * L_);
-    if (example_idx_ == 1) {
-      for (int i = 0; i < 3; i++) {
-        x_projected = ProjectContact(context, contact_geoms[i], x_projected, 3*i, 3);
+
+    if (example_idx_ == 0) {  
+      drake::geometry::GeometryId plate_collision_geom =
+        plant_.GetCollisionGeometriesForBody(
+            plant_.GetBodyByName("plate"))[0];
+      drake::geometry::GeometryId cube_collision_geom =
+        plant_.GetCollisionGeometriesForBody(
+            plant_.GetBodyByName("cube"))[0];
+      SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
+
+      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+    } else if (example_idx_ == 1) {
+      // Ensure anchors don't have penetration
+      for (int j = 0; j < 3; j++) {
+        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
+      }
+
+      // Threshold so fingers are within joint limits
+      for (int j = 0; j < A_x.rows(); j++) {
+        if (A_x(j, j) != 0) { // Assumes diagonal
+          x_projected(j) = std::min(std::max(x_projected(j), lower_bound_x(j)), upper_bound_x(j));
+        }
       }
     }
     x_anchors.col(i) = x_projected;
-
-    // Threshold so fingers are within joint limits
-    for (int i = 0; i < A_x.rows(); i++) {
-      if (A_x(i, i) != 0) { // Assumes diagonal
-        x_projected(i) = std::min(std::max(x_projected(i), lower_bound_x(i)), upper_bound_x(i));
-      }
-    }
-  
     defects.col(i) = x_hat_init_out.col(i * L_) - x_anchors.col(i);
   }
 
@@ -292,6 +335,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     } 
 
     std::cout << "alpha ee " << alpha_ee << " alpha object " << alpha_object << std::endl;
+    std::cout << "num segments " << num_segments_ << std::endl;
+    std::cout << "L " << L_ << std::endl;
 
     // Forwards Pass - Do C3 MPC with value function terminal cost
     for (int i = 0; i < num_segments_; i++) {
@@ -304,11 +349,20 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
                       lcs_factory, lcs_factory_rollout, H, g, x_targets, i*L_,
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u);
 
-      // HARDCODED INDICES
       VectorXd x_L = x_hat_out.col(L_);
       VectorXd x_anchor_next = x_anchors.col(i+1);
 
-      if (example_idx_ == 1) {
+      // Update anchors
+      // HARDCODED INDICES
+      if (example_idx_ == 0) {
+        new_x_anchors.col(i+1).segment(0, 5) = x_L.segment(0, 5) - (1-alpha_ee) * (x_L - x_anchor_next).segment(0, 5);
+        new_x_anchors.col(i+1).segment(12, 5) = x_L.segment(12, 5) - (1-alpha_ee) * (x_L - x_anchor_next).segment(12, 5);
+        
+        // Update object anchors
+        new_x_anchors.col(i+1).segment(9, 3) = x_L.segment(9, 3) - (1-alpha_ee) * (x_L - x_anchor_next).segment(9, 3);
+        new_x_anchors.col(i+1).segment(17, 6) = x_L.segment(17, 6) - (1-alpha_ee) * (x_L - x_anchor_next).segment(17, 6);
+
+      } else if (example_idx_ == 1) {
         // Update ee anchors
         new_x_anchors.col(i+1).segment(0, 9) = x_L.segment(0, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(0, 9);
         new_x_anchors.col(i+1).segment(16, 9) = x_L.segment(16, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(16, 9);
@@ -316,47 +370,62 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
         // Update object anchors
         new_x_anchors.col(i+1).segment(13, 3) = x_L.segment(13, 3) - (1-alpha_ee) * (x_L - x_anchor_next).segment(13, 3);
         new_x_anchors.col(i+1).segment(25, 6) = x_L.segment(25, 6) - (1-alpha_ee) * (x_L - x_anchor_next).segment(25, 6);
+      }
+      // Linearly interpolate quaternions correctly for object
+      for (auto idx : controller_options_.quaternion_indices) {
+        Eigen::Quaterniond q0(x_anchor_next(idx), x_anchor_next(idx+1), x_anchor_next(idx+2), x_anchor_next(idx+3));
+        Eigen::Quaterniond qf(x_L(idx), x_L(idx+1), x_L(idx+2), x_L(idx+3));
+        VectorXd v0 = x_anchor_next.segment(idx, 4);
+        VectorXd vf = x_L.segment(idx, 4);
 
-        // Linearly interpolate quaternions correctly for object
-        for (auto idx : controller_options_.quaternion_indices) {
-          Eigen::Quaterniond q0(x_anchor_next(idx), x_anchor_next(idx+1), x_anchor_next(idx+2), x_anchor_next(idx+3));
-          Eigen::Quaterniond qf(x_L(idx), x_L(idx+1), x_L(idx+2), x_L(idx+3));
-          VectorXd v0 = x_anchor_next.segment(idx, 4);
-          VectorXd vf = x_L.segment(idx, 4);
+        if (-1e-3 < q0.dot(qf) && q0.dot(qf) < 1e-3) { 
+          // Fallback for antipodal points, use linear interpolation in R3 to get default axis
+          Eigen::Vector4d mid = v0 + vf;
+          Eigen::Vector4d tangent = (mid - mid.dot(v0) * v0).normalized();
 
-          if (-1e-3 < q0.dot(qf) && q0.dot(qf) < 1e-3) { 
-            // Fallback for antipodal points, use linear interpolation in R3 to get default axis
-            Eigen::Vector4d mid = v0 + vf;
-            Eigen::Vector4d tangent = (mid - mid.dot(v0) * v0).normalized();
+          double theta = std::acos(std::clamp(v0.dot(vf), -1.0, 1.0)); 
+          Eigen::Vector4d v_interpolated = v0 * std::cos(alpha_object * theta) + tangent * std::sin(alpha_object * theta);
 
-            double theta = std::acos(std::clamp(v0.dot(vf), -1.0, 1.0)); 
-            Eigen::Vector4d v_interpolated = v0 * std::cos(alpha_object * theta) + tangent * std::sin(alpha_object * theta);
-
-            new_x_anchors.col(i+1).segment(idx, 4) = v_interpolated;
-          } else {
-            Eigen::Quaterniond slerp = q0.slerp(alpha_object, qf);
-            new_x_anchors.col(i+1).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
-          }
+          new_x_anchors.col(i+1).segment(idx, 4) = v_interpolated;
+        } else {
+          Eigen::Quaterniond slerp = q0.slerp(alpha_object, qf);
+          new_x_anchors.col(i+1).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
         }
       }
       
       // Ensure anchors don't have penetration
       VectorXd x_projected = new_x_anchors.col(i+1);
-      if (example_idx_ == 1) {
-        for (int i = 0; i < 3; i++) {
-          x_projected = ProjectContact(context, contact_geoms[i], x_projected, 3*i, 3);
+      if (example_idx_ == 0) {
+        // HARDCODED CONTACT GEOM
+        drake::geometry::GeometryId plate_collision_geom =
+            plant_.GetCollisionGeometriesForBody(
+                plant_.GetBodyByName("plate"))[0];
+        drake::geometry::GeometryId cube_collision_geom =
+          plant_.GetCollisionGeometriesForBody(
+              plant_.GetBodyByName("cube"))[0];
+        SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
+
+        x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+        
+      } else if (example_idx_ == 1) {
+        for (int j = 0; j < 3; j++) {
+          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
         }
         
         // Threshold so fingers are within joint limits
-        for (int i = 0; i < A_x.rows(); i++) {
-          if (A_x(i, i) != 0) { // Assumes diagonal
-            x_projected(i) = std::min(std::max(x_projected(i), lower_bound_x(i)), upper_bound_x(i));
+        for (int j = 0; j < A_x.rows(); j++) {
+          if (A_x(j, j) != 0) { // Assumes diagonal
+            x_projected(j) = std::min(std::max(x_projected(j), lower_bound_x(j)), upper_bound_x(j));
           }
         }
       }
       new_x_anchors.col(i+1) = x_projected;
 
-      std::cout << "x_hat[L] cube: " << x_hat_out.col(L_).segment(9, 7).transpose() << std::endl << std::endl;
+      if (example_idx_ == 0) {
+        std::cout << "x_hat[L] pancake: " << x_hat_out.col(L_).segment(5, 7).transpose() << std::endl << std::endl;
+      } else if (example_idx_ == 1) {
+        std::cout << "x_hat[L] cube: " << x_hat_out.col(L_).segment(9, 7).transpose() << std::endl << std::endl;
+      }
 
       defects.col(i+1) = x_hat_out.col(L_) - new_x_anchors.col(i+1);
 
@@ -376,7 +445,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
     // Linearize about new nominal trajectory
     lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
-    
+
     // Don't store if warmup
     if (!is_warmup) {
       all_x_hats.push_back(x_hat);
@@ -449,6 +518,31 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   return std::make_tuple(all_x_hats, all_u_hats, Hs, gs, Ks, k_ffs);
 }
 
+VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
+                                VectorXd x_init, int z_idx) {
+    
+    VectorXd x_out = x_init;
+    plant_.SetPositionsAndVelocities(&context, x_init);
+    multibody::GeomGeomCollider collider(plant_, geom_pair);
+    auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
+        drake::multibody::JacobianWrtVariable::kQDot);
+
+    // HARDCODED FOR PLATE EXAMPLE
+    double phi_check = -999;
+    if (phi < 0) {
+      while (phi_check < 0) {
+        // Displace z of object upwards
+        x_out(z_idx) = x_out(z_idx) += 0.002;
+        
+        plant_.SetPositionsAndVelocities(&context, x_out);
+        auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
+          drake::multibody::JacobianWrtVariable::kQDot);
+        phi_check = phi;
+      }
+    }
+
+    return x_out;
+}
 
 VectorXd MSiC3::ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
                                 VectorXd x_init, int start_idx, int q_size) {
@@ -596,7 +690,11 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
   factory.UpdateStateAndInput(x0, u_hat.col(0));
   LCS lcs_test = factory.GenerateLCS();
   // std::cout << "x anchor fingers " << x0.segment(0, 9).transpose() << std::endl;
-  std::cout << "x anchor cube " << x0.segment(9, 7).transpose() << std::endl;
+  if (example_idx_ == 0) {
+    std::cout << "x anchor pancake " << x0.segment(5, 7).transpose() << std::endl;
+  } else if (example_idx_ == 1) {
+    std::cout << "x anchor cube " << x0.segment(9, 7).transpose() << std::endl;
+  }
 
   if (!controller_options_.x_des.has_value()) std::cerr << "Set x des" << std::endl;
   std::vector<double> x_des = controller_options_.x_des.value();
