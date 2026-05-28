@@ -1,7 +1,7 @@
 {N: 60, acceleration_cost_weight: 0, add_input_constraints: true, add_position_constraints: true,
-  alpha_ee: 0.4048838566757767, alpha_ee_step: 0.19837204777474113, alpha_object: 0.9587375712925278,
-  alpha_object_step: 0.013754142902490737, defect_quaternion_regularizer_fraction: 0,
-  defect_quaternion_weight: 0, early_termination: true, num_iters: 4, num_segments: 2,
-  num_warmup_iters: 0, p_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  alpha_ee: 0.29258703251953116, alpha_ee_step: 0.7074129674804688, alpha_object: 0.3199961288581268,
+  alpha_object_step: 0.6800038711418732, defect_quaternion_regularizer_fraction: 0,
+  defect_quaternion_weight: 0, early_termination: true, num_iters: 2, num_segments: 2,
+  num_warmup_iters: 2, p_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1], penalize_acceleration: true, print_costs: true, rollout_Kd: [
-    0, 0, 0, 0, 0], rollout_Kp: [0, 0, 0, 0, 0], rollout_dt_scaling: 5, w_P: 0, warm_start_alpha: 0.20251613401547497}
+    0, 0, 0, 0, 0], rollout_Kp: [0, 0, 0, 0, 0], rollout_dt_scaling: 5, w_P: 0, warm_start_alpha: 0.37415739245792906}

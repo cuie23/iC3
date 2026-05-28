@@ -181,12 +181,12 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     A_u(4, 4) = 1;
 
     lower_bound_u(2) = 5;
-    lower_bound_u(3) = -1.8;
-    lower_bound_u(4) = -1.8;
+    lower_bound_u(3) = -2;
+    lower_bound_u(4) = -2;
 
     upper_bound_u(2) = 15;
-    upper_bound_u(3) = 1.8;
-    upper_bound_u(4) = 1.8;
+    upper_bound_u(3) = 2;
+    upper_bound_u(4) = 2;
 
   } else if (n_u_ == 9) { // trifinger
 
@@ -206,16 +206,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.1;
-      lower_bound_x(16 + 3*i+1) = -0.1;
+      lower_bound_x(16 + 3*i) = -0.15;
+      lower_bound_x(16 + 3*i+1) = -0.15;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
       upper_bound_x(3*i) = xd(3*i) + 0.06;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.1;
-      upper_bound_x(16 + 3*i+1) = 0.1;
+      upper_bound_x(16 + 3*i) = 0.15;
+      upper_bound_x(16 + 3*i+1) = 0.15;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;

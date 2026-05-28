@@ -53,7 +53,7 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
+    num_warmup_iters = trial.suggest_int("num_warmup_iters", 1, 3)
     warm_start_alpha = trial.suggest_float("warm_start_alpha", 0, 1)
 
     num_iters = trial.suggest_int("num_iters", 2, 5)
