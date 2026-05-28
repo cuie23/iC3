@@ -63,6 +63,7 @@ DEFINE_string(experiment_type, "cube_pivoting",
               "The type of experiment to test the LCSFactorySystem with. "
               "Options: 'cartpole_softwalls [Frictionless Spring System]', "
               "'cube_pivoting [Stewart and Trinkle System]'");
+DEFINE_int32(optuna_instance, 0, "Parallelization instance for optuna");
 DEFINE_string(lcm_url, "udpm://239.255.76.67:7667?ttl=0",
               "LCM URL with IP, port, and TTL settings");
 DEFINE_string(diagram_path, "",
@@ -1151,7 +1152,7 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(200);
+  const std::chrono::milliseconds period(50);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
@@ -1238,6 +1239,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
   std::cout << "computed traj" << std::endl;
 
+
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
   auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);
   traj_source_x->set_name("traj_source_x");
@@ -1294,7 +1296,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(200);
+  const std::chrono::milliseconds period(50);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
@@ -1383,10 +1385,11 @@ int OptunaPlateTestMSiC3() {
   double metric = 0;
   double total_angle_diff = 0;
   double z_cost = 0;
-
+  double plate_rot_cost = 0;
+ 
   MatrixXd x_hat_final = x_traj.at(x_traj.size() - 1);
 
-  for (int i = 1; i < 8; i++) {
+  for (int i = 6; i > 0; i--) {
     VectorXd x_last = x_hat_final.col(x_hat_final.cols() - i);
 
     // Extract final angle difference
@@ -1401,15 +1404,20 @@ int OptunaPlateTestMSiC3() {
 
     // Get z height of object
     double z_diff = x_last(11);
-    
-    z_cost += 5000 * z_diff * z_diff;
+
+    std::cout << x_last.segment(0, 12).transpose() << std::endl;
+
+    z_cost += 30000 * z_diff * z_diff;
     total_angle_diff += qd.angularDistance(qf) * 180 / M_PI;
+    plate_rot_cost += 300 * x_last(3) * x_last(3);
+    plate_rot_cost += 300 * x_last(4) * x_last(4);
   }
   
 
   std::cout << "z_cost: " << z_cost << std::endl;
   std::cout << "total_angle_diff: " << total_angle_diff << std::endl;
-  std::cout << "FINAL_METRIC: " << (z_cost + total_angle_diff) << std::endl;
+  std::cout << "plate_rot_cost: " << plate_rot_cost << std::endl;
+  std::cout << "FINAL_METRIC: " << (z_cost + total_angle_diff + plate_rot_cost) << std::endl;
   return 0;
 
 
@@ -1791,7 +1799,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(200);
+  const std::chrono::milliseconds period(50);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
@@ -2171,7 +2179,7 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   std::signal(SIGINT, SigIntHandler);
   auto output = diagram->AllocateOutput();
 
-  const std::chrono::milliseconds period(200);
+  const std::chrono::milliseconds period(10);
   while (g_run.load()) {
     diagram->CalcOutput(*diagram_context, output.get()); 
     diagram->ForcedPublish(*diagram_context);
@@ -2180,7 +2188,7 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   return 0;
 }
 
-int OptunaPointHandTestMSiC3(int example) {
+int OptunaPointHandTestMSiC3(int example, int instance) {
   
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
@@ -2411,8 +2419,10 @@ int OptunaPointHandTestMSiC3(int example) {
     ms_c3_options_file = "examples/resources/multifinger_hand/optuna_ms_c3_tracking_options_point_hand.yaml";
     ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_ms_ic3_options_point_hand.yaml";
   } else if (example == 1) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_ms_c3_tracking_options_point_hand_180.yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_ms_ic3_options_point_hand_180.yaml";
+    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_" 
+                            + std::to_string(instance) + ".yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_" 
+                            + std::to_string(instance) + ".yaml";
   }
 
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
@@ -2458,7 +2468,12 @@ int OptunaPointHandTestMSiC3(int example) {
   Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
   Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
-  std::cout << "FINAL_METRIC: " << qd.angularDistance(qf) * 180 / M_PI << std::endl;
+  double angle_diff = qd.angularDistance(qf) * 180 / M_PI;
+  double position_weight = 60000 * (x_last(13) * x_last(13) + x_last(14) * x_last(14));
+
+  std::cout << "Angle diff: " << angle_diff << std::endl;
+  std::cout << "Position weight " << position_weight << std::endl;
+  std::cout << "FINAL_METRIC: " << (angle_diff + position_weight) << std::endl;
   return 0;
 
 }
@@ -2830,7 +2845,7 @@ int main(int argc, char* argv[]) {
     return RunPointHandTestMSiC3(lcm, 1);
 
   } else if (FLAGS_experiment_type == "MSiC3_point_hand_180_optuna") {
-    return OptunaPointHandTestMSiC3(1);
+    return OptunaPointHandTestMSiC3(1, FLAGS_optuna_instance);
 
   } else if (FLAGS_experiment_type == "point_hand_mpc") {
     return RunPointHandMPC();

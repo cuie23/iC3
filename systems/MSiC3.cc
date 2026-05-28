@@ -98,7 +98,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   VectorXd gravity;
   if (example_idx_ == 0) {
     gravity = VectorXd::Zero(5);
-    gravity[2] = 5;
+    gravity[2] = 8.33;
   } else if (example_idx_ == 1) {
     gravity = VectorXd::Zero(9);
     gravity[2] = 0.196;
@@ -165,13 +165,13 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
     lower_bound_x(0) = -0.2;
     lower_bound_x(1) = -0.2;
-    lower_bound_x(2) = -0.5; 
+    lower_bound_x(2) = -0.1; 
     lower_bound_x(3) = -0.6;
     lower_bound_x(4) = -0.6;
 
     upper_bound_x(0) = 0.2;
     upper_bound_x(1) = 0.2;
-    upper_bound_x(2) = 0.5;
+    upper_bound_x(2) = 0.3;
     upper_bound_x(3) = 0.6;
     upper_bound_x(4) = 0.6;
 
@@ -180,13 +180,13 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     A_u(3, 3) = 1;
     A_u(4, 4) = 1;
 
-    lower_bound_u(2) = 0;
-    lower_bound_u(3) = -1;
-    lower_bound_u(4) = -1;
+    lower_bound_u(2) = 5;
+    lower_bound_u(3) = -1.8;
+    lower_bound_u(4) = -1.8;
 
     upper_bound_u(2) = 15;
-    upper_bound_u(3) = 1;
-    upper_bound_u(4) = 1;
+    upper_bound_u(3) = 1.8;
+    upper_bound_u(4) = 1.8;
 
   } else if (n_u_ == 9) { // trifinger
 
@@ -206,16 +206,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.3;
-      lower_bound_x(16 + 3*i+1) = -0.3;
+      lower_bound_x(16 + 3*i) = -0.1;
+      lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
       upper_bound_x(3*i) = xd(3*i) + 0.06;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.3;
-      upper_bound_x(16 + 3*i+1) = 0.3;
+      upper_bound_x(16 + 3*i) = 0.1;
+      upper_bound_x(16 + 3*i+1) = 0.1;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;
@@ -240,7 +240,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     upper_bound_x(14) = 0.03;
   }
 
-
   // Get lambda_hat initial guess   
   std::vector<MatrixXd> K_init(N_, Eigen::MatrixXd::Identity(n_u_, n_u_));
   std::vector<VectorXd> K_ff_init(N_, VectorXd::Zero(n_u_));
@@ -264,6 +263,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
       x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
     } else if (example_idx_ == 1) {
+
       // Ensure anchors don't have penetration
       for (int j = 0; j < 3; j++) {
         x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
@@ -359,8 +359,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
         new_x_anchors.col(i+1).segment(12, 5) = x_L.segment(12, 5) - (1-alpha_ee) * (x_L - x_anchor_next).segment(12, 5);
         
         // Update object anchors
-        new_x_anchors.col(i+1).segment(9, 3) = x_L.segment(9, 3) - (1-alpha_ee) * (x_L - x_anchor_next).segment(9, 3);
-        new_x_anchors.col(i+1).segment(17, 6) = x_L.segment(17, 6) - (1-alpha_ee) * (x_L - x_anchor_next).segment(17, 6);
+        new_x_anchors.col(i+1).segment(9, 3) = x_L.segment(9, 3) - (1-alpha_object) * (x_L - x_anchor_next).segment(9, 3);
+        new_x_anchors.col(i+1).segment(17, 6) = x_L.segment(17, 6) - (1-alpha_object) * (x_L - x_anchor_next).segment(17, 6);
 
       } else if (example_idx_ == 1) {
         // Update ee anchors
@@ -368,8 +368,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
         new_x_anchors.col(i+1).segment(16, 9) = x_L.segment(16, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(16, 9);
         
         // Update object anchors
-        new_x_anchors.col(i+1).segment(13, 3) = x_L.segment(13, 3) - (1-alpha_ee) * (x_L - x_anchor_next).segment(13, 3);
-        new_x_anchors.col(i+1).segment(25, 6) = x_L.segment(25, 6) - (1-alpha_ee) * (x_L - x_anchor_next).segment(25, 6);
+        new_x_anchors.col(i+1).segment(13, 3) = x_L.segment(13, 3) - (1-alpha_object) * (x_L - x_anchor_next).segment(13, 3);
+        new_x_anchors.col(i+1).segment(25, 6) = x_L.segment(25, 6) - (1-alpha_object) * (x_L - x_anchor_next).segment(25, 6);
       }
       // Linearly interpolate quaternions correctly for object
       for (auto idx : controller_options_.quaternion_indices) {
@@ -612,8 +612,8 @@ tuple<LCS, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoLCSRollout(VectorXd x0, Matrix
       }
     }
 
-    VectorXd u_k = u_nominal + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
-      + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
+    VectorXd u_k = u_nominal; // + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
+    //   + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
 
     // VectorXd u_k = u_nominal + K[k / factor] * (x_curr - x_nominal) + alpha * k_ff[k / factor];
     // VectorXd u_k = u_nominal;

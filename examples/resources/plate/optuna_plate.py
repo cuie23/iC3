@@ -12,8 +12,8 @@ MSiC3_PARAMS = "examples/resources/plate/optuna_ms_ic3_options.yaml"
 def objective(trial):
     # C3 parameters
     admm_iter = trial.suggest_int("admm_iter", 3, 8)
-    w_G = trial.suggest_int("w_G", 1, 120)
-    plate_z_cost = trial.suggest_int("plate_z_cost", 100, 25000, step=100)
+    w_G = trial.suggest_int("w_G", 1, 200)
+    plate_rot_cost = trial.suggest_int("plate_rot_cost", 50, 1000, step=50)
     tracking_N = trial.suggest_int("tracking_N", 5, 10)
     quat_weight = trial.suggest_int("quat_weight", 500, 5000, step=500)
 
@@ -22,7 +22,8 @@ def objective(trial):
         
     c3_options["c3_options"]["admm_iter"] = admm_iter
     c3_options["c3_options"]["w_G"] = w_G
-    c3_options["c3_options"]["q_vector"][2] = plate_z_cost
+    c3_options["c3_options"]["q_vector"][3] = plate_rot_cost
+    c3_options["c3_options"]["q_vector"][4] = plate_rot_cost
     c3_options["Q_quaternion_weight"] = quat_weight
     c3_options["lcs_factory_options"]["N"] = tracking_N
     
@@ -32,11 +33,11 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 4)
+    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     warm_start_alpha = trial.suggest_float("warm_start_alpha", 0, 1)
 
     num_segments = trial.suggest_categorical("num_segments", [2, 3, 4, 6])
-    num_iters = trial.suggest_int("num_iters", 2, 10)
+    num_iters = trial.suggest_int("num_iters", 2, 5)
     alpha_ee = trial.suggest_float("alpha_ee", 0, 1)
     alpha_object = trial.suggest_float("alpha_object", 0, 1)
 
@@ -49,11 +50,11 @@ def objective(trial):
     ic3_options["num_iters"] = num_iters
     ic3_options["num_segments"] = num_segments
 
-    ic3_options["alpha_ee"] = warm_start_alpha
-    ic3_options["alpha_ee_step"] = (1 - warm_start_alpha) / (num_iters - 1)
+    ic3_options["alpha_ee"] = alpha_ee
+    ic3_options["alpha_ee_step"] = (1 - alpha_ee) / (num_iters - 1)
 
-    ic3_options["alpha_object"] = warm_start_alpha
-    ic3_options["alpha_object_step"] = (1 - warm_start_alpha) / (num_iters - 1)
+    ic3_options["alpha_object"] = alpha_object
+    ic3_options["alpha_object_step"] = (1 - alpha_object) / (num_iters - 1)
 
     
     with open(MSiC3_PARAMS, "w") as f:
@@ -77,13 +78,20 @@ def objective(trial):
 
     # Parse metric from std out
     print(result.stdout)
-    match = re.search(r"FINAL_METRIC:\s*([0-9.]+)", result.stdout)
-    
+    match = re.search(r"FINAL_METRIC:\s*([0-9.]+(?:[eE][+-]?\d+)?)", result.stdout)
+
     if match:
-        score = float(match.group(1))
-        return score
+        metric_string = match.group(1)
+        
+        # 2. Correctly check the string value for "e+"
+        if "e+" in metric_string:
+            raise optuna.TrialPruned("Could not find metric in output (scientific notation detected).")
+            
+        # Otherwise, proceed to convert it to a float
+        return float(metric_string)
     else:
-        raise optuna.TrialPruned("Could not find metric in output.")
+        raise optuna.TrialPruned("Could not find metric in output (scientific notation detected).")
+
 
 def log_best_callback(study, trial):
     """
@@ -123,7 +131,7 @@ if __name__ == "__main__":
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")
-    study.optimize(objective, n_trials=200, callbacks=[log_best_callback])
+    study.optimize(objective, n_trials=500, callbacks=[log_best_callback])
 
     print("\n--- Optimization Complete ---")
     print(f"Best Trial Value: {study.best_value}")
