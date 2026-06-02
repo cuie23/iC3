@@ -37,7 +37,7 @@ lcs_factory_options:
   spring_stiffness: 0
   mu: [0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7]
   #mu: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-  N: 7
+  N: 8
   dt: 0.01
 
 c3_options:
@@ -56,28 +56,28 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 4
-  gamma: 1.0
+  admm_iter: 3
+  gamma: 1.00
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
-  w_R: 20 #Penalty on all decision variables, assuming scalar
-  w_G: 170 #Penalty on all decision variables, assuming scalar
+  w_R: 1 #Penalty on all decision variables, assuming scalar
+  w_G: 100 #Penalty on all decision variables, assuming scalar
   w_U: 5 #State Tracking Error, assuming diagonal
 
 
-  q_vector: [1000, 1000, 10000,                # plate pos
-             1000, 1000,                    # plate rot
+  q_vector: [500, 500, 100,                # plate pos
+             300, 300,                    # plate rot
              1, 1, 1, 1,              # cube rot
-             2000, 2000, 400,           # cube pos              
-             1, 1, 1,                # plate velo
-             10, 10,                    # plate ang velo
+             1000, 1000, 10,           # cube pos              
+             3, 3, 1,                # plate velo
+             8, 8,                    # plate ang velo
              1, 1, 1,             # cube ang velo
              1, 1, 1]                # cube velo
 
-  r_vector: [10, 10, 10, 10, 10]  
+  r_vector: [50, 50, 100, 10, 10]  
   
   #Penalty on matching projected variables
-  g_x: [50, 50, 200, 100, 100, 50, 50, 50, 50, 50, 50, 50, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  g_x: [50, 50, 50, 100, 100, 50, 50, 50, 50, 50, 50, 50, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   g_gamma: [1, 1, 1, 1, 1, 1, 1, 1]
   g_lambda_n: [1, 1, 1, 1, 1, 1, 1, 1]
   g_lambda_t: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -91,7 +91,7 @@ c3_options:
 
 
   #Penalty on matching the QP variables
-  u_x: [50, 50, 200, 100, 100, 50, 50, 50, 50, 50, 50, 50, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+  u_x: [50, 50, 50, 100, 100, 50, 50, 50, 50, 50, 50, 50, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
   u_gamma: [1, 1, 1, 1, 1, 1, 1, 1]
   u_lambda_n: [1, 1, 1, 1, 1, 1, 1, 1]
   u_lambda_t: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]

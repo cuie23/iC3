@@ -1928,12 +1928,12 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
   }
 
-  if (example == 0) {
-    // fingertip-ground contact pairs
-    for (auto geom_id : fingertip_collision_geoms) {
-      contact_pairs.emplace_back(geom_id, ground_collision_geom);
-    }
-  }
+  // if (example == 0) {
+  //   // fingertip-ground contact pairs
+  //   for (auto geom_id : fingertip_collision_geoms) {
+  //     contact_pairs.emplace_back(geom_id, ground_collision_geom);
+  //   }
+  // }
 
   // cube-ground contact pairs
   if (example == 0) {
@@ -1978,12 +1978,12 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 	for (auto geom_id : fingertip_collision_geoms_rollout) {
 		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[0], geom_id);
   }
-  if (example == 0) {
-    // fingertip-ground contact pairs
-    for (auto geom_id : fingertip_collision_geoms_rollout) {
-      contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
-    }
-  }
+  // if (example == 0) {
+  //   // fingertip-ground contact pairs
+  //   for (auto geom_id : fingertip_collision_geoms_rollout) {
+  //     contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
+  //   }
+  // }
 
   if (example == 0) {
     // cube-ground contact pairs
@@ -2078,9 +2078,10 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
       plant_rollout, plant_diagram_rollout_context.get());
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
 
+  int example_idx = (example == 0) ? 2 : 1;
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, 
-        plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, 1);
+        plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
@@ -2196,8 +2197,14 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
-	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+  std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
+	std::string cube_file_lcs;
+  if (example == 0) {
+    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy.sdf";
+  } else {
+    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+  }
+
   // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
   const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
 
@@ -2304,12 +2311,12 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
   }
 
-  if (example == 0) {
-    // fingertip-ground contact pairs
-    for (auto geom_id : fingertip_collision_geoms) {
-      contact_pairs.emplace_back(geom_id, ground_collision_geom);
-    }
-  }
+  // if (example == 0) {
+  //   // fingertip-ground contact pairs
+  //   for (auto geom_id : fingertip_collision_geoms) {
+  //     contact_pairs.emplace_back(geom_id, ground_collision_geom);
+  //   }
+  // }
 
   // cube-ground contact pairs
   if (example == 0) {
@@ -2354,12 +2361,12 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 	for (auto geom_id : fingertip_collision_geoms_rollout) {
 		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[0], geom_id);
   }
-  if (example == 0) {
-    // fingertip-ground contact pairs
-    for (auto geom_id : fingertip_collision_geoms_rollout) {
-      contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
-    }
-  }
+  // if (example == 0) {
+  //   // fingertip-ground contact pairs
+  //   for (auto geom_id : fingertip_collision_geoms_rollout) {
+  //     contact_pairs_rollout.emplace_back(geom_id, ground_collision_geom_rollout);
+  //   }
+  // }
 
   if (example == 0) {
     // cube-ground contact pairs
@@ -2416,8 +2423,10 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   std::string ms_ic3_options_file;
 
   if (example == 0) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_ms_c3_tracking_options_point_hand.yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_ms_ic3_options_point_hand.yaml";
+    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_c3_tracking_options_pivot_" 
+                            + std::to_string(instance) + ".yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_ic3_options_pivot_"
+                            + std::to_string(instance) + ".yaml";
   } else if (example == 1) {
     ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_" 
                             + std::to_string(instance) + ".yaml";
@@ -2447,9 +2456,11 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
       plant_rollout, plant_diagram_rollout_context.get());
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
 
+  int example_idx = (example == 0) ? 2 : 1;
+
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, 
-        plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, 1);
+        plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
@@ -2468,8 +2479,10 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
   Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
+  double pos_weight_multiplier = (example == 0) ? 15000 : 60000;
+
   double angle_diff = qd.angularDistance(qf) * 180 / M_PI;
-  double position_weight = 60000 * (x_last(13) * x_last(13) + x_last(14) * x_last(14));
+  double position_weight = pos_weight_multiplier * (x_last(13) * x_last(13) + x_last(14) * x_last(14));
 
   std::cout << "Angle diff: " << angle_diff << std::endl;
   std::cout << "Position weight " << position_weight << std::endl;
@@ -2844,7 +2857,9 @@ int main(int argc, char* argv[]) {
   } else if (FLAGS_experiment_type == "MSiC3_point_hand_180") {
     return RunPointHandTestMSiC3(lcm, 1);
 
-  } else if (FLAGS_experiment_type == "MSiC3_point_hand_180_optuna") {
+  } else if (FLAGS_experiment_type == "MSiC3_point_hand_optuna") {
+    return OptunaPointHandTestMSiC3(0, FLAGS_optuna_instance);
+  }else if (FLAGS_experiment_type == "MSiC3_point_hand_180_optuna") {
     return OptunaPointHandTestMSiC3(1, FLAGS_optuna_instance);
 
   } else if (FLAGS_experiment_type == "point_hand_mpc") {

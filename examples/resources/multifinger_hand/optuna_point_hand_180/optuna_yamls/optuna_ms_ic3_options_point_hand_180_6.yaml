@@ -1,9 +1,8 @@
-{N: 500, acceleration_cost_weight: 80, add_input_constraints: true, add_position_constraints: true,
-  alpha_ee: 0.2666795506974612, alpha_ee_step: 0.3666602246512694, alpha_object: 0.9577716289386394,
-  alpha_object_step: 0.021114185530680285, defect_quaternion_regularizer_fraction: 0,
-  defect_quaternion_weight: 50, early_termination: true, num_iters: 3, num_segments: 25,
-  num_warmup_iters: 3, p_vector: [5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
-    5000, 1, 1, 1, 1, 1000, 1000, 1000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1], penalize_acceleration: true, print_costs: false, rollout_Kd: [6, 6, 6, 6,
-    6, 6, 6, 6, 6], rollout_Kp: [165, 165, 165, 165, 165, 165, 165, 165, 165], rollout_dt_scaling: 5,
-  w_P: 0, warm_start_alpha: 0.9729323101698427}
+{N: 600, acceleration_cost_weight: 10, add_input_constraints: true, add_position_constraints: true,
+  alpha_ee: 0.38, alpha_ee_step: 0.62, alpha_object: 0.89, alpha_object_step: 0.10999999999999999,
+  defect_quaternion_regularizer_fraction: 0, defect_quaternion_weight: 50, early_termination: true,
+  num_iters: 2, num_segments: 30, num_warmup_iters: 3, p_vector: [5000, 5000, 5000,
+    5000, 5000, 5000, 5000, 5000, 5000, 1, 1, 1, 1, 1000, 1000, 1000, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], penalize_acceleration: true, print_costs: false,
+  rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0], rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+  rollout_dt_scaling: 5, w_P: 0, warm_start_alpha: 0.16}

@@ -1,7 +1,7 @@
 num_iters: 3
 num_warmup_iters: 1
 
-N: 54
+N: 50
 num_segments: 2
 
 add_position_constraints: true
@@ -38,4 +38,4 @@ alpha_ee_step: 0.25
 alpha_object: 0.4
 alpha_object_step: 0.3
 
-warm_start_alpha: 0.95
+warm_start_alpha: 0.5

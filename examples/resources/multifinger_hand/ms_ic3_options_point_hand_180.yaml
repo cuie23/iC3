@@ -1,8 +1,8 @@
-num_iters: 3
-num_warmup_iters: 2
+num_iters: 2
+num_warmup_iters: 1
 
-N: 500
-num_segments: 25
+N: 600
+num_segments: 30
 
 
 add_position_constraints: true
@@ -14,7 +14,7 @@ print_costs: true
 rollout_dt_scaling: 5
 
 penalize_acceleration: true
-acceleration_cost_weight: 50
+acceleration_cost_weight: 40
 
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
@@ -36,10 +36,10 @@ p_vector: [5000, 5000, 5000,
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.38
-alpha_ee_step: 0.31
+alpha_ee: 0.53
+alpha_ee_step: 0.47
 
-alpha_object: 0.28
-alpha_object_step: 0.36
+alpha_object: 0.72
+alpha_object_step: 0.28
 
-warm_start_alpha: 0.22
+warm_start_alpha: 0.35
