@@ -6,7 +6,7 @@ publish_frequency: 100
 state_prediction_joints: []
 
 quaternion_indices: [5]
-Q_quaternion_weight: 1500
+Q_quaternion_weight: 1200
 
 quaternion_regularizer_fraction: 0.0
 
@@ -22,7 +22,7 @@ x_init: [0, 0, -0.011,
 x_des: [0, 0, 0,
         0, 0,
         0, 0, -1, 0,
-        0.13, 0, 0,
+        0, 0, 0,
         0, 0, 0, 
         0, 0,
         0, 0, 0, 
@@ -61,20 +61,20 @@ c3_options:
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 1 #Penalty on all decision variables, assuming scalar
-  w_G: 100 #Penalty on all decision variables, assuming scalar
+  w_G: 80 #Penalty on all decision variables, assuming scalar
   w_U: 5 #State Tracking Error, assuming diagonal
 
 
-  q_vector: [500, 500, 100,                # plate pos
+  q_vector: [500, 500, 50,                # plate pos
              300, 300,                    # plate rot
              1, 1, 1, 1,              # cube rot
-             1000, 1000, 10,           # cube pos              
-             3, 3, 1,                # plate velo
+             600, 600, 100,           # cube pos              
+             1, 1, 1,                # plate velo
              8, 8,                    # plate ang velo
              1, 1, 1,             # cube ang velo
              1, 1, 1]                # cube velo
 
-  r_vector: [50, 50, 100, 10, 10]  
+  r_vector: [50, 50, 80, 10, 10]  
   
   #Penalty on matching projected variables
   g_x: [50, 50, 50, 100, 100, 50, 50, 50, 50, 50, 50, 50, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
