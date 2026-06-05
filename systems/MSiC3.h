@@ -50,11 +50,12 @@ public:
   // Outputs
   // 0: x_hat for each iC3 iteration
   // 1: u_hat for each iC3 iteration
-  // 2: Quadratic terms for LQR value function for each iC3 iteration
-  // 3: Linear terms for LQR value function for each iC3 iteration
-  // 4: LQR feedback gains for each iC3 iteration
-  // 5: LQR feedforward gains for each iC3 iteration
-  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
+  // 2: lambda_hat for each iC3 iteration
+  // 3: Quadratic terms for LQR value function for each iC3 iteration
+  // 4: Linear terms for LQR value function for each iC3 iteration
+  // 5: LQR feedback gains for each iC3 iteration
+  // 6: LQR feedforward gains for each iC3 iteration
+  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
       vector<vector<MatrixXd>>, vector<vector<VectorXd>>> ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 

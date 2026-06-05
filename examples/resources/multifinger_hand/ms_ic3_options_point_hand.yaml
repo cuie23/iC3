@@ -11,10 +11,10 @@ add_input_constraints: true
 early_termination: true
 
 print_costs: true
-rollout_dt_scaling: 2
+rollout_dt_scaling: 5
 
 penalize_acceleration: true
-acceleration_cost_weight: 40
+acceleration_cost_weight: 20
 
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
@@ -36,10 +36,10 @@ p_vector: [5000, 5000, 5000,
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.53
-alpha_ee_step: 0.47
+alpha_ee: 0.2
+alpha_ee_step: 0.8
 
-alpha_object: 0.72
-alpha_object_step: 0.28
+alpha_object: 0.34
+alpha_object_step: 0.66
 
-warm_start_alpha: 0.35
+warm_start_alpha: 0.93

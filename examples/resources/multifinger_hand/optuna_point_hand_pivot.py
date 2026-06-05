@@ -65,7 +65,7 @@ def objective(trial):
 
 
     c3_options["lcs_factory_options"]["num_contacts"] = 11
-    c3_options["lcs_factory_options"]["mu"] = [0.6] * 11
+    c3_options["lcs_factory_options"]["mu"] = [0.5] * 11
 
     if (finger_config == 1):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
@@ -214,7 +214,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 40). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-40 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_40_trials.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_40_trials_lower_mu.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -225,7 +225,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {study.best_value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_lower_mu.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -241,11 +241,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_pivot.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_lower_mu.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot",
+        study_name="MSiC3_point_hand_pivot_lower_mu",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

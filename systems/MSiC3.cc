@@ -66,7 +66,7 @@ MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& p
   L_ = N_ / num_segments_;
 }
 
-tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
+tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
   vector<vector<MatrixXd>>, vector<vector<VectorXd>>> MSiC3::ComputeTrajectory(
   drake::systems::Context<double>& context,
   drake::systems::Context<drake::AutoDiffXd>& context_ad, 
@@ -202,16 +202,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.06;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
+      lower_bound_x(3*i) = xd(3*i) - 0.05;
+      lower_bound_x(3*i+1) = xd(3*i+1) - 0.05;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
       lower_bound_x(16 + 3*i) = -0.15;
       lower_bound_x(16 + 3*i+1) = -0.15;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.06;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
+      upper_bound_x(3*i) = xd(3*i) + 0.05;
+      upper_bound_x(3*i+1) = xd(3*i+1) + 0.05;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
       upper_bound_x(16 + 3*i) = 0.15;
@@ -257,28 +257,28 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.08;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.03;
 
-      lower_bound_x(16 + 3*i) = -0.25;
-      lower_bound_x(16 + 3*i+1) = -0.25;
-      lower_bound_x(16 + 3*i+2) = -0.25;
+      lower_bound_x(16 + 3*i) = -0.2;
+      lower_bound_x(16 + 3*i+1) = -0.2;
+      lower_bound_x(16 + 3*i+2) = -0.2;
 
       upper_bound_x(3*i) = xd(3*i) + 0.08;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.08;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.08;
 
-      upper_bound_x(16 + 3*i) = 0.25;
-      upper_bound_x(16 + 3*i+1) = 0.25;
-      upper_bound_x(16 + 3*i+2) = 0.25;
+      upper_bound_x(16 + 3*i) = 0.2;
+      upper_bound_x(16 + 3*i+1) = 0.2;
+      upper_bound_x(16 + 3*i+2) = 0.2;
 
       A_u(3*i, 3*i) = 1;
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -0.7;
-      lower_bound_u(3*i+1) = -0.7;
+      lower_bound_u(3*i) = -0.5;
+      lower_bound_u(3*i+1) = -0.5;
       lower_bound_u(3*i+2) = 0;
       
-      upper_bound_u(3*i) = 0.7;
-      upper_bound_u(3*i+1) = 0.7;
+      upper_bound_u(3*i) = 0.5;
+      upper_bound_u(3*i+1) = 0.5;
       upper_bound_u(3*i+2) = 0.4;
     }
   }
@@ -354,6 +354,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
   vector<MatrixXd> all_x_hats;
   vector<MatrixXd> all_u_hats;
+  vector<MatrixXd> all_lambda_hats;
   vector<MatrixXd> all_defects;
   vector<MatrixXd> all_x_anchors;
 
@@ -364,6 +365,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
 
   all_x_hats.push_back(x_hat);
   all_u_hats.push_back(u_hat);
+  all_lambda_hats.push_back(lambda_hat);
   all_defects.push_back(defects);
   all_x_anchors.push_back(x_anchors);
 
@@ -544,6 +546,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
     if (!is_warmup) {
       all_x_hats.push_back(x_hat);
       all_u_hats.push_back(u_hat);
+      all_lambda_hats.push_back(lambda_hat);
       all_defects.push_back(defects);
       all_x_anchors.push_back(x_anchors);
     }
@@ -609,7 +612,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vecto
   Ks.push_back(K);
   k_ffs.push_back(k_ff);
 
-  return std::make_tuple(all_x_hats, all_u_hats, Hs, gs, Ks, k_ffs);
+  return std::make_tuple(all_x_hats, all_u_hats, all_lambda_hats, Hs, gs, Ks, k_ffs);
 }
 
 VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
@@ -648,7 +651,7 @@ VectorXd MSiC3::ProjectContact(drake::systems::Context<double>& context, SortedP
     // HARDCODED: project slightly more than 1 unit out
     if (phi < 0) {
       VectorXd contact_normal = J.row(0).segment(start_idx, q_size);
-      x_out.segment(start_idx, q_size) = x_init.segment(start_idx, q_size) - 1.02 * (phi / (contact_normal.transpose() * contact_normal)) * contact_normal;
+      x_out.segment(start_idx, q_size) = x_init.segment(start_idx, q_size) - 1.05 * (phi / (contact_normal.transpose() * contact_normal)) * contact_normal;
     }
     
     return x_out;
@@ -971,8 +974,8 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
 
     double reg = 1e-5;
 
-    H[k] = Q_xx - Q_ux.transpose() * solver.solve(Q_ux) + reg * MatrixXd::Identity(n_x_, n_x_);
-    g[k] = Q_x  - Q_ux.transpose() * solver.solve(Q_u);     
+    H[t] = Q_xx - Q_ux.transpose() * solver.solve(Q_ux) + reg * MatrixXd::Identity(n_x_, n_x_);
+    g[t] = Q_x  - Q_ux.transpose() * solver.solve(Q_u);     
 
 
     // Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_H(H[k]);

@@ -21,12 +21,12 @@ MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_180/optun
 def objective(trial):
     # C3 parameters
     w_G = trial.suggest_int("w_G", 5, 50)
-    g_lambda = trial.suggest_int("g_lambda", 5, 100, step=5)
-    g_eta = trial.suggest_int("g_eta", 2, 20, step=2)
-    u_lambda = trial.suggest_int("u_lambda", 5, 100, step=5)
-    u_eta = trial.suggest_int("u_eta", 2, 20, step=2)
+    g_lambda = trial.suggest_int("g_lambda", 4, 100, step=4)
+    g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
+    u_lambda = trial.suggest_int("u_lambda", 4, 100, step=4)
+    u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
     admm_iter = trial.suggest_int("admm_iter", 6, 10)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 50000, 300000, step=10000)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -48,8 +48,29 @@ def objective(trial):
     
     c3_options["c3_options"]["admm_iter"] = admm_iter
 
-    c3_options["lcs_factory_options"]["mu"] = [0.4] * 7
+    c3_options["lcs_factory_options"]["mu"] = [0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4]
 
+    c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
+                            0.06, -0.06, 0.05,   # finger 2
+                            -0.06, -0.06, 0.05,   # finger 3
+                            1, 0, 0, 0, # cube orientation
+                            0, 0, 0.051,  # cube position
+                            0, 0, 0,     # finger 1 velo
+                            0, 0, 0,     # finger 2 velo
+                            0, 0, 0,     # finger 3 velo
+                            0, 0, 0,     # cube ang velo
+                            0, 0, 0]   	# cube velo
+
+    c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
+                            0.06, -0.06, 0.05,   # finger 2
+                            -0.06, -0.06, 0.05,   # finger 3
+                            0, 0, 0, 1, # cube orientation
+                            0, 0, 0.051,  # cube position
+                            0, 0, 0,     # finger 1 velo
+                            0, 0, 0,     # finger 2 velo
+                            0, 0, 0,     # finger 3 velo
+                            0, 0, 0,     # cube ang velo
+                            0, 0, 0]   	# cube velo
     for i in range(9): 
         c3_options["c3_options"]["q_vector"][i] = finger_position_weight
 
@@ -131,7 +152,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 20). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-20 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_20_trials_lower_mu.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_20_trials_tighter_constraints.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -142,7 +163,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {study.best_value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_25_segments_lower_mu.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_25_segments_tighter_constraints.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -158,11 +179,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_25_segments_lower_mu.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_25_segments_tighter_constraints.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_lower_mu",
+        study_name="MSiC3_point_hand_180_tighter_constraints",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

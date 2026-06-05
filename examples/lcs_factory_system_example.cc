@@ -1233,7 +1233,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, 
         plant_for_lcs, *plant_autodiff, options, ms_ic3_options, 0);
 
-  auto [x_traj, u_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
       plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
 
@@ -1245,6 +1245,8 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   traj_source_x->set_name("traj_source_x");
   auto traj_source_u = builder.AddSystem<TrajToLcmSystem>(u_traj);
   traj_source_u->set_name("traj_source_u");
+  auto traj_source_lambda = builder.AddSystem<TrajToLcmSystem>(lambda_traj);
+  traj_source_lambda->set_name("traj_source_lambda");
 
   auto traj_source_value_function = builder.AddSystem<ValueFunctionToLCMSystem>(H, g, K, k_ff);
   traj_source_value_function->set_name("traj_source_value_function");
@@ -1259,6 +1261,11 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
           "iC3_TRAJECTORY_U", &lcm,
           TriggerTypeSet({TriggerType::kForced})));
 
+  auto traj_publisher_lambda = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_LAMBDA", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
+
   auto traj_publisher_lqr_value_function = builder.AddSystem(
       LcmPublisherSystem::Make<c3::lcmt_lqr_output>(
           "iC3_LQR", &lcm,
@@ -1268,8 +1275,11 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
                     traj_publisher_x->get_input_port());
   builder.Connect(traj_source_u->get_output_port(),
                     traj_publisher_u->get_input_port());
+  builder.Connect(traj_source_lambda->get_output_port(),
+                    traj_publisher_lambda->get_input_port());  
   builder.Connect(traj_source_value_function->get_output_port(),
                     traj_publisher_lqr_value_function->get_input_port());
+              
   // Build the diagram.
   auto diagram = builder.Build();
 
@@ -1378,7 +1388,7 @@ int OptunaPlateTestMSiC3() {
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, 
         plant_for_lcs, *plant_autodiff, options, ms_ic3_options, 0);
 
-  auto [x_traj, u_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
       plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
 
@@ -1821,7 +1831,12 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
-	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+	std::string cube_file_lcs;
+  if (example == 0) {
+    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy.sdf";
+  } else {
+    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+  }
   // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
   const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
 
@@ -2083,7 +2098,7 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, 
         plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, example_idx);
 
-  auto [x_traj, u_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
       plant_rollout_context, *plant_rollout_context_autodiff, contact_pairs, contact_pairs_rollout);
   std::cout << "computed traj" << std::endl;
@@ -2093,10 +2108,8 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   traj_source_x->set_name("traj_source_x");
   auto traj_source_u = builder.AddSystem<TrajToLcmSystem>(u_traj);
   traj_source_u->set_name("traj_source_u");
-  // auto traj_source_c3_x = builder.AddSystem<TrajToLcmSystem>(c3_x_traj);
-  // traj_source_c3_x->set_name("traj_source_c3_x");
-  // auto traj_source_x_real = builder.AddSystem<TrajToLcmSystem>(x_real_traj);
-  // traj_source_x_real->set_name("traj_source_x_real");
+  auto traj_source_lambda = builder.AddSystem<TrajToLcmSystem>(lambda_traj);
+  traj_source_lambda->set_name("traj_source_lambda");
 
   auto traj_source_value_function = builder.AddSystem<ValueFunctionToLCMSystem>(H, g, K, k_ff);
   traj_source_value_function->set_name("traj_source_value_function");
@@ -2111,15 +2124,10 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
           "iC3_TRAJECTORY_U", &lcm,
           TriggerTypeSet({TriggerType::kForced})));
 
-  // auto traj_publisher_c3_x = builder.AddSystem(
-  //     LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
-  //         "iC3_TRAJECTORY_C3", &lcm,
-  //         TriggerTypeSet({TriggerType::kForced})));
-
-  // auto traj_publisher_x_real = builder.AddSystem(
-  //     LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
-  //         "iC3_TRAJECTORY_X_REAL", &lcm,
-  //         TriggerTypeSet({TriggerType::kForced})));
+  auto traj_publisher_lambda = builder.AddSystem(
+      LcmPublisherSystem::Make<c3::lcmt_timestamped_saved_traj>(
+          "iC3_TRAJECTORY_LAMBDA", &lcm,
+          TriggerTypeSet({TriggerType::kForced})));
 
   auto traj_publisher_lqr_value_function = builder.AddSystem(
       LcmPublisherSystem::Make<c3::lcmt_lqr_output>(
@@ -2130,10 +2138,8 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
                     traj_publisher_x->get_input_port());
   builder.Connect(traj_source_u->get_output_port(),
                     traj_publisher_u->get_input_port());
-  // builder.Connect(traj_source_c3_x->get_output_port(),
-  //                   traj_publisher_c3_x->get_input_port());
-  // builder.Connect(traj_source_x_real->get_output_port(),
-  //                   traj_publisher_x_real->get_input_port());
+  builder.Connect(traj_source_lambda->get_output_port(),
+                    traj_publisher_lambda->get_input_port());
   builder.Connect(traj_source_value_function->get_output_port(),
                     traj_publisher_lqr_value_function->get_input_port());       
 
@@ -2462,7 +2468,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, 
         plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, example_idx);
 
-  auto [x_traj, u_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
       plant_rollout_context, *plant_rollout_context_autodiff, contact_pairs, contact_pairs_rollout);
 
@@ -2479,7 +2485,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
   Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
-  double pos_weight_multiplier = (example == 0) ? 15000 : 60000;
+  double pos_weight_multiplier = (example == 0) ? 9000 : 60000;
 
   double angle_diff = qd.angularDistance(qf) * 180 / M_PI;
   double position_weight = pos_weight_multiplier * (x_last(13) * x_last(13) + x_last(14) * x_last(14));
