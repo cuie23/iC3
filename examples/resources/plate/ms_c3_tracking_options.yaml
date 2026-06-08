@@ -74,7 +74,7 @@ c3_options:
              1, 1, 1,             # cube ang velo
              1, 1, 1]                # cube velo
 
-  r_vector: [50, 50, 80, 10, 10]  
+  r_vector: [50, 50, 70, 10, 10]  
   
   #Penalty on matching projected variables
   g_x: [50, 50, 50, 100, 100, 50, 50, 50, 50, 50, 50, 50, 1 , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]

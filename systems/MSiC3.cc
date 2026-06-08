@@ -202,16 +202,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.05;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.05;
+      lower_bound_x(3*i) = xd(3*i) - 0.06;
+      lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
       lower_bound_x(16 + 3*i) = -0.15;
       lower_bound_x(16 + 3*i+1) = -0.15;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.05;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.05;
+      upper_bound_x(3*i) = xd(3*i) + 0.06;
+      upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
       upper_bound_x(16 + 3*i) = 0.15;
@@ -857,7 +857,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     }
 
     // If tracking c3 horizon goes past iC3 N, just use last H, g
-    int lqr_idx = std::min(start_idx + t, N_); 
+    int lqr_idx = std::min(start_idx + t + tracking_N, N_); 
     c3_tracking->UpdateFinalCost(H[lqr_idx], g[lqr_idx]);
 
     c3_tracking->Solve(x_curr);

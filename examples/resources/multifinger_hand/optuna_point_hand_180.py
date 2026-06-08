@@ -27,32 +27,34 @@ def objective(trial):
     u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
     admm_iter = trial.suggest_int("admm_iter", 6, 10)
     finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
+    tracking_N = trial.suggest_int("tracking_N", 5, 8)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
         
-    n_lambda = len(c3_options["c3_options"]["g_eta_slack"])
+    n_contacts = 7
 
     c3_options["c3_options"]["w_G"] = w_G
-    c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_lambda)
-    c3_options["c3_options"]["g_eta_slack"] = [g_eta] * n_lambda
-    c3_options["c3_options"]["g_eta_n"] = [g_eta] * n_lambda
-    c3_options["c3_options"]["g_eta_t"] = [g_eta] * n_lambda
-    c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_lambda)
+    c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
+    c3_options["c3_options"]["g_eta_slack"] = [g_eta] * n_contacts
+    c3_options["c3_options"]["g_eta_n"] = [g_eta] * n_contacts
+    c3_options["c3_options"]["g_eta_t"] = [g_eta] * n_contacts
+    c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
 
-    c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4*n_lambda)
-    c3_options["c3_options"]["u_eta_slack"] = [u_eta] * n_lambda
-    c3_options["c3_options"]["u_eta_n"] = [u_eta] * n_lambda
-    c3_options["c3_options"]["u_eta_t"] = [u_eta] * n_lambda
-    c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_lambda)
+    c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4*n_contacts)
+    c3_options["c3_options"]["u_eta_slack"] = [u_eta] * n_contacts
+    c3_options["c3_options"]["u_eta_n"] = [u_eta] * n_contacts
+    c3_options["c3_options"]["u_eta_t"] = [u_eta] * n_contacts
+    c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
     
     c3_options["c3_options"]["admm_iter"] = admm_iter
 
-    c3_options["lcs_factory_options"]["mu"] = [0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4]
+    c3_options["lcs_factory_options"]["mu"] = [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+    c3_options["lcs_factory_options"]["N"] = tracking_N
 
     c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
-                            0.06, -0.06, 0.05,   # finger 2
-                            -0.06, -0.06, 0.05,   # finger 3
+                            0.07, -0.055, 0.05,   # finger 2
+                            -0.07, -0.055, 0.05,   # finger 3
                             1, 0, 0, 0, # cube orientation
                             0, 0, 0.051,  # cube position
                             0, 0, 0,     # finger 1 velo
@@ -62,8 +64,8 @@ def objective(trial):
                             0, 0, 0]   	# cube velo
 
     c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
-                            0.06, -0.06, 0.05,   # finger 2
-                            -0.06, -0.06, 0.05,   # finger 3
+                            0.07, -0.055, 0.05,   # finger 2
+                            -0.07, -0.055, 0.05,   # finger 3
                             0, 0, 0, 1, # cube orientation
                             0, 0, 0.051,  # cube position
                             0, 0, 0,     # finger 1 velo
@@ -80,20 +82,21 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 1, 3)
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 25, 30, 40, 50])
+    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     warm_start_alpha = trial.suggest_float("warm_start_alpha", 0, 1, step=0.01)
 
     num_iters = trial.suggest_int("num_iters", 2, 5)
     alpha_ee = trial.suggest_float("alpha_ee", 0, 1, step=0.01)
     alpha_object = trial.suggest_float("alpha_object", 0, 1, step=0.01)
 
-    accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
+    # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
     ic3_options["N"] = 600
-    ic3_options["num_segments"] = 30
+    ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
     ic3_options["warm_start_alpha"] = warm_start_alpha
@@ -106,10 +109,11 @@ def objective(trial):
     ic3_options["alpha_object"] = alpha_object
     ic3_options["alpha_object_step"] = (1 - alpha_object) / (num_iters - 1)
 
-    ic3_options["acceleration_cost_weight"] = accel_cost
+    ic3_options["acceleration_cost_weight"] = 0
 
     ic3_options["rollout_Kp"] = [0] * 9
     ic3_options["rollout_Kd"] = [0] * 9
+    ic3_options["rollout_dt_scaling"] = 10
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
@@ -152,7 +156,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 20). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-20 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_20_trials_tighter_constraints.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_20_trials_constant_mu.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -163,7 +167,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {study.best_value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_25_segments_tighter_constraints.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_constant_mu.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -179,11 +183,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_25_segments_tighter_constraints.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_constant_mu.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_tighter_constraints",
+        study_name="MSiC3_point_hand_180_constant_mu",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")
