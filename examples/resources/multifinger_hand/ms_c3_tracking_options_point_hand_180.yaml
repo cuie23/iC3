@@ -6,7 +6,7 @@ publish_frequency: 1000
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 2500
+Q_quaternion_weight: 2000
 
 quaternion_regularizer_fraction: 0.0
 
@@ -25,7 +25,7 @@ x_init: [0, 0.07, 0.05,  # finger 1
 x_des: [0, 0.07, 0.05,  # finger 1  
          0.07, -0.055, 0.05,   # finger 2
          -0.07, -0.055, 0.05,   # finger 3
-         0, 0, 0, 1,  # cube orientation (180 about z)
+         0, 0, 0, 1,  # cube orientation (10 about z)
          0, 0, 0.051,  # cube position
          0, 0, 0,     # finger 1 velo
          0, 0, 0,     # finger 2 velo
@@ -43,9 +43,9 @@ lcs_factory_options:
   spring_stiffness: 0
 
   # 3 fingertip-cube, 4 cube-ground
-  mu: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
-  N: 8
-  dt: 0.01
+  mu: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+  N: 4
+  dt: 0.02
 
 c3_options:
   penalize_input_change: false # Currently combines u-u_prev and u-u_des
@@ -67,19 +67,19 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 8
+  admm_iter: 7
   gamma: 1.00
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 13 #Penalty on all decision variables, assuming scalar
+  w_G: 27 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  q_vector: [200000, 200000, 200000,    # finger 1
-             200000, 200000, 200000,    # finger 2
-             200000, 200000, 100000,    # finger 3
+  q_vector: [120000, 120000, 120000,    # finger 1
+             120000, 120000, 120000,    # finger 2
+             120000, 120000, 120000,    # finger 3
              1, 1, 1, 1,
-             300000, 300000, 80000,
+             780000, 780000, 80000,
              1, 1, 1,          # finger 1 velo
              1, 1, 1,          # finger 2 velo
              1, 1, 1,          # finger 3 velo 
@@ -90,38 +90,33 @@ c3_options:
              1, 1, 1,        # finger 2 actuation
              1, 1, 1]        # finger 3 actuation
 
-  g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,    # hand pos
-        50, 50, 50, 50, 50, 50, 50,                      	# cube pos
+  g_x: [10, 10, 10, 10, 10, 10, 10, 10, 10,    # hand pos
+        70, 70, 70, 70, 70, 70, 70,                      	# cube pos
         10, 10, 10, 10, 10, 10, 10, 10, 10,  						  # hand velo
         1, 1, 1, 1, 1, 1]                                 # cube velo
+  g_u: [180, 180, 180, 180, 180, 180, 180, 180, 180] 
+  g_lambda: [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48]
+  g_eta: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8] 
 
 
-  g_lambda: [80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80]
-  
-  g_eta_slack: [20, 20, 20, 20, 20, 20, 20] 
-  g_eta_n: [20, 20, 20, 20, 20, 20, 20] 
-  g_eta_t: [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20] 
-  g_eta: [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20] 
-  g_u: [45, 45, 45, 45, 45, 45, 45, 45, 45] 
-
-
-
-  u_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,   # hand pos
-        50, 50, 50, 50, 50, 50, 50,                       # cube pos
+  u_x: [340, 340, 340, 340, 340, 340, 340, 340, 340,   # hand pos
+        200, 200, 200, 200, 200, 200, 200,                       # cube pos
         10, 10, 10, 10, 10, 10, 10, 10, 10,   # hand velo
         1, 1, 1, 1, 1, 1]                           # cube velo
-
-  u_lambda: [24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24] 
-  u_u: [45, 45, 45, 45, 45, 45, 45, 45, 45]
-
-  u_eta_slack: [6, 6, 6, 6, 6, 6, 6] 
-  u_eta_n: [6, 6, 6, 6, 6, 6, 6] 
-  u_eta_t: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6] 
-  u_eta: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+  u_u: [410, 410, 410, 410, 410, 410, 410, 410, 410]
+  u_lambda: [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4] 
+  u_eta: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
 
   g_gamma: []
   g_lambda_n: []
   g_lambda_t: []
+  g_eta_slack: [] 
+  g_eta_n: [] 
+  g_eta_t: [] 
+
   u_gamma: [] 
   u_lambda_n: [] 
   u_lambda_t: []
+  u_eta_slack: [] 
+  u_eta_n: [] 
+  u_eta_t: [] 

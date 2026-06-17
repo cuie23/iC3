@@ -1230,8 +1230,8 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, 
-        plant_for_lcs, *plant_autodiff, options, ms_ic3_options, 0);
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
+        *plant_diagram, std::move(plant_diagram_context), options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
@@ -1385,8 +1385,8 @@ int OptunaPlateTestMSiC3() {
 
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, 
-        plant_for_lcs, *plant_autodiff, options, ms_ic3_options, 0);
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
+        *plant_diagram, std::move(plant_diagram_context), options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
@@ -1422,7 +1422,6 @@ int OptunaPlateTestMSiC3() {
     plate_rot_cost += 300 * x_last(3) * x_last(3);
     plate_rot_cost += 300 * x_last(4) * x_last(4);
   }
-  
 
   std::cout << "z_cost: " << z_cost << std::endl;
   std::cout << "total_angle_diff: " << total_angle_diff << std::endl;
@@ -1695,7 +1694,7 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
   auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant);
+      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_rollout_context = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_rollout_context.get());
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
@@ -2071,6 +2070,9 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
     ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml";
   }
 
+  std::cout << ms_c3_options_file << std::endl;
+  std::cout << ms_ic3_options_file << std::endl;
+
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
   C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
@@ -2095,8 +2097,8 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   int example_idx = (example == 0) ? 2 : 1;
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, 
-        plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, example_idx);
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+        *plant_diagram_rollout, std::move(plant_diagram_rollout_context), options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
@@ -2457,7 +2459,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
   auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant);
+      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_rollout_context = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_rollout_context.get());
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
@@ -2465,8 +2467,8 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   int example_idx = (example == 0) ? 2 : 1;
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, 
-        plant_rollout, *plant_rollout_autodiff, options, ms_ic3_options, example_idx);
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+        *plant_diagram_rollout, std::move(plant_diagram_rollout_context), options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
@@ -2485,14 +2487,28 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
   Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
-  double pos_weight_multiplier = (example == 0) ? 9000 : 60000;
+  double pos_weight_multiplier = (example == 0) ? 10000 : 80000;
 
   double angle_diff = qd.angularDistance(qf) * 180 / M_PI;
   double position_weight = pos_weight_multiplier * (x_last(13) * x_last(13) + x_last(14) * x_last(14));
 
+  double penalty = 0;
+  if (example == 1) {
+    for (int i = 0; i < x_hat_final.cols(); i++) {
+      VectorXd x_curr = x_hat_final.col(i);
+      if (x_curr(13) == 0.05 || x_curr(13) == -0.05) {
+        penalty += 10;
+      }
+      if (x_curr(14) == 0.05 || x_curr(14) == -0.05) {
+        penalty += 10;
+      }
+    }
+  }
+
+
   std::cout << "Angle diff: " << angle_diff << std::endl;
   std::cout << "Position weight " << position_weight << std::endl;
-  std::cout << "FINAL_METRIC: " << (angle_diff + position_weight) << std::endl;
+  std::cout << "FINAL_METRIC: " << (angle_diff + position_weight + penalty) << std::endl;
   return 0;
 
 }
@@ -2829,7 +2845,7 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   drake::lcm::DrakeLcm lcm(FLAGS_lcm_url);
 
-  // bazel run //examples:lcs_factory_system_example -- --experiment_type=iC3
+  //  ./bazel-bin/examples/lcs_factory_system_example --experiment_type=MSiC3_point_hand_180
 
   if (FLAGS_experiment_type == "cartpole_softwalls") {
     std::cout << "Running Cartpole Softwalls Test..." << std::endl;

@@ -66,7 +66,7 @@ const VectorXd LCS::Simulate(VectorXd& x_init, VectorXd& u,
   drake::solvers::MobyLCPSolver<double> LCPSolver;
   if (regularized) {
     flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -2);
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -16, 1, -6);
   } else {
     flag = LCPSolver.SolveLcpLemke(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }
@@ -102,6 +102,8 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
   }
   if (!(E_[0] * x_init + c_[0] + H_[0] * u).allFinite()) {
     std::cout << "q not all finite" << std::endl;
+    std::cout << "x init " << x_init.transpose() << std::endl;
+    std::cout << "u " << u.transpose() << std::endl;
   }
 
   Eigen::EigenSolver<Eigen::MatrixXd> es(F_[0]);
@@ -112,16 +114,17 @@ const std::pair<VectorXd, VectorXd> LCS::SimulateAndReturnForce(VectorXd& x_init
 
   if (regularized) {
     flag = LCPSolver.SolveLcpLemkeRegularized(
-        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -20, 1, -4);
+        F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force, -12, 1, -6);
   } else {
     flag = LCPSolver.SolveLcpFast(F_[0], E_[0] * x_init + c_[0] + H_[0] * u, &force);
   }
 
-  if (flag == 0) {
+  if (!flag) {
     std::cout << "LCP failed: returning x_init" << std::endl;
+    std::cout << "num pivots " << LCPSolver.get_num_pivots() << std::endl;
     std::cout << "min eig " << min_eig << std::endl;
     std::cout << "max eig " << max_eig << std::endl;
-    std::cout << force.transpose() << std::endl;
+    std::cout << "x init " << x_init.transpose() << std::endl;
 
     //std::cout << x_init.transpose() << std::endl;
     return std::make_pair(x_init, VectorXd::Zero(F_[0].cols()));
@@ -137,11 +140,16 @@ const VectorXd LCS::SimulateAtTimestep(VectorXd& x_init, VectorXd& u,
   VectorXd x_final;
   VectorXd force;
   drake::solvers::MobyLCPSolver<double> LCPSolver;
+  bool flag;
   if (regularized) {
-    LCPSolver.SolveLcpLemkeRegularized(
-        F_[k], E_[k] * x_init + c_[k] + H_[k] * u, &force, -8, 1, 1);
+    flag = LCPSolver.SolveLcpLemkeRegularized(
+        F_[k], E_[k] * x_init + c_[k] + H_[k] * u, &force, -16, 1, -6);
   } else {
-    LCPSolver.SolveLcpLemke(F_[k], E_[k] * x_init + c_[k] + H_[k] * u, &force);
+    flag = LCPSolver.SolveLcpLemke(F_[k], E_[k] * x_init + c_[k] + H_[k] * u, &force);
+  }
+  if (!flag) {
+    std::cout << "LCP at timestep " << k << " failed: returning x_init" << std::endl;
+    return x_init;
   }
   x_final = A_[k] * x_init + B_[k] * u + D_[k] * force + d_[k];
   return x_final;

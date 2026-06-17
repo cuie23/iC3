@@ -31,17 +31,24 @@ using Eigen::Vector3d;
 using Eigen::VectorXf;
 using drake::math::RotationMatrix;
 using drake::math::RollPitchYaw;
+using drake::multibody::ContactResults;
+using drake::geometry::GeometryId;
+using drake::SortedPair;
 
 namespace c3 {
 namespace systems {
 
 MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
   MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
-  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx)
+  drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
+  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx, bool run_drake_sim)
     : plant_(plant),
       plant_ad_(plant_ad),
       plant_rollout_(plant_rollout),
       plant_ad_rollout_(plant_ad_rollout),
+      rollout_diagram_(rollout_diagram),
+      rollout_diagram_context_(std::move(rollout_diagram_context)),
+      run_drake_sim_(run_drake_sim),
       controller_options_(controller_options),
       ms_ic3_options_(ms_ic3_options),
       N_(ms_ic3_options.N),
@@ -64,6 +71,12 @@ MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& p
 
   num_segments_ = ms_ic3_options_.num_segments;
   L_ = N_ / num_segments_;
+
+  if (run_drake_sim_) {
+    simulator_ = std::make_unique<drake::systems::Simulator<double>>(
+        rollout_diagram_, std::move(rollout_diagram_context_)
+    );
+  }
 }
 
 tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
@@ -206,38 +219,39 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.15;
-      lower_bound_x(16 + 3*i+1) = -0.15;
+      lower_bound_x(16 + 3*i) = -0.075;
+      lower_bound_x(16 + 3*i+1) = -0.075;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
       upper_bound_x(3*i) = xd(3*i) + 0.06;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.15;
-      upper_bound_x(16 + 3*i+1) = 0.15;
+      upper_bound_x(16 + 3*i) = 0.075;
+      upper_bound_x(16 + 3*i+1) = 0.075;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -0.5;
-      lower_bound_u(3*i+1) = -0.5;
+      lower_bound_u(3*i) = -0.4;
+      lower_bound_u(3*i+1) = -0.4;
       lower_bound_u(3*i+2) = 0.15;
       
-      upper_bound_u(3*i) = 0.5;
-      upper_bound_u(3*i+1) = 0.5;
+      upper_bound_u(3*i) = 0.4;
+      upper_bound_u(3*i+1) = 0.4;
       upper_bound_u(3*i+2) = 0.25;
     }
+
     A_x(13, 13) = 1;
     A_x(14, 14) = 1;
 
-    lower_bound_x(13) = -0.03;
-    lower_bound_x(14) = -0.03;
+    lower_bound_x(13) = -0.05;
+    lower_bound_x(14) = -0.05;
 
-    upper_bound_x(13) = 0.03;
-    upper_bound_x(14) = 0.03;
+    upper_bound_x(13) = 0.05;
+    upper_bound_x(14) = 0.05;
 
   } else if (example_idx_ == 2) { // trifinger pivot
 
@@ -257,28 +271,28 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.08;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.03;
 
-      lower_bound_x(16 + 3*i) = -0.2;
-      lower_bound_x(16 + 3*i+1) = -0.2;
-      lower_bound_x(16 + 3*i+2) = -0.2;
+      lower_bound_x(16 + 3*i) = -0.15;
+      lower_bound_x(16 + 3*i+1) = -0.15;
+      lower_bound_x(16 + 3*i+2) = -0.15;
 
       upper_bound_x(3*i) = xd(3*i) + 0.08;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.08;
-      upper_bound_x(3*i+2) = xd(3*i+2) + 0.08;
+      upper_bound_x(3*i+2) = xd(3*i+2) + 0.09;
 
-      upper_bound_x(16 + 3*i) = 0.2;
-      upper_bound_x(16 + 3*i+1) = 0.2;
-      upper_bound_x(16 + 3*i+2) = 0.2;
+      upper_bound_x(16 + 3*i) = 0.15;
+      upper_bound_x(16 + 3*i+1) = 0.15;
+      upper_bound_x(16 + 3*i+2) = 0.15;
 
       A_u(3*i, 3*i) = 1;
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -0.5;
-      lower_bound_u(3*i+1) = -0.5;
+      lower_bound_u(3*i) = -0.8;
+      lower_bound_u(3*i+1) = -0.8;
       lower_bound_u(3*i+2) = 0;
       
-      upper_bound_u(3*i) = 0.5;
-      upper_bound_u(3*i+1) = 0.5;
+      upper_bound_u(3*i) = 0.8;
+      upper_bound_u(3*i+1) = 0.8;
       upper_bound_u(3*i+2) = 0.4;
     }
   }
@@ -309,14 +323,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
       // Ensure anchors don't have penetration
       for (int j = 0; j < 3; j++) {
-        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
-      }
-
-      // Threshold so fingers are within joint limits
-      for (int j = 0; j < A_x.rows(); j++) {
-        if (A_x(j, j) != 0) { // Assumes diagonal
-          x_projected(j) = std::min(std::max(x_projected(j), lower_bound_x(j)), upper_bound_x(j));
-        }
+        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+                                      A_x, lower_bound_x, upper_bound_x);
       }
 
     } else if (example_idx_ == 2) {
@@ -334,15 +342,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
       // Ensure fingers don't have penetration
       for (int j = 0; j < 3; j++) {
-        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
+        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+                                      A_x, lower_bound_x, upper_bound_x);
       }
-
-      // Threshold so fingers are within joint limits
-      for (int j = 0; j < A_x.rows(); j++) {
-        if (A_x(j, j) != 0) { // Assumes diagonal
-          x_projected(j) = std::min(std::max(x_projected(j), lower_bound_x(j)), upper_bound_x(j));
-        }
-      }    
 
     }
     x_anchors.col(i) = x_projected;
@@ -417,8 +419,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       // Potentially change u_hat to just be u_nominal for every iteration
       auto [x_hat_out, u_hat_out, lambda_hat_out] = 
          DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), 
-                      lcs_factory, lcs_factory_rollout, H, g, x_targets, i*L_,
-                      A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u);
+                      lcs_factory, lcs_factory_rollout, H, g, i*L_,
+                      A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u,
+                      context, contact_geoms);
 
 
       VectorXd x_L = x_hat_out.col(L_);
@@ -481,15 +484,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
         
       } else if (example_idx_ == 1) {
         for (int j = 0; j < 3; j++) {
-          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
+          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+                                        A_x, lower_bound_x, upper_bound_x);
         }
         
-        // Threshold so fingers are within joint limits
-        for (int j = 0; j < A_x.rows(); j++) {
-          if (A_x(j, j) != 0) { // Assumes diagonal
-            x_projected(j) = std::min(std::max(x_projected(j), lower_bound_x(j)), upper_bound_x(j));
-          }
-        }
       } else if (example_idx_ == 2) {
         // Ensure cube not penetrating ground
         drake::geometry::GeometryId cube_collision_geom =
@@ -498,22 +496,17 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
         drake::geometry::GeometryId ground_collision_geom =
           plant_.GetCollisionGeometriesForBody(
               plant_.GetBodyByName("ground"))[0];
-        SortedPair<GeometryId>cube_plate_contact(cube_collision_geom, ground_collision_geom);
+        SortedPair<GeometryId>cube_ground_contact(cube_collision_geom, ground_collision_geom);
 
-        x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 15);
+        x_projected = ProjectContactVertical(context, cube_ground_contact, x_projected, 15);
 
 
         // Ensure fingers don't have penetration
         for (int j = 0; j < 3; j++) {
-          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3);
+          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+                                        A_x, lower_bound_x, upper_bound_x);
         }
-
-        // Threshold so fingers are within joint limits
-        for (int j = 0; j < A_x.rows(); j++) {
-          if (A_x(j, j) != 0) { // Assumes diagonal
-            x_projected(j) = std::min(std::max(x_projected(j), lower_bound_x(j)), upper_bound_x(j));
-          }
-        }           
+    
       }
       new_x_anchors.col(i+1) = x_projected;
 
@@ -626,7 +619,7 @@ VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context,
 
     // HARDCODED FOR PLATE EXAMPLE and pivoting
     double phi_check = phi;
-    while (phi_check < 0) {
+    while (phi_check < -3e-4) {
       // Displace z of object upwards
       x_out(z_idx) = x_out(z_idx) += 0.002;
       
@@ -639,8 +632,9 @@ VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context,
     return x_out;
 }
 
+// TODO: clean up this function
 VectorXd MSiC3::ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
-                                VectorXd x_init, int start_idx, int q_size) {
+                                VectorXd x_init, int start_idx, int q_size, MatrixXd A_x, VectorXd lb_x, VectorXd ub_x) {
 
     VectorXd x_out = x_init;
     plant_.SetPositionsAndVelocities(&context, x_init);
@@ -648,10 +642,32 @@ VectorXd MSiC3::ProjectContact(drake::systems::Context<double>& context, SortedP
     auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
         drake::multibody::JacobianWrtVariable::kQDot);
 
+    double phi_check = phi;
+    VectorXd contact_normal = J.row(0).segment(start_idx, q_size);
+
     // HARDCODED: project slightly more than 1 unit out
-    if (phi < 0) {
-      VectorXd contact_normal = J.row(0).segment(start_idx, q_size);
-      x_out.segment(start_idx, q_size) = x_init.segment(start_idx, q_size) - 1.05 * (phi / (contact_normal.transpose() * contact_normal)) * contact_normal;
+    int counter = 0;
+    while (phi_check < -3e-4 && counter < 5) {
+
+      x_out.segment(start_idx, q_size) = 
+        x_out.segment(start_idx, q_size) - 1.05 * (phi_check / contact_normal.squaredNorm()) * contact_normal;
+      // Threshold
+      for (int i = 0; i < q_size; i++) {
+        int idx = start_idx + i;
+        if (A_x(idx, idx) == 1) { // Assumes diagonal
+          x_out(idx) = std::min(std::max(x_out(idx), lb_x(idx)), ub_x(idx));
+        }
+      }
+      plant_.SetPositionsAndVelocities(&context, x_out);
+      auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
+        drake::multibody::JacobianWrtVariable::kQDot);
+      phi_check = phi;
+      contact_normal = J.row(0).segment(start_idx, q_size);
+      counter++;
+    }
+    if (counter > 1) {
+      std::cout << "projection counter: " << counter << std::endl;
+      std::cout << "phi end " << phi_check << std::endl;
     }
     
     return x_out;
@@ -758,16 +774,16 @@ tuple<LCS, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoLCSRollout(VectorXd x0, Matrix
 
 tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
-                                              vector<VectorXd> g, vector<VectorXd> x_targets, int start_idx,
+                                              vector<VectorXd> g, int start_idx,
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
-                                              MatrixXd A_u, VectorXd lb_u, VectorXd ub_u) {
+                                              MatrixXd A_u, VectorXd lb_u, VectorXd ub_u,
+                                              Context<double>& context, const vector<SortedPair<GeometryId>>& contact_geoms) {
   // Assume that x_hat, H, g, x_targets correspond to the entire iC3 horizon
 
   DRAKE_DEMAND(start_idx < N_);
   DRAKE_DEMAND(H.size() == N_ + 1);
   DRAKE_DEMAND(g.size() == N_ + 1);
   DRAKE_DEMAND(x_hat.cols() == N_ + 1);
-  DRAKE_DEMAND(x_targets.size() == N_ + 1);
 
   int num_steps = u_hat.cols();
 
@@ -792,6 +808,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
   }
 
   if (!controller_options_.x_des.has_value()) std::cerr << "Set x des" << std::endl;
+  
   std::vector<double> x_des = controller_options_.x_des.value();
   VectorXd xd = Eigen::Map<VectorXd>(x_des.data(), x_des.size());
 
@@ -808,7 +825,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     vector<MatrixXd> R;
     vector<MatrixXd> G;
     vector<MatrixXd> U;
-    vector<VectorXd> x_targets_shortened;
     vector<VectorXd> u_targets_shortened;
     MatrixXd x_hat_for_lcs(MatrixXd::Zero(n_x_, tracking_N+1));
     MatrixXd u_hat_for_lcs(MatrixXd::Zero(n_u_, tracking_N));
@@ -819,7 +835,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
       int u_idx = std::min(num_steps-1, start_idx + t + i);
       int R_idx = std::min(N_-1, start_idx + t + i);
 
-      x_targets_shortened.push_back(x_targets.at(x_idx));
       Q.push_back(discount_factor * Q_[x_idx]);
       x_hat_for_lcs.col(i) = x_hat.col(x_idx);
 
@@ -839,7 +854,25 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     // HARDCODED ee start idx
     LCS lcs = MakeTimeVaryingLCSWithEE(x_hat_for_lcs, u_hat_for_lcs, factory, x_curr.segment(0, n_u_), 0);
 
-    std::unique_ptr<C3Plus> c3_tracking = std::make_unique<C3Plus>(lcs, costs, x_targets_shortened,
+    vector<VectorXd> x_targets;
+    vector<double> norms;
+    x_targets.push_back(xd);
+    norms.push_back(1.0);
+    VectorXd x_temp = x_curr;
+    for (int i = 0; i < tracking_N; i++) {
+      VectorXd u_nominal = u_hat_for_lcs.col(i);
+      x_temp = lcs.SimulateAtTimestep(x_temp, u_nominal, true, i);
+      VectorXd xd_copy = xd;
+      for (auto quat_idx : controller_options_.quaternion_indices) {
+        double norm = x_temp.segment(quat_idx, 4).norm();
+        norms.push_back(norm);
+        xd_copy.segment(quat_idx, 4) = xd_copy.segment(quat_idx, 4) * norm;
+      }
+      x_targets.push_back(xd_copy);
+    }
+
+
+    std::unique_ptr<C3Plus> c3_tracking = std::make_unique<C3Plus>(lcs, costs, x_targets,
                                   controller_options_.c3_options);
     c3_tracking->UpdateInputTarget(u_targets_shortened);
 
@@ -866,51 +899,96 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     VectorXd c3_u = z_sol[0].segment(n_x_ + n_lambda_, n_u_);
     VectorXd c3_x = z_sol[0].segment(0, n_x_);
 
-    // std::cout << "c3 u: " << c3_u.transpose() << std::endl << std::endl;
-
-    // Rollout this u with LCS
-    for (int i = 0; i < factor; i++) {
-      // Normalize quaternions
-      for (int quat_idx : controller_options_.quaternion_indices) {
-        x_curr.segment(quat_idx, 4) = x_curr.segment(quat_idx, 4).normalized();
-      }
-
-      // Apply PD to C3 plan
-      int q_idx;
-      int v_idx;
-      if (n_u_ == 5) {
-        q_idx = 0;
-        v_idx = 12;
-      } else if (n_u_ == 9) {
-        q_idx = 0;
-        v_idx = 16;
-      }
-      MatrixXd Kp = ms_ic3_options_.rollout_Kp.asDiagonal();
-      MatrixXd Kd = ms_ic3_options_.rollout_Kd.asDiagonal();
-      VectorXd u_tracking = c3_u + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
-        + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
-      // std::cout << "tracking u " << u_tracking.transpose() << std::endl;
-
-      rollout_factory.UpdateStateAndInput(x_curr, u_tracking);
-      LCS lcs_rollout = rollout_factory.GenerateLCS();  
-
-      // std::cout << "u tracking " << u_tracking.transpose() << std::endl;
-      auto pair = lcs_rollout.SimulateAndReturnForce(x_curr, u_tracking, true);
-      x_next = pair.first;
-
+    if (ms_ic3_options_.print_costs) {
       if (example_idx_ == 1 || example_idx_ == 2) {
-        for (int j = 0; j < A_x.rows(); j++) {
-          if (A_x(j, j) != 0) { // Assumes diagonal
-            x_next(j) = std::min(std::max(x_next(j), lb_x(j)), ub_x(j));
+        for (int i = 0; i < z_sol.size(); i++) {
+          double finger_pos_cost = z_sol[i].segment(0, 9).transpose() * Q_[i].block(0, 0, 9, 9) * z_sol[i].segment(0, 9);
+          double cube_rot_cost = z_sol[i].segment(9, 4).transpose() * Q_[i].block(9, 9, 4, 4) * z_sol[i].segment(9, 4);
+          double cube_pos_cost = z_sol[i].segment(13, 3).transpose() * Q_[i].block(13, 13, 3, 3) * z_sol[i].segment(13, 3);
+          std::cout << "c3 cost " << i << " finger cost " << finger_pos_cost << ", cube rot " 
+                << cube_rot_cost << ", cube pos " << cube_pos_cost << std::endl;
+        }
+        VectorXd x_final = c3_tracking->GetFinalStateSolution();
+        double final_finger_pos_cost = x_final.segment(0, 9).transpose() * H[lqr_idx].block(0, 0, 9, 9) * x_final.segment(0, 9); 
+        double final_cube_rot_cost = x_final.segment(9, 4).transpose() * H[lqr_idx].block(9, 9, 4, 4) * x_final.segment(9, 4);
+        double final_cube_pos_cost = x_final.segment(13, 3).transpose() * H[lqr_idx].block(13, 13, 3, 3) * x_final.segment(13, 3);
+
+        std::cout << "c3 cost final "<< " finger cost " << final_finger_pos_cost << ", cube rot " 
+                << final_cube_rot_cost << ", cube pos " << final_cube_pos_cost << std::endl;
+
+        final_finger_pos_cost += g[lqr_idx].segment(0, 9).dot(x_final.segment(0, 9));
+        final_cube_rot_cost += g[lqr_idx].segment(9, 4).dot(x_final.segment(9, 4));
+        final_cube_pos_cost += g[lqr_idx].segment(13, 3).dot(x_final.segment(13, 3));
+
+        std::cout << "c3 cost final with affine " << " finger cost " << final_finger_pos_cost << ", cube rot " 
+                << final_cube_rot_cost << ", cube pos " << final_cube_pos_cost << std::endl;
+      }
+    }
+    
+
+    
+    if (run_drake_sim_) {
+
+
+    } else {
+      // Rollout this u with LCS
+      for (int i = 0; i < factor; i++) {
+        // Normalize quaternions
+        for (int quat_idx : controller_options_.quaternion_indices) {
+          x_curr.segment(quat_idx, 4) = x_curr.segment(quat_idx, 4).normalized();
+        }
+
+        // Apply PD to C3 plan
+        int q_idx;
+        int v_idx;
+        if (n_u_ == 5) {
+          q_idx = 0;
+          v_idx = 12;
+        } else if (n_u_ == 9) {
+          q_idx = 0;
+          v_idx = 16;
+        }
+        MatrixXd Kp = ms_ic3_options_.rollout_Kp.asDiagonal();
+        MatrixXd Kd = ms_ic3_options_.rollout_Kd.asDiagonal();
+        VectorXd u_tracking = c3_u + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
+          + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
+        // std::cout << "tracking u " << u_tracking.transpose() << std::endl;
+
+        rollout_factory.UpdateStateAndInput(x_curr, u_tracking);
+        LCS lcs_rollout = rollout_factory.GenerateLCS();  
+
+        // Debugging phi
+        for (int g = 0; g < 3; g++) {
+          multibody::GeomGeomCollider collider(plant_, contact_geoms[g]);
+          plant_.SetPositionsAndVelocities(&context, x_curr);
+          auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
+            drake::multibody::JacobianWrtVariable::kQDot);
+          if (phi < -1e-3) {
+            std::cout << "contact " << g << " phi " << phi << std::endl;
           }
         }
-      }
-      x_hat_output.col(factor * t + i + 1) = x_next;
-      lambda_hat.col(factor * t + i) = pair.second;
-      u_hat_fb.col(factor * t + i) = u_tracking;
 
-      x_curr = x_next;
+        
+
+        // std::cout << "u tracking " << u_tracking.transpose() << std::endl;
+        auto pair = lcs_rollout.SimulateAndReturnForce(x_curr, u_tracking, true);
+        x_next = pair.first;
+
+        if (example_idx_ == 1 || example_idx_ == 2) {
+          for (int j = 0; j < A_x.rows(); j++) {
+            if (A_x(j, j) == 1) { // Assumes diagonal
+              x_next(j) = std::min(std::max(x_next(j), lb_x(j)), ub_x(j));
+            }
+          }
+        }
+        x_hat_output.col(factor * t + i + 1) = x_next;
+        lambda_hat.col(factor * t + i) = pair.second;
+        u_hat_fb.col(factor * t + i) = u_tracking;
+
+        x_curr = x_next;
+      }
     }
+    
   }
 
   MatrixXd x_hat_downsampled(MatrixXd::Zero(n_x_, num_steps + 1));
@@ -1020,7 +1098,7 @@ LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory
     c.push_back(lcs.c()[0]);      
   }
 
-  for (int k = 0; k < N; k++) {
+  for (int k = 0; k < 1; k++) {
     if (A[k].array().isNaN().any()) {
       std::cerr << "A " << k << " has NaN" << std::endl;
       std::cerr << "x hat " << x_hat.col(k).transpose() << std::endl;
@@ -1131,6 +1209,51 @@ LCS MSiC3::GetLCSSegment(LCS lcs, int start_idx, int length) {
   return LCS(A, B, D, d, E, F, H, c, dt_);
 }
 
+
+VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contact_results, const vector<SortedPair<GeometryId>>& contact_geoms) {
+
+  // Assumes anitescu
+  VectorXd lambda(VectorXd::Zero(4 * contact_geoms.size()));
+
+  for (int i = 0; i < contact_geoms.size(); i++) {
+    GeometryId geom_A = contact_geoms[i].first();
+    GeometryId geom_B = contact_geoms[i].second();
+
+    for (int j = 0; j < contact_results.num_point_pair_contacts(); j++) {
+      const auto& info = contact_results.point_pair_contact_info(j);
+      const auto& pair = info.point_pair();
+
+      GeometryId id_A = pair.id_A;
+      GeometryId id_B = pair.id_B;
+
+      // Search for matching contact result
+      if ((geom_A == id_A && geom_B == id_B) || (geom_A == id_B && geom_B == id_A)) {
+        Vector3d n_W = -pair.nhat_BA_W;
+
+        // Get tangent basis
+        Vector3d t1_W;
+        if (std::abs(n_W.x()) >= std::abs(n_W.y())) {
+            double scale = 1.0 / std::sqrt(n_W.x() * n_W.x() + n_W.z() * n_W.z());
+            t1_W << -n_W.z() * scale, 0.0, n_W.x() * scale;
+        } else {
+            double scale = 1.0 / std::sqrt(n_W.y() * n_W.y() + n_W.z() * n_W.z());
+            t1_W << 0.0, n_W.z() * scale, -n_W.y() * scale;
+        }
+        Vector3d t2_W = n_W.cross(t1_W);
+
+        const drake::Vector3<double>& f_W = info.contact_force(); 
+
+        double mu = controller_options_.lcs_factory_options.mu[i];
+        lambda(4*i) = std::max(0.0, (t1_W.dot(f_W)) / mu);
+        lambda(4*i+1) = std::max(0.0, -(t1_W.dot(f_W)) / mu);
+        lambda(4*i+2) = std::max(0.0, (t2_W.dot(f_W)) / mu);
+        lambda(4*i+3) = std::max(0.0, -(t2_W.dot(f_W)) / mu);
+      }
+    }
+  }
+  return lambda;
+}
+
 void MSiC3::UpdateQuaternionCosts(
   MatrixXd x_hat, const Eigen::VectorXd& x_des) {
   
@@ -1163,7 +1286,7 @@ void MSiC3::UpdateQuaternionCosts(
 
       // make quaternion costs time-varying based on x_hat
       Eigen::VectorXd quat_curr_i = x_hat.col(i).segment(index, 4).normalized();
-      Eigen::VectorXd quat_des_i = x_des.segment(index, 4);
+      Eigen::VectorXd quat_des_i = x_des.segment(index, 4).normalized();
 
       //std::cout << "xhat q: " << quat_curr_i.transpose() << std::endl;
 

@@ -534,6 +534,7 @@ void C3::StoreQPResults(const MathematicalProgramResult& result,
     z_sol_->at(i).segment(n_x_, n_lambda_) = result.GetSolution(lambda_[i]);
     z_sol_->at(i).segment(n_x_ + n_lambda_, n_u_) = result.GetSolution(u_[i]);
 
+    x_sol_final_ = result.GetSolution(x_[N_]);
     //std::cout << result.GetSolution(x_[i]).transpose() << std::endl;
 
   }
@@ -613,11 +614,12 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
 
   if (!result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
+
       
       drake::log()->warn("OSQP Status: {}", details.status_val); 
       drake::log()->warn("Iterations: {}", details.iter);
-      drake::log()->warn("Primal Res: {}", details.primal_res);
-      drake::log()->warn("Dual Res: {}", details.dual_res);
+      std::cout << "Primal Res: " << details.primal_res << std::endl;
+      std::cout << "Dual Res: " << details.dual_res << std::endl;
       std::cout << "x0 " << x0.transpose() << std::endl;
 
   } else {

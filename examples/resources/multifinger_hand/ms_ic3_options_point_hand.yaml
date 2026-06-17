@@ -1,8 +1,8 @@
-num_iters: 2
-num_warmup_iters: 1
+num_iters: 3
+num_warmup_iters: 0
 
 N: 600
-num_segments: 30
+num_segments: 40
 
 
 add_position_constraints: true
@@ -10,7 +10,7 @@ add_input_constraints: true
 
 early_termination: true
 
-print_costs: true
+print_costs: false
 rollout_dt_scaling: 5
 
 penalize_acceleration: true
@@ -36,10 +36,10 @@ p_vector: [5000, 5000, 5000,
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.2
-alpha_ee_step: 0.8
+alpha_ee: 0.22
+alpha_ee_step: 0.39
 
-alpha_object: 0.34
-alpha_object_step: 0.66
+alpha_object: 0.17
+alpha_object_step: 0.415
 
-warm_start_alpha: 0.93
+warm_start_alpha: 0.1

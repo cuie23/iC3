@@ -18,6 +18,7 @@
 #include "drake/systems/analysis/simulator.h"
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/systems/framework/leaf_system.h"
+#include "drake/multibody/plant/contact_results.h"
 
 using std::vector;
 using std::pair;
@@ -44,8 +45,10 @@ public:
     MultibodyPlant<drake::AutoDiffXd>& plant_ad,
     MultibodyPlant<double>& plant_rollout,
     MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
+    drake::systems::Diagram<double>& rollout_diagram,
+    std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
-    int example_idx);
+    int example_idx, bool run_drake_sim=false);
 
   // Outputs
   // 0: x_hat for each iC3 iteration
@@ -70,7 +73,7 @@ private:
                                 VectorXd x_init, int z_idx);
 
   VectorXd ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
-                                  VectorXd x_init, int start_idx, int q_size); 
+                                  VectorXd x_init, int start_idx, int q_size, MatrixXd A_x, VectorXd lb_x, VectorXd ub_x); 
 
   tuple<LCS, MatrixXd, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd x_hat_prev, MatrixXd c3_x_hat, MatrixXd u_hat, 
                                               LCSFactory factory, LCSFactory rollout_factory, MatrixXd A_constraint_x, 
@@ -86,9 +89,10 @@ private:
   // TODO: context and contact_geoms only get used for debugging
   tuple<MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
-                                              vector<VectorXd> g, vector<VectorXd> x_targets, int start_idx,                                          
+                                              vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
-                                              MatrixXd A_u, VectorXd lb_u, VectorXd ub_u);
+                                              MatrixXd A_u, VectorXd lb_u, VectorXd ub_u,
+                                              drake::systems::Context<double>& context, const vector<SortedPair<GeometryId>>& contact_geoms);
 
 
   // For affine time-varying LQR problem get value function
@@ -109,6 +113,10 @@ private:
 
   LCS GetLCSSegment(LCS lcs, int start_idx, int length);
 
+  // ASSUMES ANITESCU AND 2 FRICTION DIRECTIONS
+  VectorXd ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, 
+                                              const vector<SortedPair<GeometryId>>& contact_geoms);
+
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
     MatrixXd x_hat, const Eigen::VectorXd& x_des);
@@ -118,6 +126,8 @@ private:
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;
   const drake::multibody::MultibodyPlant<double>& plant_rollout_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout_;
+  drake::systems::Diagram<double>& rollout_diagram_;
+  std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context_;
 
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
@@ -130,6 +140,9 @@ private:
   int n_lambda_;  // Number of Lagrange multipliers.
   int n_u_;       // Number of control inputs.
   double dt_;     // Time step for c3
+
+  bool run_drake_sim_ = false;
+  std::unique_ptr<drake::systems::Simulator<double>> simulator_ = nullptr;
 
   // Cost matrices for optimization.
   mutable std::vector<Eigen::MatrixXd> Q_;  ///< State cost matrices.
