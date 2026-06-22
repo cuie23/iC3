@@ -1230,11 +1230,11 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
-        *plant_diagram, std::move(plant_diagram_context), options, ms_ic3_options, 0);
+        *plant_diagram, std::move(plant_diagram_context), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
+      plant_for_lcs_context, *plant_context_autodiff);
 
   std::cout << "computed traj" << std::endl;
 
@@ -1382,11 +1382,11 @@ int OptunaPlateTestMSiC3() {
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
-        *plant_diagram, std::move(plant_diagram_context), options, ms_ic3_options, 0);
+        *plant_diagram, std::move(plant_diagram_context), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_for_lcs_context, *plant_context_autodiff, contact_pairs, contact_pairs);
+      plant_for_lcs_context, *plant_context_autodiff);
 
   double metric = 0;
   double total_angle_diff = 0;
@@ -2090,11 +2090,12 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
-        *plant_diagram_rollout, std::move(plant_diagram_rollout_context), options, ms_ic3_options, example_idx);
+        *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
+        options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_context, *plant_rollout_context_autodiff, contact_pairs, contact_pairs_rollout);
+      plant_rollout_context, *plant_rollout_context_autodiff);
   std::cout << "computed traj" << std::endl;
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
@@ -2454,11 +2455,12 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
-        *plant_diagram_rollout, std::move(plant_diagram_rollout_context), options, ms_ic3_options, example_idx);
+        *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
+        options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_context, *plant_rollout_context_autodiff, contact_pairs, contact_pairs_rollout);
+      plant_rollout_context, *plant_rollout_context_autodiff);
 
   MatrixXd x_hat_final = x_traj.at(x_traj.size() - 1);
   VectorXd x_last = x_hat_final.col(x_hat_final.cols() - 1);

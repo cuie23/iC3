@@ -47,6 +47,8 @@ public:
     MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     drake::systems::Diagram<double>& rollout_diagram,
     std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
+    const vector<SortedPair<GeometryId>>& contact_geoms,
+    const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
     int example_idx);
 
@@ -64,9 +66,7 @@ public:
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     drake::systems::Context<double>& context_rollout,
-    drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout, 
-    const vector<SortedPair<GeometryId>>& contact_geoms,
-    const vector<SortedPair<GeometryId>>& contact_geoms_rollout);
+    drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout);
 
 private:
   
@@ -93,8 +93,7 @@ private:
                                               vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
                                               MatrixXd A_u, VectorXd lb_u, VectorXd ub_u,
-                                              drake::systems::Context<double>& context, drake::systems::Context<double>& context_rollout, 
-                                              const vector<SortedPair<GeometryId>>& contact_geoms);
+                                              drake::systems::Context<double>& context, drake::systems::Context<double>& context_rollout);
 
 
   // For affine time-varying LQR problem get value function
@@ -116,8 +115,7 @@ private:
   LCS GetLCSSegment(LCS lcs, int start_idx, int length);
 
   // ASSUMES ANITESCU AND 2 FRICTION DIRECTIONS
-  VectorXd ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, 
-                                              const vector<SortedPair<GeometryId>>& contact_geoms, std::string contact_model);
+  VectorXd ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, std::string contact_model);
 
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
@@ -135,6 +133,9 @@ private:
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout_;
   drake::systems::Diagram<double>& rollout_diagram_;
   std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context_;
+
+  const vector<SortedPair<GeometryId>>& contact_geoms_;
+  const vector<SortedPair<GeometryId>>& contact_geoms_rollout_;
 
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;

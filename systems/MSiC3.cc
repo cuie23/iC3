@@ -41,7 +41,8 @@ namespace systems {
 
 MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
   MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
-  drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
+  drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,    
+  const vector<SortedPair<GeometryId>>& contact_geoms, const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
   C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx)
     : plant_(plant),
       plant_ad_(plant_ad),
@@ -49,6 +50,8 @@ MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& p
       plant_ad_rollout_(plant_ad_rollout),
       rollout_diagram_(rollout_diagram),
       rollout_diagram_context_(std::move(rollout_diagram_context)),
+      contact_geoms_(contact_geoms),
+      contact_geoms_rollout_(contact_geoms_rollout),
       use_drake_sim_(ms_ic3_options.use_drake_sim),
       controller_options_(controller_options),
       ms_ic3_options_(ms_ic3_options),
@@ -85,9 +88,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   drake::systems::Context<double>& context,
   drake::systems::Context<drake::AutoDiffXd>& context_ad, 
   drake::systems::Context<double>& context_rollout,
-  drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout, 
-  const std::vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms,
-  const std::vector<drake::SortedPair<drake::geometry::GeometryId>>& contact_geoms_rollout) {
+  drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout) {
 
   // num segements must divide the entire time horizon (might be unnecessary but for ease of implementation)
   DRAKE_DEMAND((double)(N_ / num_segments_) == (double)N_ / num_segments_);
@@ -121,11 +122,11 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   }
 
   LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
-      contact_geoms, controller_options_.lcs_factory_options);
+      contact_geoms_, controller_options_.lcs_factory_options);
 
   std::cout << "rollout factory before " << std::endl;
   LCSFactory lcs_factory_rollout(plant_rollout_, context_rollout, plant_ad_rollout_,
-      context_ad_rollout, contact_geoms_rollout, controller_options_.lcs_factory_options);
+      context_ad_rollout, contact_geoms_rollout_, controller_options_.lcs_factory_options);
   std::cout << "rollout factory after " << std::endl;
 
   // Set initial guess to something kinda reasonable
@@ -326,7 +327,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
       // Ensure anchors don't have penetration
       for (int j = 0; j < 3; j++) {
-        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+        x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
                                       A_x, lower_bound_x, upper_bound_x);
       }
 
@@ -345,7 +346,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
       // Ensure fingers don't have penetration
       for (int j = 0; j < 3; j++) {
-        x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+        x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
                                       A_x, lower_bound_x, upper_bound_x);
       }
 
@@ -424,7 +425,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
          DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), gravity,
                       lcs_factory, lcs_factory_rollout, H, g, i*L_,
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u,
-                      context, context_rollout, contact_geoms);
+                      context, context_rollout);
 
 
       VectorXd x_L = x_hat_out.col(L_);
@@ -487,7 +488,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
         
       } else if (example_idx_ == 1) {
         for (int j = 0; j < 3; j++) {
-          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+          x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
                                         A_x, lower_bound_x, upper_bound_x);
         }
         
@@ -506,7 +507,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
         // Ensure fingers don't have penetration
         for (int j = 0; j < 3; j++) {
-          x_projected = ProjectContact(context, contact_geoms[j], x_projected, 3*j, 3, 
+          x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
                                         A_x, lower_bound_x, upper_bound_x);
         }
     
@@ -780,8 +781,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
                                               vector<VectorXd> g, int start_idx,
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
                                               MatrixXd A_u, VectorXd lb_u, VectorXd ub_u,
-                                              Context<double>& context, Context<double>& context_rollout, 
-                                              const vector<SortedPair<GeometryId>>& contact_geoms) {
+                                              Context<double>& context, Context<double>& context_rollout) {
   // Assume that x_hat, H, g, x_targets correspond to the entire iC3 horizon
 
   DRAKE_DEMAND(start_idx < N_);
@@ -909,7 +909,9 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     auto c3_elapsed = c3_end - c3_start;
     double c3_solve_time =
         std::chrono::duration_cast<std::chrono::microseconds>(c3_elapsed).count() / 1e6;
-    std::cout << "c3 solve time " << c3_solve_time << std::endl;
+    if (ms_ic3_options_.print_costs) {
+      std::cout << "c3 solve time " << c3_solve_time << std::endl;
+    }
 
     vector<Eigen::VectorXd> z_sol = c3_tracking->GetFullSolution();
     VectorXd c3_u = z_sol[0].segment(n_x_ + n_lambda_, n_u_);
@@ -998,10 +1000,11 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
         u_hat_fb.col(factor * t + i) = u_tracking;
         x_curr = x_next;
 
-      const auto& contact_results = plant_rollout_.get_contact_results_output_port()
-            .Eval<drake::multibody::ContactResults<double>>(context_rollout);
-      lambda_hat.col(factor * t + i) = ConstructLambdasFromContactResults(contact_results, 
-                                      contact_geoms, controller_options_.lcs_factory_options.contact_model);
+        const auto& contact_results = plant_rollout_.get_contact_results_output_port()
+              .Eval<drake::multibody::ContactResults<double>>(context_rollout);
+        lambda_hat.col(factor * t + i) = ConstructLambdasFromContactResults(contact_results, 
+            controller_options_.lcs_factory_options.contact_model);
+                                      
       }
       
 
@@ -1034,7 +1037,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
 
         // Debugging phi
         for (int g = 0; g < 3; g++) {
-          multibody::GeomGeomCollider collider(plant_, contact_geoms[g]);
+          multibody::GeomGeomCollider collider(plant_, contact_geoms_[g]);
           plant_.SetPositionsAndVelocities(&context, x_curr);
           auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
             drake::multibody::JacobianWrtVariable::kQDot);
@@ -1289,17 +1292,16 @@ LCS MSiC3::GetLCSSegment(LCS lcs, int start_idx, int length) {
 }
 
 
-VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contact_results, 
-    const vector<SortedPair<GeometryId>>& contact_geoms, std::string contact_model) {
+VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contact_results, std::string contact_model) {
 
   // Assumes 2 friction directions
   VectorXd lambda(VectorXd::Zero(n_lambda_));
 
-  int n_contacts = contact_geoms.size();
+  int n_contacts = contact_geoms_rollout_.size();
 
   for (int i = 0; i < n_contacts; i++) {
-    GeometryId geom_A = contact_geoms[i].first();
-    GeometryId geom_B = contact_geoms[i].second();
+    GeometryId geom_A = contact_geoms_rollout_[i].first();
+    GeometryId geom_B = contact_geoms_rollout_[i].second();
 
     for (int j = 0; j < contact_results.num_point_pair_contacts(); j++) {
       const auto& info = contact_results.point_pair_contact_info(j);
@@ -1310,7 +1312,6 @@ VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contac
 
       // Search for matching contact result
       if ((geom_A == id_A && geom_B == id_B) || (geom_A == id_B && geom_B == id_A)) {
-
         bool is_swapped = (geom_A == id_B && geom_B == id_A);
 
         Vector3d n_W;
