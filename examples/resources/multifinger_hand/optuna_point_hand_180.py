@@ -51,6 +51,7 @@ def objective(trial):
 
     # lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
     eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
+    gamma_threshold = trial.suggest_float("gamma_threshold", 0.0, 0.002, step = 0.0001)
 
     finger_config = trial.suggest_int("finger_config", 1, 3)
 
@@ -91,8 +92,9 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_t"] = [u_eta_t] * (4 * n_contacts)
 
     # c3_options["c3_options"]["lambda_threshold"] = [lambda_threshold] * (4*n_contacts)
-    c3_options["c3_options"]["lambda_threshold"] = [0.0] * (6*n_contacts)
+    c3_options["c3_options"]["lambda_threshold"] = []
     c3_options["c3_options"]["eta_threshold"] = [eta_threshold] * (6*n_contacts)
+    c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold] * (n_contacts)
 
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers

@@ -142,7 +142,8 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   // Set thresholds to 0 if not set
   VectorXd lambda_threshold(VectorXd::Zero(n_lambda_));
   VectorXd eta_threshold(VectorXd::Zero(n_lambda_)); 
-  if (options_.lambda_threshold.has_value() && options_.eta_threshold.has_value()) {
+  if (options_.lambda_threshold.has_value() && options_.lambda_threshold.value().size() != 0 && 
+      options_.eta_threshold.has_value() && options_.eta_threshold.value().size() != 0) {
     lambda_threshold = Eigen::Map<const Eigen::VectorXd>(
           options_.lambda_threshold.value().data(), options_.lambda_threshold.value().size());
     eta_threshold = Eigen::Map<const Eigen::VectorXd>(
@@ -151,7 +152,7 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
 
   // Assumes stewart and trinkle
   VectorXd gamma_threshold;
-  if (options_.gamma_threshold.has_value() && gamma_threshold.size() != 0) {
+  if (options_.gamma_threshold.has_value() && options_.gamma_threshold.value().size() != 0) {
     gamma_threshold = VectorXd::Zero(options_.gamma_threshold.value().size());
     gamma_threshold = Eigen::Map<const Eigen::VectorXd>(
       options_.gamma_threshold.value().data(), options_.gamma_threshold.value().size());
