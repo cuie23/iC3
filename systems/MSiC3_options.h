@@ -20,7 +20,10 @@ struct MSiC3Options {
   bool early_termination;
 
   bool print_costs;
+
   int rollout_dt_scaling;
+  bool use_drake_sim;
+  double drake_sim_dt;
 
   bool penalize_acceleration;
   double acceleration_cost_weight;
@@ -57,6 +60,8 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(penalize_acceleration));
     a->Visit(DRAKE_NVP(acceleration_cost_weight));
     a->Visit(DRAKE_NVP(rollout_dt_scaling));
+    a->Visit(DRAKE_NVP(use_drake_sim));
+    a->Visit(DRAKE_NVP(drake_sim_dt));
     a->Visit(DRAKE_NVP(defect_quaternion_weight));
     a->Visit(DRAKE_NVP(defect_quaternion_regularizer_fraction));
     a->Visit(DRAKE_NVP(w_P));

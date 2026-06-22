@@ -1165,6 +1165,13 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
 
 // TODO: Make this actually work
 int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
+
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
+      "examples/resources/plate/ms_c3_tracking_options.yaml");
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
+      "examples/resources/plate/ms_ic3_options.yaml");
+
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
@@ -1202,7 +1209,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
-  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
   const std::string plate_file = "examples/resources/plate/plate.sdf";
 	const std::string cube_file = "examples/resources/plate/cube.sdf";
@@ -1211,14 +1218,6 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   parser.AddModels(cube_file);
 
   plant.Finalize();
-
-  // Load controller options and cost matrices.
-  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
-      "examples/resources/plate/ms_c3_tracking_options.yaml");
-  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
-      "examples/resources/plate/ms_ic3_options.yaml");
-  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
-      options.c3_options, options.lcs_factory_options.N);
 
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
@@ -1319,10 +1318,16 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
 
 int OptunaPlateTestMSiC3() {
+  // Load controller options and cost matrices.
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
+      "examples/resources/plate/optuna_ms_c3_tracking_options.yaml");
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
+      "examples/resources/plate/optuna_ms_ic3_options.yaml");
+
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
-      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+      AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
@@ -1356,7 +1361,7 @@ int OptunaPlateTestMSiC3() {
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
-  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
   const std::string plate_file = "examples/resources/plate/plate.sdf";
 	const std::string cube_file = "examples/resources/plate/cube.sdf";
@@ -1366,14 +1371,6 @@ int OptunaPlateTestMSiC3() {
 
   plant.Finalize();
 
-  // Load controller options and cost matrices.
-  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
-      "examples/resources/plate/optuna_ms_c3_tracking_options.yaml");
-  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
-      "examples/resources/plate/optuna_ms_ic3_options.yaml");
-  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
-      options.c3_options, options.lcs_factory_options.N);
-
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
@@ -1382,7 +1379,6 @@ int OptunaPlateTestMSiC3() {
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
-
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
@@ -1822,11 +1818,26 @@ int RunPointHandTestiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
 // TODO: Pivoting probably broken rn due to simplified lcs model
 int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
-  
+
+  // Load controller options and cost matrices.
+  std::string ms_c3_options_file;
+  std::string ms_ic3_options_file;
+
+  if (example == 0) {
+    ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml";
+  } else if (example == 1) {
+    ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml";
+  }
+
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
+
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
-      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+      AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
@@ -1873,7 +1884,7 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder_rollout;
   auto [plant_rollout, scene_graph_rollout] =
-      AddMultibodyPlantSceneGraph(&plant_builder_rollout, 0);
+      AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
   const std::string hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand.sdf";
@@ -2013,7 +2024,7 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
-  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
 
   const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
@@ -2057,26 +2068,6 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   plant.Finalize();
 
-
-  // Load controller options and cost matrices.
-  std::string ms_c3_options_file;
-  std::string ms_ic3_options_file;
-
-  if (example == 0) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml";
-  } else if (example == 1) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml";
-  }
-
-  std::cout << ms_c3_options_file << std::endl;
-  std::cout << ms_ic3_options_file << std::endl;
-
-  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
-  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
-  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
-      options.c3_options, options.lcs_factory_options.N);
   
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
@@ -2096,6 +2087,7 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
 
   int example_idx = (example == 0) ? 2 : 1;
+
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), options, ms_ic3_options, example_idx);
@@ -2198,11 +2190,28 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 }
 
 int OptunaPointHandTestMSiC3(int example, int instance) {
-  
+  // Load controller options and cost matrices.
+  std::string ms_c3_options_file;
+  std::string ms_ic3_options_file;
+
+  if (example == 0) {
+    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_c3_tracking_options_pivot_" 
+                            + std::to_string(instance) + ".yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_ic3_options_pivot_"
+                            + std::to_string(instance) + ".yaml";
+  } else if (example == 1) {
+    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_" 
+                            + std::to_string(instance) + ".yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_" 
+                            + std::to_string(instance) + ".yaml";
+  }
+
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
-      AddMultibodyPlantSceneGraph(&plant_builder, 0);
+      AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
@@ -2236,8 +2245,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
                           plant_for_lcs.GetFrameByName("base_link_2"), X_2_lcs);
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
                           plant_for_lcs.GetFrameByName("base_link_3"), X_3_lcs);
-  // plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
-  //                         plant_for_lcs.GetFrameByName("base_link_4"), X_4_lcs);                                                  
+                                                  
   plant_for_lcs.WeldFrames(plant_for_lcs.world_frame(),
                           plant_for_lcs.GetFrameByName("ground"), X_G_lcs);
 
@@ -2250,7 +2258,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder_rollout;
   auto [plant_rollout, scene_graph_rollout] =
-      AddMultibodyPlantSceneGraph(&plant_builder_rollout, 0);
+      AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
   const std::string hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand.sdf";
@@ -2390,7 +2398,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
-  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
+  auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
 
   const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
@@ -2425,28 +2433,6 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 
   plant.Finalize();
 
-
-  // Load controller options and cost matrices.
-  std::string ms_c3_options_file;
-  std::string ms_ic3_options_file;
-
-  if (example == 0) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_c3_tracking_options_pivot_" 
-                            + std::to_string(instance) + ".yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_ic3_options_pivot_"
-                            + std::to_string(instance) + ".yaml";
-  } else if (example == 1) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_" 
-                            + std::to_string(instance) + ".yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_" 
-                            + std::to_string(instance) + ".yaml";
-  }
-
-  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
-  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
-  C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
-      options.c3_options, options.lcs_factory_options.N);
-  
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();

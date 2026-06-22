@@ -41,14 +41,14 @@ namespace systems {
 MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
   MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
   drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
-  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx, bool run_drake_sim)
+  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx)
     : plant_(plant),
       plant_ad_(plant_ad),
       plant_rollout_(plant_rollout),
       plant_ad_rollout_(plant_ad_rollout),
       rollout_diagram_(rollout_diagram),
       rollout_diagram_context_(std::move(rollout_diagram_context)),
-      run_drake_sim_(run_drake_sim),
+      use_drake_sim_(ms_ic3_options.use_drake_sim),
       controller_options_(controller_options),
       ms_ic3_options_(ms_ic3_options),
       N_(ms_ic3_options.N),
@@ -72,7 +72,7 @@ MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& p
   num_segments_ = ms_ic3_options_.num_segments;
   L_ = N_ / num_segments_;
 
-  if (run_drake_sim_) {
+  if (use_drake_sim_) {
     simulator_ = std::make_unique<drake::systems::Simulator<double>>(
         rollout_diagram_, std::move(rollout_diagram_context_)
     );
@@ -122,8 +122,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
       contact_geoms, controller_options_.lcs_factory_options);
 
+  std::cout << "rollout factory before " << std::endl;
   LCSFactory lcs_factory_rollout(plant_rollout_, context_rollout, plant_ad_rollout_,
       context_ad_rollout, contact_geoms_rollout, controller_options_.lcs_factory_options);
+  std::cout << "rollout factory after " << std::endl;
 
   // Set initial guess to something kinda reasonable
   // Set initial guess for x - linear interpolation (including in quaternion space)
@@ -421,7 +423,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
          DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), gravity,
                       lcs_factory, lcs_factory_rollout, H, g, i*L_,
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u,
-                      context, contact_geoms);
+                      context, context_rollout, contact_geoms);
 
 
       VectorXd x_L = x_hat_out.col(L_);
@@ -777,7 +779,8 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
                                               vector<VectorXd> g, int start_idx,
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
                                               MatrixXd A_u, VectorXd lb_u, VectorXd ub_u,
-                                              Context<double>& context, const vector<SortedPair<GeometryId>>& contact_geoms) {
+                                              Context<double>& context, Context<double>& context_rollout, 
+                                              const vector<SortedPair<GeometryId>>& contact_geoms) {
   // Assume that x_hat, H, g, x_targets correspond to the entire iC3 horizon
 
   DRAKE_DEMAND(start_idx < N_);
@@ -936,10 +939,53 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
                 << final_cube_rot_cost << ", cube pos " << final_cube_pos_cost << std::endl;
       }
     }
-    
+     
+    if (use_drake_sim_) {
+      // Set intiial state
+      Context<double>& root_context = simulator_->get_mutable_context();
+      plant_rollout_.SetPositionsAndVelocities(&context_rollout, x_curr);
 
-    
-    if (run_drake_sim_) {
+      // Apply PD to C3 plan
+      int q_idx;
+      int v_idx;
+      if (n_u_ == 5) {
+        q_idx = 0;
+        v_idx = 12;
+      } else if (n_u_ == 9) {
+        q_idx = 0;
+        v_idx = 16;
+      }
+      MatrixXd Kp = ms_ic3_options_.rollout_Kp.asDiagonal();
+      MatrixXd Kd = ms_ic3_options_.rollout_Kd.asDiagonal();
+      VectorXd u_tracking = c3_u + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
+        + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
+
+      plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_tracking);
+
+      for (int i = 0; i < factor; i++) {
+        double target_time = root_context.get_time() + dt_ / factor;
+        simulator_->AdvanceTo(target_time);
+
+        x_next = plant_rollout_.GetPositionsAndVelocities(context_rollout);
+
+        // Threshold
+        if (example_idx_ == 1 || example_idx_ == 2) {
+          for (int j = 0; j < A_x.rows(); j++) {
+            if (A_x(j, j) == 1) { // Assumes diagonal
+              x_next(j) = std::min(std::max(x_next(j), lb_x(j)), ub_x(j));
+            }
+          }
+        }
+        x_hat_output.col(factor * t + i + 1) = x_next;
+
+        const auto& contact_results = plant_rollout_.get_contact_results_output_port()
+            .Eval<drake::multibody::ContactResults<double>>(context_rollout);
+        lambda_hat.col(factor * t + i) = ConstructLambdasFromContactResults(contact_results, 
+                                            contact_geoms, controller_options_.lcs_factory_options.contact_model);
+        u_hat_fb.col(factor * t + i) = u_tracking;
+
+        x_curr = x_next;
+      }
 
 
     } else {
@@ -1222,12 +1268,15 @@ LCS MSiC3::GetLCSSegment(LCS lcs, int start_idx, int length) {
 }
 
 
-VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contact_results, const vector<SortedPair<GeometryId>>& contact_geoms) {
+VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contact_results, 
+    const vector<SortedPair<GeometryId>>& contact_geoms, std::string contact_model) {
 
-  // Assumes anitescu
-  VectorXd lambda(VectorXd::Zero(4 * contact_geoms.size()));
+  // Assumes 2 friction directions
+  VectorXd lambda(VectorXd::Zero(n_lambda_));
 
-  for (int i = 0; i < contact_geoms.size(); i++) {
+  int n_contacts = contact_geoms.size();
+
+  for (int i = 0; i < n_contacts; i++) {
     GeometryId geom_A = contact_geoms[i].first();
     GeometryId geom_B = contact_geoms[i].second();
 
@@ -1240,29 +1289,66 @@ VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contac
 
       // Search for matching contact result
       if ((geom_A == id_A && geom_B == id_B) || (geom_A == id_B && geom_B == id_A)) {
-        Vector3d n_W = -pair.nhat_BA_W;
+
+        bool is_swapped = (geom_A == id_B && geom_B == id_A);
+
+        Vector3d n_W;
+        Vector3d f_W;
+
+        if (is_swapped) {
+           n_W = -pair.nhat_BA_W;
+           f_W = info.contact_force(); 
+        } else {
+           n_W = pair.nhat_BA_W;
+           f_W = -info.contact_force(); 
+        }
+
 
         // Get tangent basis
-        Vector3d t1_W;
-        if (std::abs(n_W.x()) >= std::abs(n_W.y())) {
-            double scale = 1.0 / std::sqrt(n_W.x() * n_W.x() + n_W.z() * n_W.z());
-            t1_W << -n_W.z() * scale, 0.0, n_W.x() * scale;
+        auto R_WC = RotationMatrix<double>::MakeFromOneVector(n_W, 0);
+        Eigen::Vector3d t1_W = R_WC.col(1);
+        Eigen::Vector3d t2_W = R_WC.col(2);
+
+
+        double f_n = std::max(0.0, f_W.dot(n_W));
+        double f_t1 = f_W.dot(t1_W);
+        double f_t2 = f_W.dot(t2_W);
+
+        // TODO: CHECK THIS
+        if (contact_model == "anitescu") {
+          double mu = controller_options_.lcs_factory_options.mu[i];
+
+          double l1_base = std::max(0.0, f_t1 / mu);
+          double l2_base = std::max(0.0, -f_t1 / mu);
+          double l3_base = std::max(0.0, f_t2 / mu);
+          double l4_base = std::max(0.0, -f_t2 / mu);
+
+          double base_normal_sum = l1_base + l2_base + l3_base + l4_base;
+          double deficit = std::max(0.0, f_n - base_normal_sum);
+          double offset = deficit / 4.0;
+
+          lambda(4*i) = l1_base + offset;
+          lambda(4*i + 1) = l2_base + offset;
+          lambda(4*i + 2) = l3_base + offset;
+          lambda(4*i + 3) = l4_base + offset;
+
+        } else if (contact_model == "stewart_and_trinkle") {
+
+          lambda(i) = info.slip_speed(); // gamma
+          lambda(n_contacts + i) = f_n; // lambda_n
+          lambda(2 * n_contacts + 4*i) = std::max(0.0,  f_t1);      
+          lambda(2 * n_contacts + 4*i + 1) = std::max(0.0, -f_t1);
+          lambda(2 * n_contacts + 4*i + 2) = std::max(0.0,  f_t2); 
+          lambda(2 * n_contacts + 4*i + 3) = std::max(0.0, -f_t2); 
+
         } else {
-            double scale = 1.0 / std::sqrt(n_W.y() * n_W.y() + n_W.z() * n_W.z());
-            t1_W << 0.0, n_W.z() * scale, -n_W.y() * scale;
+          std::cerr << "UNKNOWN CONTACT MODEL" << std::endl;
         }
-        Vector3d t2_W = n_W.cross(t1_W);
 
-        const drake::Vector3<double>& f_W = info.contact_force(); 
-
-        double mu = controller_options_.lcs_factory_options.mu[i];
-        lambda(4*i) = std::max(0.0, (t1_W.dot(f_W)) / mu);
-        lambda(4*i+1) = std::max(0.0, -(t1_W.dot(f_W)) / mu);
-        lambda(4*i+2) = std::max(0.0, (t2_W.dot(f_W)) / mu);
-        lambda(4*i+3) = std::max(0.0, -(t2_W.dot(f_W)) / mu);
       }
     }
   }
+
   return lambda;
 }
 

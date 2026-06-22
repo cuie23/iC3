@@ -69,6 +69,8 @@ def objective(trial):
     # c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
     # c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
 
+    c3_options["c3_options"]["g_lambda"] = []
+    c3_options["c3_options"]["g_eta"] = []
     c3_options["c3_options"]["g_gamma"] = [g_gamma] * n_contacts
     c3_options["c3_options"]["g_lambda_n"] = [g_lambda_n] * n_contacts
     c3_options["c3_options"]["g_lambda_t"] = [g_lambda_t] * (4 * n_contacts)
@@ -79,6 +81,8 @@ def objective(trial):
     # c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4*n_contacts)
     # c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
 
+    c3_options["c3_options"]["u_lambda"] = []
+    c3_options["c3_options"]["u_eta"] = []
     c3_options["c3_options"]["u_gamma"] = [u_gamma] * n_contacts
     c3_options["c3_options"]["u_lambda_n"] = [u_lambda_n] * n_contacts
     c3_options["c3_options"]["u_lambda_t"] = [u_lambda_t] * (4 * n_contacts)
@@ -87,8 +91,8 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_t"] = [u_eta_t] * (4 * n_contacts)
 
     # c3_options["c3_options"]["lambda_threshold"] = [lambda_threshold] * (4*n_contacts)
-    c3_options["c3_options"]["lambda_threshold"] = 0.0
-    c3_options["c3_options"]["eta_threshold"] = [eta_threshold] * (4*n_contacts)
+    c3_options["c3_options"]["lambda_threshold"] = [0.0] * (6*n_contacts)
+    c3_options["c3_options"]["eta_threshold"] = [eta_threshold] * (6*n_contacts)
 
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers
@@ -283,7 +287,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_lambda_eta_thresh_alpha_fix.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_stewart_trinkle.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -294,7 +298,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_lambda_eta_thresh_alpha_fix.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_stewart_trinkle.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -310,11 +314,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_lambda_eta_thresh_alpha_fix.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_stewart_trinkle.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_lambda_eta_thresh_alpha_fix",
+        study_name="MSiC3_point_hand_180_stewart_trinkle",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

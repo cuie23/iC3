@@ -84,7 +84,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_2">
@@ -96,7 +96,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_3">
@@ -108,7 +108,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_4">
@@ -120,7 +120,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_5">
@@ -132,7 +132,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_6">
@@ -144,7 +144,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_7">
@@ -156,7 +156,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
         <collision name="corner_8">
@@ -168,7 +168,7 @@
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.4</drake:mu_dynamic>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
 

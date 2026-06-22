@@ -48,16 +48,17 @@ public:
     drake::systems::Diagram<double>& rollout_diagram,
     std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
-    int example_idx, bool run_drake_sim=false);
+    int example_idx);
 
   // Outputs
-  // 0: x_hat for each iC3 iteration
-  // 1: u_hat for each iC3 iteration
-  // 2: lambda_hat for each iC3 iteration
-  // 3: Quadratic terms for LQR value function for each iC3 iteration
-  // 4: Linear terms for LQR value function for each iC3 iteration
-  // 5: LQR feedback gains for each iC3 iteration
-  // 6: LQR feedforward gains for each iC3 iteration
+  // Note: doesn't store stuff from warmup iterations
+  // 0: x_hat for each MSiC3 iteration
+  // 1: u_hat for each MSiC3 iteration
+  // 2: lambda_hat for each MSiC3 iteration
+  // 3: Quadratic terms for LQR value function for each MSiC3 iteration
+  // 4: Linear terms for LQR value function for each MSiC3 iteration
+  // 5: LQR feedback gains for each MSiC3 iteration
+  // 6: LQR feedforward gains for each MSiC3 iteration
   tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
       vector<vector<MatrixXd>>, vector<vector<VectorXd>>> ComputeTrajectory(
     drake::systems::Context<double>& context,
@@ -92,7 +93,8 @@ private:
                                               vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
                                               MatrixXd A_u, VectorXd lb_u, VectorXd ub_u,
-                                              drake::systems::Context<double>& context, const vector<SortedPair<GeometryId>>& contact_geoms);
+                                              drake::systems::Context<double>& context, drake::systems::Context<double>& context_rollout, 
+                                              const vector<SortedPair<GeometryId>>& contact_geoms);
 
 
   // For affine time-varying LQR problem get value function
@@ -115,7 +117,7 @@ private:
 
   // ASSUMES ANITESCU AND 2 FRICTION DIRECTIONS
   VectorXd ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, 
-                                              const vector<SortedPair<GeometryId>>& contact_geoms);
+                                              const vector<SortedPair<GeometryId>>& contact_geoms, std::string contact_model);
 
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
@@ -146,7 +148,7 @@ private:
   int n_u_;       // Number of control inputs.
   double dt_;     // Time step for c3
 
-  bool run_drake_sim_ = false;
+  bool use_drake_sim_ = false;
   std::unique_ptr<drake::systems::Simulator<double>> simulator_ = nullptr;
 
   // Cost matrices for optimization.
