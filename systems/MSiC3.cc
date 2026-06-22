@@ -14,6 +14,7 @@
 
 #include "drake/common/text_logging.h"
 #include <drake/multibody/parsing/parser.h>
+#include <chrono>
 
 using drake::multibody::ModelInstanceIndex;
 using drake::systems::BasicVector;
@@ -902,7 +903,13 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     VectorXd bias = g[lqr_idx] - H[lqr_idx] * x_hat.col(lqr_idx);
     c3_tracking->UpdateFinalCost(H[lqr_idx], bias);
 
+    auto c3_start = std::chrono::high_resolution_clock::now();
     c3_tracking->Solve(x_curr);
+    auto c3_end = std::chrono::high_resolution_clock::now();
+    auto c3_elapsed = c3_end - c3_start;
+    double c3_solve_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(c3_elapsed).count() / 1e6;
+    std::cout << "c3 solve time " << c3_solve_time << std::endl;
 
     vector<Eigen::VectorXd> z_sol = c3_tracking->GetFullSolution();
     VectorXd c3_u = z_sol[0].segment(n_x_ + n_lambda_, n_u_);
@@ -940,12 +947,8 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
       }
     }
      
+    auto rollout_start = std::chrono::high_resolution_clock::now();
     if (use_drake_sim_) {
-      // Set intiial state
-      Context<double>& root_context = simulator_->get_mutable_context();
-      plant_rollout_.SetPositionsAndVelocities(&context_rollout, x_curr);
-
-      // Apply PD to C3 plan
       int q_idx;
       int v_idx;
       if (n_u_ == 5) {
@@ -957,14 +960,29 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
       }
       MatrixXd Kp = ms_ic3_options_.rollout_Kp.asDiagonal();
       MatrixXd Kd = ms_ic3_options_.rollout_Kd.asDiagonal();
-      VectorXd u_tracking = c3_u + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
-        + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
 
-      plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_tracking);
+      Context<double>& root_context = simulator_->get_mutable_context();
 
-      for (int i = 0; i < factor; i++) {
+      for (int i = 0; i < factor; i++) {      
+        plant_rollout_.SetPositionsAndVelocities(&context_rollout, x_curr);
+
+        // Apply PD to C3 plan
+        VectorXd u_tracking = c3_u + Kp * (c3_x.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
+          + Kd * (c3_x.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
+        plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_tracking);
+
         double target_time = root_context.get_time() + dt_ / factor;
+
+        auto simulator_start = std::chrono::high_resolution_clock::now();
         simulator_->AdvanceTo(target_time);
+        auto simulator_end = std::chrono::high_resolution_clock::now();
+        auto simulator_elapsed = simulator_end - simulator_start;
+        double simulator_solve_time =
+            std::chrono::duration_cast<std::chrono::microseconds>(simulator_elapsed).count() / 1e6;
+
+        if (ms_ic3_options_.print_costs) {
+          std::cout << "simulator time " << simulator_solve_time << std::endl;
+        }
 
         x_next = plant_rollout_.GetPositionsAndVelocities(context_rollout);
 
@@ -977,16 +995,15 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
           }
         }
         x_hat_output.col(factor * t + i + 1) = x_next;
-
-        const auto& contact_results = plant_rollout_.get_contact_results_output_port()
-            .Eval<drake::multibody::ContactResults<double>>(context_rollout);
-        lambda_hat.col(factor * t + i) = ConstructLambdasFromContactResults(contact_results, 
-                                            contact_geoms, controller_options_.lcs_factory_options.contact_model);
         u_hat_fb.col(factor * t + i) = u_tracking;
-
         x_curr = x_next;
-      }
 
+      const auto& contact_results = plant_rollout_.get_contact_results_output_port()
+            .Eval<drake::multibody::ContactResults<double>>(context_rollout);
+      lambda_hat.col(factor * t + i) = ConstructLambdasFromContactResults(contact_results, 
+                                      contact_geoms, controller_options_.lcs_factory_options.contact_model);
+      }
+      
 
     } else {
       // Rollout this u with LCS
@@ -1026,8 +1043,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
           }
         }
 
-        
-
         // std::cout << "u tracking " << u_tracking.transpose() << std::endl;
         auto pair = lcs_rollout.SimulateAndReturnForce(x_curr, u_tracking, true);
         x_next = pair.first;
@@ -1046,7 +1061,13 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
         x_curr = x_next;
       }
     }
-    
+    auto rollout_end = std::chrono::high_resolution_clock::now();
+    auto rollout_elapsed = rollout_end - rollout_start;
+    double rollout_solve_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(rollout_elapsed).count() / 1e6;
+    if (ms_ic3_options_.print_costs) {
+      std::cout << "rollout time " << rollout_solve_time << std::endl;
+    }
   }
 
   MatrixXd x_hat_downsampled(MatrixXd::Zero(n_x_, num_steps + 1));

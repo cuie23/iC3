@@ -197,6 +197,9 @@ def objective(trial):
 
     ic3_options["print_costs"] = False
 
+    ic3_options["use_drake_sim"] = True
+    ic3_options["drake_sim_dt"] = 0.0001
+
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 
@@ -251,7 +254,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_no_initial_rollout.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_drake_sim.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -262,7 +265,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_pivot_no_initial_rollout.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_pivot_drake_sim.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -278,11 +281,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_pivot.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_no_initial_rollout.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_drake_sim.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_no_initial_rollout",
+        study_name="MSiC3_point_hand_pivot_drake_sim",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

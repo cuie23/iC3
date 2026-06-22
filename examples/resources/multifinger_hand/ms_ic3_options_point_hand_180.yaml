@@ -14,7 +14,7 @@ print_costs: false
 
 rollout_dt_scaling: 10
 use_drake_sim: true
-drake_sim_dt: 0.00001
+drake_sim_dt: 0.0001
 
 penalize_acceleration: true
 acceleration_cost_weight: 40

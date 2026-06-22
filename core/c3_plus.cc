@@ -148,7 +148,24 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
     eta_threshold = Eigen::Map<const Eigen::VectorXd>(
           options_.eta_threshold.value().data(), options_.eta_threshold.value().size());
   }
+
+  // Assumes stewart and trinkle
+  VectorXd gamma_threshold;
+  if (options_.gamma_threshold.has_value() && gamma_threshold.size() != 0) {
+    gamma_threshold = VectorXd::Zero(options_.gamma_threshold.value().size());
+    gamma_threshold = Eigen::Map<const Eigen::VectorXd>(
+      options_.gamma_threshold.value().data(), options_.gamma_threshold.value().size());
+  }
   
+
+  // Threshold copied variables
+  lambda_c = lambda_c.cwiseMax(lambda_threshold);
+  eta_c = eta_c.cwiseMax(eta_threshold);
+
+  if (options_.gamma_threshold.has_value() && gamma_threshold.size() != 0) {
+    lambda_c.segment(0, gamma_threshold.size()) = lambda_c.segment(0, gamma_threshold.size()).cwiseMin(gamma_threshold);
+  }
+
   // Set the smaller of lambda and eta to zero
   Eigen::Array<bool, Eigen::Dynamic, 1> eta_larger =
       eta_c.array() * w_eta_vec.array().sqrt() >
@@ -159,14 +176,10 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
       eta_larger.select(eta_c, VectorXd::Zero(n_lambda_));
 
-  // Set threshold value to 0 if the relevant variable = 0
-  lambda_threshold = eta_larger.select(VectorXd::Zero(n_lambda_), lambda_threshold);
-  eta_threshold = eta_larger.select(eta_threshold, VectorXd::Zero(n_lambda_));
-
   delta_proj.segment(n_x_, n_lambda_) =
-      delta_proj.segment(n_x_, n_lambda_).cwiseMax(lambda_threshold);
+      delta_proj.segment(n_x_, n_lambda_).cwiseMax(0);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
-      delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(eta_threshold);
+      delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(0);
 
   // if (admm_iteration == 0) {
   //   if (U.array().isNaN().any()) drake::log()->error("NaN found in U");

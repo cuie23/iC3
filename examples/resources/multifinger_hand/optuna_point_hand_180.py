@@ -28,7 +28,7 @@ def objective(trial):
     # g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     # g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    g_gamma = trial.suggest_int("g_gamma", 20, 100, step=2)
+    g_gamma = trial.suggest_int("g_gamma", 2, 100, step=2)
     g_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
     g_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
     g_eta_slack = trial.suggest_int("g_eta_slack", 2, 100, step=2)
@@ -42,12 +42,12 @@ def objective(trial):
     # u_lambda = trial.suggest_int("u_lambda", 2, 100, step=2)
     # u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
 
-    u_gamma = trial.suggest_int("g_gamma", 20, 100, step=2)
-    u_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
-    u_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
+    u_gamma = trial.suggest_int("u_gamma", 100, 200, step=2)
+    u_lambda_n = trial.suggest_int("u_lambda_n", 2, 100, step=2)
+    u_lambda_t = trial.suggest_int("u_lambda_t", 2, 100, step=2)
     u_eta_slack = trial.suggest_int("u_eta_slack", 2, 100, step=2)
-    u_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
-    u_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
+    u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
+    u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
 
     # lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
     eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
@@ -233,6 +233,9 @@ def objective(trial):
     
     ic3_options["print_costs"] = False
 
+    ic3_options["use_drake_sim"] = True
+    ic3_options["drake_sim_dt"] = 0.0001
+
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 
@@ -287,7 +290,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_stewart_trinkle.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_stewart_trinkle_drake.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -298,7 +301,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_stewart_trinkle.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_stewart_trinkle_drake.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -314,11 +317,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_stewart_trinkle.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_stewart_trinkle_drake.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_stewart_trinkle",
+        study_name="MSiC3_point_hand_180_stewart_trinkle_drake",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")
