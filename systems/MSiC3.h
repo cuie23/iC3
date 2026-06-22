@@ -87,7 +87,7 @@ private:
   // start_idx is the timestep w.r.t the entire iC3 time horizon to start from
   // returns x_hat, u_hat, lambda_hat
   // TODO: context and contact_geoms only get used for debugging
-  tuple<MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
+  tuple<MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, VectorXd ud, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -119,8 +119,13 @@ private:
 
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
-    MatrixXd x_hat, const Eigen::VectorXd& x_des);
+    MatrixXd x_hat, VectorXd x_des);
 
+  void UpdateQuaternionCostAtIdx(
+    VectorXd x_curr, VectorXd x_des, int idx);
+    
+  C3::CostMatrices UpdateQuaternionCosts(
+    VectorXd x_curr, VectorXd x_des, C3::CostMatrices costs);
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;

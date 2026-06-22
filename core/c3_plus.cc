@@ -139,6 +139,16 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   VectorXd lambda_c = delta_c.segment(n_x_, n_lambda_);
   VectorXd eta_c = delta_c.segment(n_x_ + n_lambda_ + n_u_, n_lambda_);
 
+  // Set thresholds to 0 if not set
+  VectorXd lambda_threshold(VectorXd::Zero(n_lambda_));
+  VectorXd eta_threshold(VectorXd::Zero(n_lambda_)); 
+  if (options_.lambda_threshold.has_value() && options_.eta_threshold.has_value()) {
+    lambda_threshold = Eigen::Map<const Eigen::VectorXd>(
+          options_.lambda_threshold.value().data(), options_.lambda_threshold.value().size());
+    eta_threshold = Eigen::Map<const Eigen::VectorXd>(
+          options_.eta_threshold.value().data(), options_.eta_threshold.value().size());
+  }
+  
   // Set the smaller of lambda and eta to zero
   Eigen::Array<bool, Eigen::Dynamic, 1> eta_larger =
       eta_c.array() * w_eta_vec.array().sqrt() >
@@ -149,11 +159,14 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
       eta_larger.select(eta_c, VectorXd::Zero(n_lambda_));
 
-  // Clip lambda and eta at 0
+  // Set threshold value to 0 if the relevant variable = 0
+  lambda_threshold = eta_larger.select(VectorXd::Zero(n_lambda_), lambda_threshold);
+  eta_threshold = eta_larger.select(eta_threshold, VectorXd::Zero(n_lambda_));
+
   delta_proj.segment(n_x_, n_lambda_) =
-      delta_proj.segment(n_x_, n_lambda_).cwiseMax(0);
+      delta_proj.segment(n_x_, n_lambda_).cwiseMax(lambda_threshold);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
-      delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(0);
+      delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(eta_threshold);
 
   // if (admm_iteration == 0) {
   //   if (U.array().isNaN().any()) drake::log()->error("NaN found in U");

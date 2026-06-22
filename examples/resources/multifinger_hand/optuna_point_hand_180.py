@@ -24,20 +24,41 @@ def objective(trial):
     g_x_fingers = trial.suggest_int("g_x_fingers", 2, 100, step=2)
     g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
     g_u = trial.suggest_int("g_u", 2, 100, step=2)
-    g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
-    g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
+    
+    # g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
+    # g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
+
+    g_gamma = trial.suggest_int("g_gamma", 20, 100, step=2)
+    g_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
+    g_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
+    g_eta_slack = trial.suggest_int("g_eta_slack", 2, 100, step=2)
+    g_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
+    g_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
+
     u_x_fingers = trial.suggest_int("u_x_fingers", 2, 100, step=2)
     u_x_cube = trial.suggest_int("u_x_cube", 2, 100, step=2)
     u_u = trial.suggest_int("u_u", 2, 100, step=2)
-    u_lambda = trial.suggest_int("u_lambda", 2, 100, step=2)
-    u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
+
+    # u_lambda = trial.suggest_int("u_lambda", 2, 100, step=2)
+    # u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
+
+    u_gamma = trial.suggest_int("g_gamma", 20, 100, step=2)
+    u_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
+    u_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
+    u_eta_slack = trial.suggest_int("u_eta_slack", 2, 100, step=2)
+    u_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
+    u_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
+
+    # lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
+    eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
+
     finger_config = trial.suggest_int("finger_config", 1, 3)
 
     admm_iter = trial.suggest_int("admm_iter", 3, 8)
     finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
     cube_position_weight = trial.suggest_int("cube_position_weight", 200000, 1000000, step=20000)
     tracking_N = trial.suggest_int("tracking_N", 4, 8)
-    quat_weight = trial.suggest_int("quat_weight", 200, 2000, step=200)
+    quat_weight = trial.suggest_int("quat_weight", 500, 20000, step=500)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -45,18 +66,30 @@ def objective(trial):
     n_contacts = 7
 
     c3_options["c3_options"]["w_G"] = w_G
-    c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
-    c3_options["c3_options"]["g_eta_slack"] = []
-    c3_options["c3_options"]["g_eta_n"] = []
-    c3_options["c3_options"]["g_eta_t"] = []
-    c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
+    # c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
+    # c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
 
-    c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4*n_contacts)
-    c3_options["c3_options"]["u_eta_slack"] = []
-    c3_options["c3_options"]["u_eta_n"] = []
-    c3_options["c3_options"]["u_eta_t"] = []
-    c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
-    
+    c3_options["c3_options"]["g_gamma"] = [g_gamma] * n_contacts
+    c3_options["c3_options"]["g_lambda_n"] = [g_lambda_n] * n_contacts
+    c3_options["c3_options"]["g_lambda_t"] = [g_lambda_t] * (4 * n_contacts)
+    c3_options["c3_options"]["g_eta_slack"] = [g_eta_slack] * n_contacts
+    c3_options["c3_options"]["g_eta_n"] = [g_eta_n] * n_contacts
+    c3_options["c3_options"]["g_eta_t"] = [g_eta_t] * (4 * n_contacts)
+
+    # c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4*n_contacts)
+    # c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
+
+    c3_options["c3_options"]["u_gamma"] = [u_gamma] * n_contacts
+    c3_options["c3_options"]["u_lambda_n"] = [u_lambda_n] * n_contacts
+    c3_options["c3_options"]["u_lambda_t"] = [u_lambda_t] * (4 * n_contacts)
+    c3_options["c3_options"]["u_eta_slack"] = [u_eta_slack] * n_contacts
+    c3_options["c3_options"]["u_eta_n"] = [u_eta_n] * n_contacts
+    c3_options["c3_options"]["u_eta_t"] = [u_eta_t] * (4 * n_contacts)
+
+    # c3_options["c3_options"]["lambda_threshold"] = [lambda_threshold] * (4*n_contacts)
+    c3_options["c3_options"]["lambda_threshold"] = 0.0
+    c3_options["c3_options"]["eta_threshold"] = [eta_threshold] * (4*n_contacts)
+
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers
         c3_options["c3_options"]["u_x"][i] = u_x_fingers
@@ -73,6 +106,7 @@ def objective(trial):
     c3_options["lcs_factory_options"]["mu"] = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     c3_options["lcs_factory_options"]["N"] = tracking_N
     c3_options["lcs_factory_options"]["dt"] = 0.02
+    c3_options["lcs_factory_options"]["contact_model"] = "stewart_and_trinkle"
 
     if (finger_config == 1):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
@@ -158,11 +192,11 @@ def objective(trial):
     # iC3 parameters
     num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 25, 30, 40, 50])
     num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
-    warm_start_alpha = trial.suggest_float("warm_start_alpha", 0, 1, step=0.01)
+    warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
     num_iters = trial.suggest_int("num_iters", 2, 3)
-    alpha_ee = trial.suggest_float("alpha_ee", 0, 1, step=0.01)
-    alpha_object = trial.suggest_float("alpha_object", 0, 1, step=0.01)
+    alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
+    alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
 
@@ -173,15 +207,19 @@ def objective(trial):
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
-    ic3_options["warm_start_alpha"] = warm_start_alpha
+
+    warm_start_alpha_real = warm_start_alpha / 100.0
+    ic3_options["warm_start_alpha"] = warm_start_alpha_real
 
     ic3_options["num_iters"] = num_iters
 
-    ic3_options["alpha_ee"] = alpha_ee
-    ic3_options["alpha_ee_step"] = (1 - alpha_ee) / (num_iters - 1)
+    alpha_ee_real = alpha_ee / 100.0
+    ic3_options["alpha_ee"] = alpha_ee_real
+    ic3_options["alpha_ee_step"] = (1 - alpha_ee_real) / (num_iters - 1)
 
-    ic3_options["alpha_object"] = alpha_object
-    ic3_options["alpha_object_step"] = (1 - alpha_object) / (num_iters - 1)
+    alpha_object_real = alpha_object / 100.0
+    ic3_options["alpha_object"] = alpha_object_real
+    ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
 
     ic3_options["acceleration_cost_weight"] = accel_cost
 
@@ -234,18 +272,18 @@ def log_best_callback(study, trial):
     """
     Runs automatically after every trial.
     Logs the absolute best trial configuration AND appends any successful
-    trials that achieved a metric score under 30.
+    trials that achieved a metric score under 15.
     """
     if trial.value is None:
         return
 
-    # 1. LOG EVERY TRIAL WITH METRIC < 30
+    # 1. LOG EVERY TRIAL WITH METRIC < 15
     # Ensure the trial wasn't pruned, has a return value, and meets your condition
-    if trial.value < 30:
-        print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
+    if trial.value < 15:
+        print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_30_trials_with_finger_configs.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_lambda_eta_thresh_alpha_fix.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -256,7 +294,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_with_finger_configs.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_lambda_eta_thresh_alpha_fix.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -272,11 +310,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_with_finger_configs.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_lambda_eta_thresh_alpha_fix.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_with_finger_configs",
+        study_name="MSiC3_point_hand_180_lambda_eta_thresh_alpha_fix",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

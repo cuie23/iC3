@@ -96,6 +96,9 @@ struct C3Options {
   //std::optional<std::vector<double>> x_init;
 
 
+  std::optional<std::vector<double>> lambda_threshold;
+  std::optional<std::vector<double>> eta_threshold;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(warm_start));
@@ -151,6 +154,9 @@ struct C3Options {
     a->Visit(DRAKE_NVP(u_eta_t));
     a->Visit(DRAKE_NVP(u_eta));
 
+    a->Visit(DRAKE_NVP(lambda_threshold));
+    a->Visit(DRAKE_NVP(eta_threshold));
+
     g_vector = std::vector<double>();
     g_vector.insert(g_vector.end(), g_x.begin(), g_x.end());
     if (g_lambda.empty()) {
@@ -181,7 +187,7 @@ struct C3Options {
     u_vector.insert(u_vector.end(), u_lambda.begin(), u_lambda.end());
     u_vector.insert(u_vector.end(), u_u.begin(), u_u.end());
     if (u_eta != std::nullopt || u_eta_slack != std::nullopt) {
-      if (u_eta == std::nullopt || u_eta->empty()) {
+      if (u_eta == std::nullopt || u_eta->empty()) { 
         u_vector.insert(u_vector.end(), u_eta_slack->begin(),
                         u_eta_slack->end());
         u_vector.insert(u_vector.end(), u_eta_n->begin(), u_eta_n->end());

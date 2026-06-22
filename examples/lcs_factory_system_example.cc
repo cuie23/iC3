@@ -2487,7 +2487,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
   Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
-  double pos_weight_multiplier = (example == 0) ? 10000 : 80000;
+  double pos_weight_multiplier = (example == 0) ? 10000 : 30000;
 
   double angle_diff = qd.angularDistance(qf) * 180 / M_PI;
   double position_weight = pos_weight_multiplier * (x_last(13) * x_last(13) + x_last(14) * x_last(14));

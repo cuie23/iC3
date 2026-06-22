@@ -7,6 +7,8 @@
 #include "drake/common/yaml/yaml_io.h"
 #include "drake/common/yaml/yaml_read_archive.h"
 
+#include<iostream>
+
 namespace c3 {
 using multibody::LCSFactory;
 
@@ -94,11 +96,21 @@ struct C3ControllerOptions {
                  expected_lambda_size);
     DRAKE_DEMAND(static_cast<int>(c3_options.u_lambda.size()) ==
                  expected_lambda_size);
+
     if (projection_type == "C3+") {
-      DRAKE_DEMAND(static_cast<int>(c3_options.g_eta->size()) ==
-                   expected_lambda_size);
-      DRAKE_DEMAND(static_cast<int>(c3_options.u_eta->size()) ==
-                   expected_lambda_size);
+
+      if (c3_options.g_eta->size() == 0) {
+        DRAKE_DEMAND(static_cast<int>(c3_options.g_eta_slack->size() + c3_options.g_eta_n->size() 
+                                      + c3_options.g_eta_t->size()) == expected_lambda_size);
+        DRAKE_DEMAND(static_cast<int>(c3_options.u_eta_slack->size() + c3_options.u_eta_n->size() 
+                                      + c3_options.u_eta_t->size()) == expected_lambda_size);
+      } else {
+        DRAKE_DEMAND(static_cast<int>(c3_options.g_eta->size()) ==
+                    expected_lambda_size);
+        DRAKE_DEMAND(static_cast<int>(c3_options.u_eta->size()) ==
+                    expected_lambda_size);
+      }
+
     }
   }
 };

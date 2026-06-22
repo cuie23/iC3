@@ -300,11 +300,11 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   // Get lambda_hat initial guess   
   std::vector<MatrixXd> K_init(N_, Eigen::MatrixXd::Identity(n_u_, n_u_));
   std::vector<VectorXd> K_ff_init(N_, VectorXd::Zero(n_u_));
-  auto [lcs_init_out, x_hat_init_out, u_hat_init_out, lambda_hat_init_out] = DoLCSRollout(x0, x_hat, x_hat.leftCols(N_), u_hat, 
-    lcs_factory, lcs_factory_rollout, MatrixXd::Zero(n_x_, n_x_), VectorXd::Zero(n_x_), VectorXd::Zero(n_x_), 
-    MatrixXd::Zero(n_u_, n_u_), VectorXd::Zero(n_u_), VectorXd::Zero(n_u_), 
-    K_init, K_ff_init, 0);
-  lambda_hat = lambda_hat_init_out;
+  // auto [lcs_init_out, x_hat_init_out, u_hat_init_out, lambda_hat_init_out] = DoLCSRollout(x0, x_hat, x_hat.leftCols(N_), u_hat, 
+  //   lcs_factory, lcs_factory_rollout, MatrixXd::Zero(n_x_, n_x_), VectorXd::Zero(n_x_), VectorXd::Zero(n_x_), 
+  //   MatrixXd::Zero(n_u_, n_u_), VectorXd::Zero(n_u_), VectorXd::Zero(n_u_), 
+  //   K_init, K_ff_init, 0);
+  // lambda_hat = lambda_hat_init_out;
 
   for (int i = 0; i < num_segments_+1; i++) {
     VectorXd x_projected = x_hat.col(i * L_);
@@ -348,7 +348,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
     }
     x_anchors.col(i) = x_projected;
-    defects.col(i) = x_hat_init_out.col(i * L_) - x_anchors.col(i);
+    defects.col(i) = x_hat.col(i * L_) - x_anchors.col(i);
   }
 
 
@@ -418,7 +418,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
       // Potentially change u_hat to just be u_nominal for every iteration
       auto [x_hat_out, u_hat_out, lambda_hat_out] = 
-         DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), 
+         DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), gravity,
                       lcs_factory, lcs_factory_rollout, H, g, i*L_,
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u,
                       context, contact_geoms);
@@ -772,7 +772,7 @@ tuple<LCS, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoLCSRollout(VectorXd x0, Matrix
 
 }
 
-tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
+tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, VectorXd ud, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -839,7 +839,8 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
       x_hat_for_lcs.col(i) = x_hat.col(x_idx);
 
       if (i < tracking_N) {
-        u_targets_shortened.push_back(u_hat.col(u_idx));
+        // u_targets_shortened.push_back(u_hat.col(u_idx));
+        u_targets_shortened.push_back(ud);
         u_hat_for_lcs.col(i) = u_hat.col(u_idx);
 
         R.push_back(discount_factor * R_[R_idx]);
@@ -851,17 +852,21 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
 
     C3::CostMatrices costs(Q, R, G, U);
 
+    costs = UpdateQuaternionCosts(x_curr, xd, costs);
+
     // HARDCODED ee start idx
     LCS lcs = MakeTimeVaryingLCSWithEE(x_hat_for_lcs, u_hat_for_lcs, factory, x_curr.segment(0, n_u_), 0);
 
     vector<VectorXd> x_targets;
     vector<double> norms;
+    // x_targets.push_back(x_hat_for_lcs.col(0));
     x_targets.push_back(xd);
     norms.push_back(1.0);
     VectorXd x_temp = x_curr;
-    for (int i = 0; i < tracking_N; i++) {
-      VectorXd u_nominal = u_hat_for_lcs.col(i);
-      x_temp = lcs.SimulateAtTimestep(x_temp, u_nominal, true, i);
+    for (int i = 1; i < tracking_N+1; i++) {
+      VectorXd u_nominal = u_hat_for_lcs.col(i-1);
+      x_temp = lcs.SimulateAtTimestep(x_temp, u_nominal, true, i-1);
+      // VectorXd xd_copy = x_hat_for_lcs.col(i);
       VectorXd xd_copy = xd;
       for (auto quat_idx : controller_options_.quaternion_indices) {
         double norm = x_temp.segment(quat_idx, 4).norm();
@@ -870,7 +875,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
       }
       x_targets.push_back(xd_copy);
     }
-
 
     std::unique_ptr<C3Plus> c3_tracking = std::make_unique<C3Plus>(lcs, costs, x_targets,
                                   controller_options_.c3_options);
@@ -891,7 +895,9 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
 
     // If tracking c3 horizon goes past iC3 N, just use last H, g
     int lqr_idx = std::min(start_idx + t + tracking_N, N_); 
-    c3_tracking->UpdateFinalCost(H[lqr_idx], g[lqr_idx]);
+
+    VectorXd bias = g[lqr_idx] - H[lqr_idx] * x_hat.col(lqr_idx);
+    c3_tracking->UpdateFinalCost(H[lqr_idx], bias);
 
     c3_tracking->Solve(x_curr);
 
@@ -902,23 +908,29 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     if (ms_ic3_options_.print_costs) {
       if (example_idx_ == 1 || example_idx_ == 2) {
         for (int i = 0; i < z_sol.size(); i++) {
-          double finger_pos_cost = z_sol[i].segment(0, 9).transpose() * Q_[i].block(0, 0, 9, 9) * z_sol[i].segment(0, 9);
-          double cube_rot_cost = z_sol[i].segment(9, 4).transpose() * Q_[i].block(9, 9, 4, 4) * z_sol[i].segment(9, 4);
-          double cube_pos_cost = z_sol[i].segment(13, 3).transpose() * Q_[i].block(13, 13, 3, 3) * z_sol[i].segment(13, 3);
+          double finger_pos_cost = (z_sol[i].segment(0, 9) - x_targets[i].segment(0, 9)).transpose() 
+                                            * Q_[i].block(0, 0, 9, 9) * (z_sol[i].segment(0, 9) - x_targets[i].segment(0, 9));
+          double cube_rot_cost = (z_sol[i].segment(9, 4) - x_targets[i].segment(9, 4)).transpose() 
+                                            * Q_[i].block(9, 9, 4, 4) * (z_sol[i].segment(9, 4) - x_targets[i].segment(9, 4));
+          double cube_pos_cost = (z_sol[i].segment(13, 3) - x_targets[i].segment(13, 3)).transpose() 
+                                            * Q_[i].block(13, 13, 3, 3) * (z_sol[i].segment(13, 3) - x_targets[i].segment(13, 3));
           std::cout << "c3 cost " << i << " finger cost " << finger_pos_cost << ", cube rot " 
                 << cube_rot_cost << ", cube pos " << cube_pos_cost << std::endl;
         }
         VectorXd x_final = c3_tracking->GetFinalStateSolution();
-        double final_finger_pos_cost = x_final.segment(0, 9).transpose() * H[lqr_idx].block(0, 0, 9, 9) * x_final.segment(0, 9); 
-        double final_cube_rot_cost = x_final.segment(9, 4).transpose() * H[lqr_idx].block(9, 9, 4, 4) * x_final.segment(9, 4);
-        double final_cube_pos_cost = x_final.segment(13, 3).transpose() * H[lqr_idx].block(13, 13, 3, 3) * x_final.segment(13, 3);
+        double final_finger_pos_cost = (x_final.segment(0, 9) - x_hat.col(lqr_idx).segment(0, 9)).transpose() * 
+                                          H[lqr_idx].block(0, 0, 9, 9) * (x_final.segment(0, 9) - x_hat.col(lqr_idx).segment(0, 9)); 
+        double final_cube_rot_cost = (x_final.segment(9, 4) - x_hat.col(lqr_idx).segment(9, 4)).transpose() * 
+                                          H[lqr_idx].block(9, 9, 4, 4) * (x_final.segment(9, 4) - x_hat.col(lqr_idx).segment(9, 4)); 
+        double final_cube_pos_cost = (x_final.segment(13, 3) - x_hat.col(lqr_idx).segment(13, 3)).transpose() * 
+                                          H[lqr_idx].block(13, 13, 3, 3) * (x_final.segment(13, 3) - x_hat.col(lqr_idx).segment(13, 3)); 
 
         std::cout << "c3 cost final "<< " finger cost " << final_finger_pos_cost << ", cube rot " 
                 << final_cube_rot_cost << ", cube pos " << final_cube_pos_cost << std::endl;
 
-        final_finger_pos_cost += g[lqr_idx].segment(0, 9).dot(x_final.segment(0, 9));
-        final_cube_rot_cost += g[lqr_idx].segment(9, 4).dot(x_final.segment(9, 4));
-        final_cube_pos_cost += g[lqr_idx].segment(13, 3).dot(x_final.segment(13, 3));
+        final_finger_pos_cost += g[lqr_idx].segment(0, 9).dot(x_final.segment(0, 9) - x_hat.col(lqr_idx).segment(0, 9));
+        final_cube_rot_cost += g[lqr_idx].segment(9, 4).dot(x_final.segment(9, 4) - x_hat.col(lqr_idx).segment(9, 4));
+        final_cube_pos_cost += g[lqr_idx].segment(13, 3).dot(x_final.segment(13, 3) - x_hat.col(lqr_idx).segment(13, 3));
 
         std::cout << "c3 cost final with affine " << " finger cost " << final_finger_pos_cost << ", cube rot " 
                 << final_cube_rot_cost << ", cube pos " << final_cube_pos_cost << std::endl;
@@ -1255,7 +1267,7 @@ VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contac
 }
 
 void MSiC3::UpdateQuaternionCosts(
-  MatrixXd x_hat, const Eigen::VectorXd& x_des) {
+  MatrixXd x_hat, VectorXd x_des) {
   
   // std::cout << x_hat.rows() << ", " << x_hat.cols() << std::endl;
   // std::cout << "xd: " << x_des.transpose() << std::endl;
@@ -1321,6 +1333,92 @@ void MSiC3::UpdateQuaternionCosts(
   }
   //std::cout << std::endl;
   //Q_[N_] = Q_[N_-1];
+}
+
+
+void MSiC3::UpdateQuaternionCostAtIdx(
+  VectorXd x_curr, VectorXd x_des, int idx) {
+
+  for (int index : controller_options_.quaternion_indices) {
+
+    // make quaternion costs time-varying based on x_hat
+    Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4).normalized();
+    Eigen::VectorXd quat_des_i = x_des.segment(index, 4).normalized();
+
+    Eigen::MatrixXd quat_hessian_i = common::hessian_of_squared_quaternion_angle_difference(quat_curr_i, quat_des_i);
+
+    // Regularize hessian so Q is always PSD
+    double min_eigenval = quat_hessian_i.eigenvalues().real().minCoeff();
+    //std::cout << min_eigenval << std::endl;
+
+    Eigen::MatrixXd Q_quat_regularizer_1 = std::max(0.0, -min_eigenval) * Eigen::MatrixXd::Identity(4, 4);
+    Eigen::MatrixXd Q_quat_regularizer_2 = quat_des_i * quat_des_i.transpose();
+    Eigen::MatrixXd Q_quat_regularizer_3 = 1e-4 * Eigen::MatrixXd::Identity(4, 4);
+
+    Q_[idx].block(index, index, 4, 4) = 
+      controller_options_.c3_options.w_Q * 
+      controller_options_.Q_quaternion_weight * (quat_hessian_i + Q_quat_regularizer_1 + 
+      controller_options_.quaternion_regularizer_fraction * Q_quat_regularizer_2 + Q_quat_regularizer_3);
+
+    Eigen::MatrixXd P_quat_regularizer_1 = std::max(0.0, -min_eigenval) * Eigen::MatrixXd::Identity(4, 4);
+    Eigen::MatrixXd P_quat_regularizer_2 = quat_des_i * quat_des_i.transpose();
+    Eigen::MatrixXd P_quat_regularizer_3 = 1e-4 * Eigen::MatrixXd::Identity(4, 4);
+
+    P_[idx].block(index, index, 4, 4) = 
+      ms_ic3_options_.w_P * 
+      ms_ic3_options_.defect_quaternion_weight * (quat_hessian_i + P_quat_regularizer_1 + 
+      ms_ic3_options_.defect_quaternion_regularizer_fraction * P_quat_regularizer_2 + P_quat_regularizer_3);
+
+    // double q_min_eigenval = Q_[i].eigenvalues().real().minCoeff();
+    // std::cout << "Q_" << i << " min eigenvalue " <<  q_min_eigenval << std::endl;
+  }
+
+}
+
+
+C3::CostMatrices MSiC3::UpdateQuaternionCosts(
+    VectorXd x_curr, VectorXd x_des, C3::CostMatrices costs) {
+  
+  // std::cout << x_hat.rows() << ", " << x_hat.cols() << std::endl;
+  // std::cout << "xd: " << x_des.transpose() << std::endl;
+  // std::cout << c3_quat_norms.size() << std::endl;
+
+  vector<MatrixXd> Q = costs.Q;
+  vector<MatrixXd> R = costs.R;
+  vector<MatrixXd> G = costs.G;
+  vector<MatrixXd> U = costs.U;
+
+  for (int i = 0; i < Q.size(); i++) {
+    int j = 0;
+    for (int index : controller_options_.quaternion_indices) {
+
+      // make quaternion costs time-varying based on x_hat
+      Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4).normalized();
+      Eigen::VectorXd quat_des_i = x_des.segment(index, 4).normalized();
+
+      //std::cout << "xhat q: " << quat_curr_i.transpose() << std::endl;
+
+      Eigen::MatrixXd quat_hessian_i = common::hessian_of_squared_quaternion_angle_difference(quat_curr_i, quat_des_i);
+
+      // Regularize hessian so Q is always PSD
+      double min_eigenval = quat_hessian_i.eigenvalues().real().minCoeff();
+      //std::cout << min_eigenval << std::endl;
+
+      Eigen::MatrixXd Q_quat_regularizer_1 = std::max(0.0, -min_eigenval) * Eigen::MatrixXd::Identity(4, 4);
+      Eigen::MatrixXd Q_quat_regularizer_2 = quat_des_i * quat_des_i.transpose();
+      Eigen::MatrixXd Q_quat_regularizer_3 = 1e-4 * Eigen::MatrixXd::Identity(4, 4);
+
+      Q[i].block(index, index, 4, 4) = 
+        controller_options_.c3_options.w_Q * 
+        controller_options_.Q_quaternion_weight * (quat_hessian_i + Q_quat_regularizer_1 + 
+        controller_options_.quaternion_regularizer_fraction * Q_quat_regularizer_2 + Q_quat_regularizer_3);
+
+      // double q_min_eigenval = Q_[i].eigenvalues().real().minCoeff();
+      // std::cout << "Q_" << i << " min eigenvalue " <<  q_min_eigenval << std::endl;
+      j++;
+    }
+  }
+  return C3::CostMatrices(Q, R, G, U);
 }
 
 } // namespace systems

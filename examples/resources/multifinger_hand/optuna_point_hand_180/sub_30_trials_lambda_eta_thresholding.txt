@@ -1,0 +1,348 @@
+Trial #402 | Metric Score: 24.2227
+Parameters:
+  w_G: 11
+  g_x_fingers: 56
+  g_x_cube: 38
+  g_u: 14
+  g_lambda: 54
+  g_eta: 30
+  u_x_fingers: 98
+  u_x_cube: 82
+  u_u: 62
+  u_lambda: 44
+  u_eta: 78
+  lambda_threshold: 0.9
+  eta_threshold: 0.02
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 90000
+  cube_position_weight: 680000
+  tracking_N: 7
+  quat_weight: 6500
+  num_segments: 20
+  num_warmup_iters: 0
+  warm_start_alpha: 0.8200000000000001
+  num_iters: 3
+  alpha_ee: 0.13
+  alpha_object: 0.61
+  accel_cost: 0
+----------------------------------------
+Trial #707 | Metric Score: 23.7662
+Parameters:
+  w_G: 55
+  g_x_fingers: 48
+  g_x_cube: 34
+  g_u: 94
+  g_lambda: 88
+  g_eta: 30
+  u_x_fingers: 80
+  u_x_cube: 32
+  u_u: 70
+  u_lambda: 48
+  u_eta: 84
+  lambda_threshold: 0.9
+  eta_threshold: 0.02
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 100000
+  cube_position_weight: 340000
+  tracking_N: 7
+  quat_weight: 8500
+  num_segments: 25
+  num_warmup_iters: 0
+  warm_start_alpha: 0.7000000000000001
+  num_iters: 3
+  alpha_ee: 0.35000000000000003
+  alpha_object: 0.5
+  accel_cost: 0
+----------------------------------------
+Trial #1832 | Metric Score: 12.648
+Parameters:
+  w_G: 60
+  g_x_fingers: 66
+  g_x_cube: 30
+  g_u: 8
+  g_lambda: 92
+  g_eta: 44
+  u_x_fingers: 94
+  u_x_cube: 34
+  u_u: 68
+  u_lambda: 36
+  u_eta: 50
+  lambda_threshold: 1.0
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 90000
+  cube_position_weight: 220000
+  tracking_N: 7
+  quat_weight: 5000
+  num_segments: 50
+  num_warmup_iters: 0
+  warm_start_alpha: 0.79
+  num_iters: 3
+  alpha_ee: 0.12
+  alpha_object: 0.12
+  accel_cost: 0
+----------------------------------------
+Trial #1866 | Metric Score: 28.1875
+Parameters:
+  w_G: 63
+  g_x_fingers: 76
+  g_x_cube: 30
+  g_u: 70
+  g_lambda: 98
+  g_eta: 42
+  u_x_fingers: 100
+  u_x_cube: 78
+  u_u: 68
+  u_lambda: 44
+  u_eta: 54
+  lambda_threshold: 0.2
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 30000
+  cube_position_weight: 200000
+  tracking_N: 7
+  quat_weight: 6000
+  num_segments: 50
+  num_warmup_iters: 0
+  warm_start_alpha: 0.76
+  num_iters: 3
+  alpha_ee: 0.09
+  alpha_object: 0.39
+  accel_cost: 0
+----------------------------------------
+Trial #2007 | Metric Score: 9.88644
+Parameters:
+  w_G: 47
+  g_x_fingers: 46
+  g_x_cube: 22
+  g_u: 86
+  g_lambda: 62
+  g_eta: 34
+  u_x_fingers: 88
+  u_x_cube: 28
+  u_u: 36
+  u_lambda: 84
+  u_eta: 78
+  lambda_threshold: 0.8
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 100000
+  cube_position_weight: 260000
+  tracking_N: 6
+  quat_weight: 8000
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.8300000000000001
+  num_iters: 2
+  alpha_ee: 0.4
+  alpha_object: 0.44
+  accel_cost: 0
+----------------------------------------
+Trial #2008 | Metric Score: 23.3631
+Parameters:
+  w_G: 47
+  g_x_fingers: 46
+  g_x_cube: 24
+  g_u: 84
+  g_lambda: 56
+  g_eta: 38
+  u_x_fingers: 88
+  u_x_cube: 76
+  u_u: 36
+  u_lambda: 40
+  u_eta: 78
+  lambda_threshold: 0.8
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 100000
+  cube_position_weight: 300000
+  tracking_N: 6
+  quat_weight: 8500
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.85
+  num_iters: 2
+  alpha_ee: 0.39
+  alpha_object: 0.45
+  accel_cost: 0
+----------------------------------------
+Trial #2033 | Metric Score: 26.7708
+Parameters:
+  w_G: 49
+  g_x_fingers: 48
+  g_x_cube: 22
+  g_u: 82
+  g_lambda: 58
+  g_eta: 36
+  u_x_fingers: 86
+  u_x_cube: 72
+  u_u: 42
+  u_lambda: 84
+  u_eta: 74
+  lambda_threshold: 0.8
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 90000
+  cube_position_weight: 280000
+  tracking_N: 6
+  quat_weight: 8000
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.85
+  num_iters: 2
+  alpha_ee: 0.41000000000000003
+  alpha_object: 0.46
+  accel_cost: 0
+----------------------------------------
+Trial #2145 | Metric Score: 12.9651
+Parameters:
+  w_G: 49
+  g_x_fingers: 48
+  g_x_cube: 24
+  g_u: 86
+  g_lambda: 66
+  g_eta: 32
+  u_x_fingers: 90
+  u_x_cube: 22
+  u_u: 34
+  u_lambda: 86
+  u_eta: 74
+  lambda_threshold: 0.8
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 100000
+  cube_position_weight: 260000
+  tracking_N: 6
+  quat_weight: 7500
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.84
+  num_iters: 2
+  alpha_ee: 0.39
+  alpha_object: 0.52
+  accel_cost: 0
+----------------------------------------
+Trial #2322 | Metric Score: 1.95411
+Parameters:
+  w_G: 47
+  g_x_fingers: 76
+  g_x_cube: 22
+  g_u: 68
+  g_lambda: 56
+  g_eta: 38
+  u_x_fingers: 86
+  u_x_cube: 16
+  u_u: 70
+  u_lambda: 46
+  u_eta: 76
+  lambda_threshold: 1.1
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 80000
+  cube_position_weight: 240000
+  tracking_N: 6
+  quat_weight: 8500
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.88
+  num_iters: 2
+  alpha_ee: 0.33
+  alpha_object: 0.48
+  accel_cost: 0
+----------------------------------------
+Trial #2337 | Metric Score: 9.96172
+Parameters:
+  w_G: 62
+  g_x_fingers: 78
+  g_x_cube: 24
+  g_u: 68
+  g_lambda: 52
+  g_eta: 38
+  u_x_fingers: 82
+  u_x_cube: 12
+  u_u: 74
+  u_lambda: 44
+  u_eta: 76
+  lambda_threshold: 1.1
+  eta_threshold: 0.01
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 80000
+  cube_position_weight: 240000
+  tracking_N: 6
+  quat_weight: 8500
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.87
+  num_iters: 2
+  alpha_ee: 0.32
+  alpha_object: 0.49
+  accel_cost: 0
+----------------------------------------
+Trial #2334 | Metric Score: 20.1442
+Parameters:
+  w_G: 63
+  g_x_fingers: 76
+  g_x_cube: 16
+  g_u: 70
+  g_lambda: 54
+  g_eta: 36
+  u_x_fingers: 82
+  u_x_cube: 16
+  u_u: 74
+  u_lambda: 46
+  u_eta: 72
+  lambda_threshold: 1.1
+  eta_threshold: 0.04
+  finger_config: 3
+  admm_iter: 5
+  finger_position_weight: 80000
+  cube_position_weight: 240000
+  tracking_N: 6
+  quat_weight: 8500
+  num_segments: 40
+  num_warmup_iters: 1
+  warm_start_alpha: 0.87
+  num_iters: 2
+  alpha_ee: 0.35000000000000003
+  alpha_object: 0.48
+  accel_cost: 0
+----------------------------------------
+Trial #2429 | Metric Score: 12.5048
+Parameters:
+  w_G: 58
+  g_x_fingers: 72
+  g_x_cube: 14
+  g_u: 66
+  g_lambda: 52
+  g_eta: 40
+  u_x_fingers: 94
+  u_x_cube: 18
+  u_u: 74
+  u_lambda: 52
+  u_eta: 72
+  lambda_threshold: 1.1
+  eta_threshold: 0.03
+  finger_config: 3
+  admm_iter: 4
+  finger_position_weight: 90000
+  cube_position_weight: 220000
+  tracking_N: 6
+  quat_weight: 6500
+  num_segments: 20
+  num_warmup_iters: 1
+  warm_start_alpha: 0.8300000000000001
+  num_iters: 2
+  alpha_ee: 0.37
+  alpha_object: 0.53
+  accel_cost: 0
+----------------------------------------

@@ -31,13 +31,14 @@ def objective(trial):
     u_u = trial.suggest_int("u_u", 10, 500, step=10)
     u_lambda = trial.suggest_int("u_lambda", 4, 100, step=4)
     u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
+    lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
+    eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
+
     admm_iter = trial.suggest_int("admm_iter", 2, 8)
     finger_position_weight = trial.suggest_int("finger_position_weight", 5000, 200000, step=5000)
     cube_position_weight = trial.suggest_int("cube_position_weight", 5000, 1000000, step=5000)
     finger_config = trial.suggest_int("finger_config", 1, 3)
-
-
-    quat_weight = trial.suggest_int("quat_weight", 200, 5000, step=200)
+    quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -56,7 +57,10 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_n"] = [] 
     c3_options["c3_options"]["u_eta_t"] = []
     c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
-    
+
+    c3_options["c3_options"]["lambda_threshold"] = [lambda_threshold] * (4*n_contacts)
+    c3_options["c3_options"]["eta_threshold"] = [eta_threshold] * (4*n_contacts)
+
     c3_options["c3_options"]["admm_iter"] = admm_iter
 
     c3_options["Q_quaternion_weight"] = quat_weight
@@ -247,7 +251,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_lighter_lcs_cube.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_lambda_eta_thresholding.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -258,7 +262,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_pivot_lighter_lcs_cube.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_pivot_lambda_eta_thresholding.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -274,11 +278,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_pivot.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_lighter_lcs_cube.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_lambda_eta_thresholding.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_lighter_lcs_cube",
+        study_name="MSiC3_point_hand_pivot_lambda_eta_thresholding",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

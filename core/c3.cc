@@ -296,9 +296,9 @@ void C3::UpdateFinalCost(const Eigen::MatrixXd Q_final, const Eigen::VectorXd bi
   
   // Convert to symmetric, want 2 * Qf to match rest of C3's cost convention
   Q[N_] = Q_final + Q_final.transpose(); 
-
+  
   auto* qf_evaluator = target_costs_[N_];
-  qf_evaluator->UpdateCoefficients(Q[N_], -2 * Q_final * x_desired_[N_] + bias);
+  qf_evaluator->UpdateCoefficients(Q[N_], 2 * bias);
 
   UpdateCostMatrices(CostMatrices(Q, cost_matrices_.R, cost_matrices_.G, cost_matrices_.U));
 }
