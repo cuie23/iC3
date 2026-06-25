@@ -99,6 +99,8 @@ struct C3Options {
   std::optional<std::vector<double>> lambda_threshold;
   std::optional<std::vector<double>> eta_threshold;
   std::optional<std::vector<double>> gamma_threshold;
+  std::optional<std::vector<double>> phi_threshold;
+  std::optional<bool> add_phi_buffer;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -158,6 +160,8 @@ struct C3Options {
     a->Visit(DRAKE_NVP(lambda_threshold));
     a->Visit(DRAKE_NVP(eta_threshold));
     a->Visit(DRAKE_NVP(gamma_threshold));
+    a->Visit(DRAKE_NVP(phi_threshold));
+    a->Visit(DRAKE_NVP(add_phi_buffer));
 
     g_vector = std::vector<double>();
     g_vector.insert(g_vector.end(), g_x.begin(), g_x.end());

@@ -310,6 +310,8 @@ const std::vector<drake::solvers::QuadraticCost*>& C3::GetTargetCost() {
 void C3::Solve(const VectorXd& x0) {
   auto start = std::chrono::high_resolution_clock::now();
 
+  delta_projection_.clear();
+
   if (!x0.allFinite()) {
     std::cout << "x0 NOT ALL FINITE" << std::endl;
   }
@@ -418,7 +420,20 @@ void C3::Solve(const VectorXd& x0) {
 
   for (int iter = 0; iter < options_.admm_iter; iter++) {
     ADMMStep(x0, &delta, &w, &G, iter);
+
+    MatrixXd delta_projection_iter(n_z_, delta.size());
+    for (int i = 0; i < delta.size(); i++) {
+      delta_projection_iter.col(i) = delta.at(i);
+    }
+    delta_projection_.push_back(delta_projection_iter);
+
+    // std::cout << "lambda after admm step " << iter << " " << delta.at(0).segment(n_x_, n_lambda_).transpose() << std::endl;
+    // std::cout << "eta after admm step " << iter << " " << delta.at(0).segment(n_x_ + n_u_ + n_lambda_, n_lambda_).transpose() << std::endl;
   }
+    
+
+
+
 
   vector<VectorXd> WD(N_, VectorXd::Zero(n_z_));
   for (int i = 0; i < N_; ++i) {
@@ -651,20 +666,38 @@ vector<VectorXd> C3::SolveProjection(const vector<MatrixXd>& U,
   // clang-format on
 
   for (int i = 0; i < N_; ++i) {
-    if (warm_start_) {
-      if (i == N_ - 1) {
+    if (admm_iteration > 0) {
+      if (warm_start_) {
+        if (i == N_ - 1) {
+          deltaProj[i] =
+              SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
+                                    lcs_.H()[i], lcs_.c()[i], admm_iteration, -1, i);
+        } else {
+          deltaProj[i] = SolveSingleProjection(
+              U[i], WZ[i], lcs_.E()[i], lcs_.F()[i], lcs_.H()[i], lcs_.c()[i],
+              admm_iteration, i + 1, i);
+        }
+      } else {
+        deltaProj[i] =
+            SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
+                                  lcs_.H()[i], lcs_.c()[i], admm_iteration, -1, i);
+      }
+    } else {
+      if (warm_start_) {
+        if (i == N_ - 1) {
+          deltaProj[i] =
+              SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
+                                    lcs_.H()[i], lcs_.c()[i], admm_iteration, -1);
+        } else {
+          deltaProj[i] = SolveSingleProjection(
+              U[i], WZ[i], lcs_.E()[i], lcs_.F()[i], lcs_.H()[i], lcs_.c()[i],
+              admm_iteration, i + 1);
+        }
+      } else {
         deltaProj[i] =
             SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
                                   lcs_.H()[i], lcs_.c()[i], admm_iteration, -1);
-      } else {
-        deltaProj[i] = SolveSingleProjection(
-            U[i], WZ[i], lcs_.E()[i], lcs_.F()[i], lcs_.H()[i], lcs_.c()[i],
-            admm_iteration, i + 1);
       }
-    } else {
-      deltaProj[i] =
-          SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
-                                lcs_.H()[i], lcs_.c()[i], admm_iteration, -1);
     }
   }
 

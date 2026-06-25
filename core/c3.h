@@ -223,6 +223,11 @@ class C3 {
 
   int GetZSize() const { return n_z_; }
 
+  std::vector<Eigen::MatrixXd> GetDeltaProjection() {
+    return delta_projection_;
+  }
+  
+
  protected:
   /// @param lcs      Parameters defining the LCS.
   /// @param costs    Cost matrices used in the optimization.
@@ -275,6 +280,16 @@ class C3 {
       const Eigen::MatrixXd& H, const Eigen::VectorXd& c,
       const int admm_iteration, const int& warm_start_index) = 0;
 
+  virtual Eigen::VectorXd SolveSingleProjection(
+      const Eigen::MatrixXd& U, const Eigen::VectorXd& delta_c,
+      const Eigen::MatrixXd& E, const Eigen::MatrixXd& F,
+      const Eigen::MatrixXd& H, const Eigen::VectorXd& c,
+      const int admm_iteration, const int& warm_start_index,
+      int timestep) {
+    return SolveSingleProjection(
+        U, delta_c, E, F, H, c, admm_iteration, warm_start_index);
+  };
+      
   virtual void SetInitialGuessQP(const Eigen::VectorXd& x0, int admm_iteration);
   virtual void StoreQPResults(
       const drake::solvers::MathematicalProgramResult& result,
@@ -373,6 +388,8 @@ class C3 {
                // end_on_qp_step is false
   std::unique_ptr<std::vector<Eigen::VectorXd>> delta_sol_;
   std::unique_ptr<std::vector<Eigen::VectorXd>> w_sol_;
+
+  std::vector<Eigen::MatrixXd> delta_projection_;
 };
 
 }  // namespace c3

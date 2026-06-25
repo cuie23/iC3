@@ -121,6 +121,16 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
                                        const MatrixXd& H, const VectorXd& c,
                                        const int admm_iteration,
                                        const int& warm_start_index) {
+  return SolveSingleProjection(U, delta_c, E, F, H, c, admm_iteration, warm_start_index, -1);                                 
+}
+
+
+VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
+                                       const VectorXd& delta_c,
+                                       const MatrixXd& E, const MatrixXd& F,
+                                       const MatrixXd& H, const VectorXd& c,
+                                       const int admm_iteration,
+                                       const int& warm_start_index, int timestep) {
   VectorXd delta_proj = delta_c;
 
   // Extract the weight vectors for lambda and eta from the diagonal of the cost
@@ -139,39 +149,73 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   VectorXd lambda_c = delta_c.segment(n_x_, n_lambda_);
   VectorXd eta_c = delta_c.segment(n_x_ + n_lambda_ + n_u_, n_lambda_);
 
-  // Set thresholds to 0 if not set
-  VectorXd lambda_threshold(VectorXd::Zero(n_lambda_));
-  VectorXd eta_threshold(VectorXd::Zero(n_lambda_)); 
-  if (options_.lambda_threshold.has_value() && options_.lambda_threshold.value().size() != 0 && 
-      options_.eta_threshold.has_value() && options_.eta_threshold.value().size() != 0) {
-    lambda_threshold = Eigen::Map<const Eigen::VectorXd>(
+  // std::cout << "QP lambda " << admm_iteration << " " << lambda_c.transpose() << std::endl;
+  // std::cout << "QP eta " << admm_iteration << " " << eta_c.transpose() << std::endl;
+
+  // Set thresholds to 0/inf if not set
+  VectorXd lambda_min(VectorXd::Zero(n_lambda_));
+  VectorXd lambda_max(VectorXd::Constant(n_lambda_, std::numeric_limits<double>::infinity()));
+
+  VectorXd eta_min(VectorXd::Zero(n_lambda_)); 
+  VectorXd eta_max(VectorXd::Constant(n_lambda_, std::numeric_limits<double>::infinity()));
+
+
+  if (options_.lambda_threshold.has_value() && options_.lambda_threshold.value().size() != 0) {
+    lambda_min = Eigen::Map<const Eigen::VectorXd>(
           options_.lambda_threshold.value().data(), options_.lambda_threshold.value().size());
-    eta_threshold = Eigen::Map<const Eigen::VectorXd>(
+  }
+  if (options_.eta_threshold.has_value() && options_.eta_threshold.value().size() != 0) {
+    eta_min = Eigen::Map<const Eigen::VectorXd>(
           options_.eta_threshold.value().data(), options_.eta_threshold.value().size());
   }
 
   // Assumes stewart and trinkle
-  VectorXd gamma_threshold;
   if (options_.gamma_threshold.has_value() && options_.gamma_threshold.value().size() != 0) {
-    gamma_threshold = VectorXd::Zero(options_.gamma_threshold.value().size());
+    int n_contacts = options_.gamma_threshold.value().size();
+    VectorXd gamma_threshold(n_contacts);
     gamma_threshold = Eigen::Map<const Eigen::VectorXd>(
-      options_.gamma_threshold.value().data(), options_.gamma_threshold.value().size());
+      options_.gamma_threshold.value().data(), n_contacts);
+    lambda_min.segment(0, n_contacts) = gamma_threshold;
   }
+
+  // Assumes stewart and trinkle
+  if (options_.phi_threshold.has_value() && options_.phi_threshold.value().size() != 0) {
+    int n_contacts = options_.phi_threshold.value().size();
+    VectorXd phi_threshold(n_contacts);
+    phi_threshold = Eigen::Map<const Eigen::VectorXd>(
+      options_.phi_threshold.value().data(), n_contacts);
+    eta_min.segment(n_contacts, n_contacts) = phi_threshold;
   
+    if (options_.add_phi_buffer.value_or(false) && timestep >= 0) {
+      // THIS IS UNSAFE, EMPTY delta_projection_ HANDLED IN C3
+      VectorXd eta_prev = delta_projection_[delta_projection_.size()-1]
+                            .col(std::max(0, timestep-1)).segment(n_x_+n_lambda_+n_u_, n_lambda_);
+      VectorXd eta_next = delta_projection_[delta_projection_.size()-1]
+                            .col(std::min(N_, timestep+1)).segment(n_x_+n_lambda_+n_u_, n_lambda_);
 
-  // Threshold copied variables
-  lambda_c = lambda_c.cwiseMax(lambda_threshold);
-  eta_c = eta_c.cwiseMax(eta_threshold);
+      VectorXd buffer = eta_prev.segment(n_contacts, n_contacts).cwiseMin(eta_next).segment(n_contacts, n_contacts);
+      eta_min.segment(n_contacts, n_contacts) += buffer;
 
-  if (options_.gamma_threshold.has_value() && gamma_threshold.size() != 0) {
-    lambda_c.segment(0, gamma_threshold.size()) = lambda_c.segment(0, gamma_threshold.size()).cwiseMin(gamma_threshold);
+      // std::cout << "eta prev " << eta_prev.transpose() << std::endl;
+      // std::cout << "eta next " << eta_next.transpose() << std::endl;
+    }
+
+    // std::cout << "eta min " << eta_min.transpose() << std::endl;
   }
 
-  // Set the smaller of lambda and eta to zero
+  // Compare costs, threshold
   Eigen::Array<bool, Eigen::Dynamic, 1> eta_larger =
-      eta_c.array() * w_eta_vec.array().sqrt() >
-      lambda_c.array() * w_lambda_vec.array().sqrt();
+      eta_c.cwiseMax(eta_min).cwiseMin(eta_max).array() * w_eta_vec.array().sqrt() >
+      lambda_c.cwiseMax(lambda_min).cwiseMin(lambda_max).array() * w_lambda_vec.array().sqrt();
 
+  // Change thresholds pointwise to obey complimentarity
+  lambda_min = eta_larger.select(VectorXd::Zero(n_lambda_), lambda_min);
+  eta_min = eta_larger.select(eta_min, VectorXd::Zero(n_lambda_));
+
+  lambda_c = lambda_c.cwiseMax(lambda_min).cwiseMin(lambda_max);
+  eta_c = eta_c.cwiseMax(eta_min).cwiseMin(eta_max);
+
+  // Set larger cost to 0
   delta_proj.segment(n_x_, n_lambda_) =
       eta_larger.select(VectorXd::Zero(n_lambda_), lambda_c);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
@@ -181,6 +225,9 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
       delta_proj.segment(n_x_, n_lambda_).cwiseMax(0);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
       delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(0);
+
+  // std::cout << "lambda projected " << delta_proj.segment(n_x_, n_lambda_).transpose() << std::endl;
+  // std::cout << "eta projected " << delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).transpose() << std::endl;
 
   // if (admm_iteration == 0) {
   //   if (U.array().isNaN().any()) drake::log()->error("NaN found in U");
@@ -194,4 +241,5 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
 
   return delta_proj;
 }
+
 }  // namespace c3

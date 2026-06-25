@@ -1,0 +1,50 @@
+Trial #878 | Metric Score: 23.8421
+Parameters:
+  w_G: 43
+  g_x_fingers: 72
+  g_x_cube: 2
+  g_u: 42
+  g_lambda: 76
+  g_eta: 10
+  u_x_fingers: 122
+  u_x_cube: 38
+  u_u: 46
+  u_lambda: 74
+  u_eta: 90
+  admm_iter: 6
+  finger_position_weight: 170000
+  cube_position_weight: 240000
+  quat_weight: 7500
+  num_warmup_iters: 0
+  warm_start_alpha: 60
+  num_segments: 12
+  num_iters: 2
+  alpha_ee: 8
+  alpha_object: 16
+  accel_cost: 0
+----------------------------------------
+Trial #926 | Metric Score: 24.4995
+Parameters:
+  w_G: 49
+  g_x_fingers: 70
+  g_x_cube: 18
+  g_u: 28
+  g_lambda: 80
+  g_eta: 12
+  u_x_fingers: 108
+  u_x_cube: 64
+  u_u: 60
+  u_lambda: 68
+  u_eta: 96
+  admm_iter: 6
+  finger_position_weight: 150000
+  cube_position_weight: 265000
+  quat_weight: 9500
+  num_warmup_iters: 0
+  warm_start_alpha: 69
+  num_segments: 12
+  num_iters: 2
+  alpha_ee: 9
+  alpha_object: 9
+  accel_cost: 10
+----------------------------------------

@@ -6,6 +6,11 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <cereal/types/vector.hpp>
+#include <cereal/archives/binary.hpp> 
+#include <Eigen/Dense>
+#include <fstream>
+#include <vector>
 
 #include <drake/geometry/drake_visualizer.h>
 #include <drake/geometry/meshcat_visualizer.h>
@@ -43,6 +48,7 @@
 #include "systems/lcs_simulator.h"
 #include "systems/manual_input.h"
 #include "lcm/lcm_trajectory.h"
+#include "tools/serialization_utils.h"
 
 #include "core/lcs.h"
 
@@ -1232,7 +1238,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
         *plant_diagram, std::move(plant_diagram_context), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
-  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
       plant_for_lcs_context, *plant_context_autodiff);
 
@@ -1384,7 +1390,7 @@ int OptunaPlateTestMSiC3() {
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
         *plant_diagram, std::move(plant_diagram_context), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
-  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
       plant_for_lcs_context, *plant_context_autodiff);
 
@@ -1840,12 +1846,14 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
       AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
+  std::string hand_file_lcs;
 	std::string cube_file_lcs;
   if (example == 0) {
     cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy.sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
   } else {
     cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
   }
   // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
   const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
@@ -1887,7 +1895,13 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-  const std::string hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand.sdf";
+  std::string hand_file_rollout;
+  if (example == 0) {
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+  } else {
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+  }
+  
 	const std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
   // const std::string cube_file_rollout = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
@@ -2027,8 +2041,13 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
 
-  const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
-	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+  std::string hand_file;
+  if (example == 0) {
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+  } else {
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+  }
+  const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
   //const std::string cube_file = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
@@ -2093,10 +2112,12 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, example_idx);
 
-  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
       plant_rollout_context, *plant_rollout_context_autodiff);
   std::cout << "computed traj" << std::endl;
+  
+  c3::utils::SaveTrajectoryData(all_delta_projections, "all_delta_projections.bin");     
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
   auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);
@@ -2215,12 +2236,14 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
       AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
+  std::string hand_file_lcs;
 	std::string cube_file_lcs;
   if (example == 0) {
     cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy.sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
   } else {
     cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
   }
 
   // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
@@ -2262,10 +2285,16 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-  const std::string hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand.sdf";
 	const std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
   // const std::string cube_file_rollout = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
+
+  std::string hand_file_rollout;
+  if (example == 0) {
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+  } else {
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+  }
 
   parser_rollout.AddModels(hand_file_rollout);
   parser_rollout.AddModels(cube_file_rollout);
@@ -2402,10 +2431,16 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
 
-  const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
 	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
   //const std::string cube_file = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
+
+  std::string hand_file;
+  if (example == 0) {
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+  } else {
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+  }
 
   parser.AddModels(hand_file);
   parser.AddModels(cube_file);
@@ -2458,7 +2493,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, example_idx);
 
-  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff] = 
+  auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
       plant_rollout_context, *plant_rollout_context_autodiff);
 
@@ -2475,7 +2510,7 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   Eigen::Quaterniond qd(xd(quat_idx), xd(quat_idx+1), xd(quat_idx+2), xd(quat_idx+3));
   Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
-  double pos_weight_multiplier = (example == 0) ? 10000 : 30000;
+  double pos_weight_multiplier = (example == 0) ? 10000 : 15000;
 
   double angle_diff = qd.angularDistance(qf) * 180 / M_PI;
   double position_weight = pos_weight_multiplier * (x_last(13) * x_last(13) + x_last(14) * x_last(14));
@@ -2484,10 +2519,10 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   if (example == 1) {
     for (int i = 0; i < x_hat_final.cols(); i++) {
       VectorXd x_curr = x_hat_final.col(i);
-      if (x_curr(13) == 0.05 || x_curr(13) == -0.05) {
+      if (x_curr(13) >= 0.05 || x_curr(13) <= -0.05) {
         penalty += 10;
       }
-      if (x_curr(14) == 0.05 || x_curr(14) == -0.05) {
+      if (x_curr(14) >= 0.05 || x_curr(14) <= -0.05) {
         penalty += 10;
       }
     }

@@ -53,7 +53,8 @@ cc_binary(
         "//systems:systems",
         "//systems:system_utils",
         "@drake//:drake_shared_library",
-        "@gflags"
+        "@gflags",
+        "//tools:serialization_utils"
     ],
     linkopts = [
         "-L/lib/x86_64-linux-gnu",

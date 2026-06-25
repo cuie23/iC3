@@ -62,7 +62,7 @@ public:
   // 5: LQR feedback gains for each MSiC3 iteration
   // 6: LQR feedforward gains for each MSiC3 iteration
   tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
-      vector<vector<MatrixXd>>, vector<vector<VectorXd>>> ComputeTrajectory(
+      vector<vector<MatrixXd>>, vector<vector<VectorXd>>, vector<vector<vector<MatrixXd>>> > ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     drake::systems::Context<double>& context_rollout,
@@ -165,6 +165,9 @@ private:
   int L_;  // segment length
 
   int example_idx_;
+
+  // Indexing: ic3 timestep, admm iteration, c3 horizon
+  std::vector<std::vector<Eigen::MatrixXd>> delta_projection_iter_;
 
 };
 
