@@ -5,14 +5,22 @@ import subprocess
 import optuna
 import sys
 
-if len(sys.argv) > 1:
+if len(sys.argv) == 2:
     worker_id = int(sys.argv[1])
-    print(f"Running worker number: {worker_id}")
+    lambda_eta_threshold = 1
+elif len(sys.argv) == 3:
+    worker_id = int(sys.argv[1])
+    lambda_eta_threshold = int(sys.argv[2])
 else:
     # Fallback if you forget to pass the integer
     worker_id = 0 
-    print("No integer passed, defaulting to 0")
+    lambda_eta_threshold = 1
+    print("No integer passed")
 
+print(f"Running worker number: {worker_id}")
+print(f"Lambda Eta threshold: {lambda_eta_threshold}")
+
+filename_lambda_eta = "" if lambda_eta_threshold == 1 else "_no_thresh"
 
 # Define paths to your parameter files
 CONTORLLER_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_{worker_id}.yaml"
@@ -45,8 +53,13 @@ def objective(trial):
     # u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
     # u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
 
-    lambda_threshold = trial.suggest_int("lambda_threshold", 0, 10)
-    eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
+    if (lambda_eta_threshold == 1):
+        lambda_threshold = trial.suggest_int("lambda_threshold", 2, 20)
+        eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
+    else:
+        lambda_threshold = 0
+        eta_threshold = 0
+
     # gamma_threshold = trial.suggest_int("gamma_threshold", 0, 10)
     # phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
     # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
@@ -83,9 +96,9 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_n"] = []
     c3_options["c3_options"]["u_eta_t"] = []
 
-    # multiplying by 50 is for dividing by dt=0.02 to get in signed distance units
-    c3_options["c3_options"]["lambda_threshold"] = [(lambda_threshold / 10.0)] * (4 * n_contacts)
-    c3_options["c3_options"]["eta_threshold"] = [(eta_threshold / 500.0) * 50] * (4 * n_contacts)
+
+    c3_options["c3_options"]["lambda_threshold"] = [(lambda_threshold / 100.0)] * (4 * n_contacts)
+    c3_options["c3_options"]["eta_threshold"] = [(eta_threshold / 10.0)] * (4 * n_contacts)
 
     # c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold / 100.0] * (n_contacts)
     # c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 100.0] * (n_contacts)
@@ -162,7 +175,8 @@ def objective(trial):
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
 
-    use_pd = trial.suggest_int("use_pd", 0, 1)
+    # use_pd = trial.suggest_int("use_pd", 0, 1)
+    use_pd = 0
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -254,7 +268,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_pd_config3.txt", "a") as f:
+        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_pd_config3{filename_lambda_eta}.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -265,7 +279,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_pd_config3.txt", "w") as f:
+        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_pd_config3{filename_lambda_eta}.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -281,11 +295,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_lcp.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_pd_config3.db"
+    STORAGE_URL = f"sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_pd_config3{filename_lambda_eta}.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_anitescu_lcp_pd_config3",
+        study_name=f"MSiC3_point_hand_180_anitescu_lcp_pd_config3{filename_lambda_eta}",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

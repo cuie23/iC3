@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake.db"
-STUDY_NAME = "MSiC3_point_hand_180_anitescu_drake"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake_pd_config3.db"
+STUDY_NAME = "MSiC3_point_hand_180_anitescu_drake_pd_config3"
 
-TRIAL_NUMBER = 2943
+TRIAL_NUMBER = 30
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -93,8 +93,8 @@ c3_options["c3_options"]["u_eta_slack"] = flow_seq([])
 c3_options["c3_options"]["u_eta_n"] = flow_seq([])
 c3_options["c3_options"]["u_eta_t"] = flow_seq([])
 
-c3_options["c3_options"]["lambda_threshold"] = flow_seq([(lambda_threshold / 10.0)] * (4 * n_contacts))
-c3_options["c3_options"]["eta_threshold"] = flow_seq([(eta_threshold / 500.0) * 50] * (4 * n_contacts))
+c3_options["c3_options"]["lambda_threshold"] = flow_seq([(lambda_threshold / 100.0)] * (4 * n_contacts))
+c3_options["c3_options"]["eta_threshold"] = flow_seq([(eta_threshold / 10.0)] * (4 * n_contacts))
 c3_options["c3_options"]["gamma_threshold"] = flow_seq([])
 c3_options["c3_options"]["phi_threshold"] = flow_seq([])
 c3_options["c3_options"]["add_phi_buffer"] = False
@@ -125,7 +125,7 @@ c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1
                         0.05, -0.07, 0.05,   # finger 2
                         -0.05, -0.07, 0.05,   # finger 3
                         1, 0, 0, 0, # cube orientation
-                        0, 0, 0.052,  # cube position
+                        0, 0, 0.051,  # cube position
                         0, 0, 0,     # finger 1 velo
                         0, 0, 0,     # finger 2 velo
                         0, 0, 0,     # finger 3 velo
@@ -136,7 +136,7 @@ c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1
                         0.05, -0.07, 0.05,   # finger 2
                         -0.05, -0.07, 0.05,   # finger 3
                         0, 0, 0, 1, # cube orientation
-                        0, 0, 0.052,  # cube position
+                        0, 0, 0.051,  # cube position
                         0, 0, 0,     # finger 1 velo
                         0, 0, 0,     # finger 2 velo
                         0, 0, 0,     # finger 3 velo
@@ -171,7 +171,8 @@ alpha_object = trial.params["alpha_object"]
 
 accel_cost = trial.params["accel_cost"]
 
-use_pd = trial.params["use_pd"]
+# use_pd = trial.params["use_pd"]
+use_pd = 0
 
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)

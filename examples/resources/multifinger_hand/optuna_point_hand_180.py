@@ -47,8 +47,8 @@ def objective(trial):
 
     # lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
     # eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
-    gamma_threshold = trial.suggest_int("gamma_threshold", 0, 20)
-    phi_threshold = trial.suggest_int("phi_threshold", 0, 10)
+    gamma_threshold = trial.suggest_int("gamma_threshold", 0, 10)
+    phi_threshold = trial.suggest_int("phi_threshold", 0, 15)
     add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
     epsilon = trial.suggest_int("epsilon", 1, 5)
 
@@ -56,7 +56,7 @@ def objective(trial):
     finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
     cube_position_weight = trial.suggest_int("cube_position_weight", 200000, 1000000, step=20000)
     tracking_N = trial.suggest_int("tracking_N", 4, 8)
-    quat_weight = trial.suggest_int("quat_weight", 500, 20000, step=500)
+    quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -88,11 +88,10 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_n"] = [u_eta_n] * n_contacts
     c3_options["c3_options"]["u_eta_t"] = [u_eta_t] * (4 * n_contacts)
 
-    # c3_options["c3_options"]["lambda_threshold"] = [lambda_threshold] * (4*n_contacts)
     c3_options["c3_options"]["lambda_threshold"] = []
     c3_options["c3_options"]["eta_threshold"] = []
     c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold / 200.0] * (n_contacts)
-    c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 500.0] * (n_contacts)
+    c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 1000.0] * (n_contacts)
     c3_options["c3_options"]["add_phi_buffer"] = True if add_phi_buffer == 1 else False
     c3_options["c3_options"]["epsilon"] = [epsilon / 1000.0] * (n_contacts)
 
@@ -115,8 +114,8 @@ def objective(trial):
     c3_options["lcs_factory_options"]["contact_model"] = "stewart_and_trinkle"
 
     c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
-                            0.07, -0.055, 0.05,   # finger 2
-                            -0.07, -0.055, 0.05,   # finger 3
+                            -0.05, -0.07, 0.05,   # finger 2
+                            -0.05, -0.07, 0.05,   # finger 3
                             1, 0, 0, 0, # cube orientation
                             0, 0, 0.052,  # cube position
                             0, 0, 0,     # finger 1 velo
@@ -126,8 +125,8 @@ def objective(trial):
                             0, 0, 0]   	# cube velo
 
     c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
-                           0.07, -0.055, 0.05,   # finger 2
-                           -0.07, -0.055, 0.05,   # finger 3
+                           -0.05, -0.07, 0.05,   # finger 2
+                            -0.05, -0.07, 0.05,   # finger 3
                            0, 0, 0, 1, # cube orientation
                            0, 0, 0.052,  # cube position
                            0, 0, 0,     # finger 1 velo
@@ -152,7 +151,7 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 25, 30, 40, 50])
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 25, 30, 40])
     num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
@@ -188,8 +187,8 @@ def objective(trial):
 
     ic3_options["acceleration_cost_weight"] = accel_cost
 
-    # ic3_options["rollout_Kp"] = [Kp] * 9
-    # ic3_options["rollout_Kd"] = [Kd] * 9
+    ic3_options["rollout_Kp"] = [0] * 9
+    ic3_options["rollout_Kd"] = [0] * 9
     ic3_options["rollout_dt_scaling"] = 10
     
     ic3_options["print_costs"] = False
@@ -204,7 +203,8 @@ def objective(trial):
     cmd = [
         "./bazel-bin/examples/lcs_factory_system_example", 
         f"--optuna_instance={worker_id}", 
-        "--experiment_type=MSiC3_point_hand_180_optuna"
+        "--experiment_type=MSiC3_point_hand_180_optuna",
+        "--ee_config=3"
     ]
     
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -251,7 +251,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_phi_thresholding.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_phi_gamma_epsilon_thresholding.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -262,7 +262,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_phi_thresholding.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_phi_gamma_epsilon_thresholding.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -279,11 +279,11 @@ def log_best_callback(study, trial):
 
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_phi_thresholding.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_phi_gamma_epsilon_thresholding.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_phi_thresholding",
+        study_name="MSiC3_point_hand_180_phi_gamma_epsilon_thresholding",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

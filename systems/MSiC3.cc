@@ -952,23 +952,23 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     // }
 
     
-    int delta_size = delta_proj.size();
+    // int delta_size = delta_proj.size();
     // for (int ii = 0; ii < 4; ii++) {
-      // double AnDn = c3_tracking->GetAnDn();
+    //   double AnDn = c3_tracking->GetAnDn();
     //   for (int jj = 0; jj < delta_size; jj++) {
     //     std::cout << "delta_proj lambda " << ii << " admm " << jj << ": " << AnDn * delta_proj[jj].col(ii).segment(n_x_, n_lambda_).transpose() << std::endl;
     //     std::cout << "delta_proj eta " << ii << " admm " << jj << ": " << AnDn * delta_proj[jj].col(ii).segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl;
     //   }
-      // std::cout << "c3 lambda " << ii << ": " << AnDn * z_sol[ii].segment(n_x_, n_lambda_).transpose() << std::endl;
-      // std::cout << "c3 eta " << ii << ": " << AnDn * z_sol[ii].segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl;
+    //   std::cout << "c3 lambda " << ii << ": " << AnDn * z_sol[ii].segment(n_x_, n_lambda_).transpose() << std::endl;
+    //   std::cout << "c3 eta " << ii << ": " << AnDn * z_sol[ii].segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl;
 
-    //   std::cout << "c3 pos " << ii << ": " << z_sol[ii].segment(0, n_q_).transpose() << std::endl;
-    //   std::cout << "c3 velo " << ii << ": " << z_sol[ii].segment(n_q_, n_v_).transpose() << std::endl;
+    //   // std::cout << "c3 pos " << ii << ": " << z_sol[ii].segment(0, n_q_).transpose() << std::endl;
+    //   // std::cout << "c3 velo " << ii << ": " << z_sol[ii].segment(n_q_, n_v_).transpose() << std::endl;
       
-    //   std::cout << "delta_proj Ex " << ii << ": " << (lcs.E()[ii] * delta_proj[delta_size-1].col(ii).segment(0, n_x_)).transpose() << std::endl;
-    //   std::cout << "delta_proj F\\lambda " << ii << ": " << (lcs.F()[ii] * delta_proj[delta_size-1].col(ii).segment(n_x_, n_lambda_)).transpose() << std::endl;
-    //   std::cout << "delta_proj Hu " << ii << ": " << (lcs.H()[ii] * delta_proj[delta_size-1].col(ii).segment(n_x_+n_lambda_, n_u_)).transpose() << std::endl;
-    //   std::cout << "delta_proj c " << ii << ": " << (lcs.c()[ii]).transpose() << std::endl;
+    //   // std::cout << "delta_proj Ex " << ii << ": " << (lcs.E()[ii] * delta_proj[delta_size-1].col(ii).segment(0, n_x_)).transpose() << std::endl;
+    //   // std::cout << "delta_proj F\\lambda " << ii << ": " << (lcs.F()[ii] * delta_proj[delta_size-1].col(ii).segment(n_x_, n_lambda_)).transpose() << std::endl;
+    //   // std::cout << "delta_proj Hu " << ii << ": " << (lcs.H()[ii] * delta_proj[delta_size-1].col(ii).segment(n_x_+n_lambda_, n_u_)).transpose() << std::endl;
+    //   // std::cout << "delta_proj c " << ii << ": " << (lcs.c()[ii]).transpose() << std::endl;
       
 
     //   std::cout << "c3 proj phi pred " << ii << ": ";
@@ -1143,6 +1143,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
         VectorXd u_tracking = c3_u + Kp * (c3_x_tracking.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
           + Kd * (c3_x_tracking.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
         // std::cout << "tracking u " << u_tracking.transpose() << std::endl;
+
 
         rollout_factory.UpdateStateAndInput(x_curr, u_tracking);
         LCS lcs_rollout = rollout_factory.GenerateLCS();  

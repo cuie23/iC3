@@ -45,7 +45,7 @@ def objective(trial):
     # u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
     # u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
 
-    lambda_threshold = trial.suggest_int("lambda_threshold", 0, 10)
+    lambda_threshold = trial.suggest_int("lambda_threshold", 2, 20)
     eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
     # gamma_threshold = trial.suggest_int("gamma_threshold", 0, 10)
     # phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
@@ -84,8 +84,8 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_t"] = []
 
     # multiplying by 50 is for dividing by dt=0.02 to get in signed distance units
-    c3_options["c3_options"]["lambda_threshold"] = [(lambda_threshold / 10.0)] * (4 * n_contacts)
-    c3_options["c3_options"]["eta_threshold"] = [(eta_threshold / 500.0) * 50] * (4 * n_contacts)
+    c3_options["c3_options"]["lambda_threshold"] = [(lambda_threshold / 100.0)] * (4 * n_contacts)
+    c3_options["c3_options"]["eta_threshold"] = [(eta_threshold / 10.0)] * (4 * n_contacts)
 
     # c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold / 100.0] * (n_contacts)
     # c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 100.0] * (n_contacts)
@@ -162,7 +162,8 @@ def objective(trial):
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
 
-    use_pd = trial.suggest_int("use_pd", 0, 1)
+    # use_pd = trial.suggest_int("use_pd", 0, 1)
+    use_pd = 0
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)

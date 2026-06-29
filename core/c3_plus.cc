@@ -149,8 +149,9 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   VectorXd lambda_c = delta_c.segment(n_x_, n_lambda_);
   VectorXd eta_c = delta_c.segment(n_x_ + n_lambda_ + n_u_, n_lambda_);
 
-  // std::cout << "QP lambda " << admm_iteration << " " << lambda_c.transpose() << std::endl;
-  // std::cout << "QP eta " << admm_iteration << " " << eta_c.transpose() << std::endl;
+  // std::cout << "admm " << admm_iteration << std::endl;
+  // std::cout << "QP lambda " << admm_iteration << " " << AnDn_ * lambda_c.transpose() << std::endl;
+  // std::cout << "QP eta " << admm_iteration << " " << AnDn_ * eta_c.transpose() << std::endl;
 
   // Set thresholds to 0/inf if not set
   VectorXd lambda_min(VectorXd::Zero(n_lambda_));
@@ -213,30 +214,35 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   // std::cout << "eta min " << eta_min.transpose() << std::endl;
 
   // Compare costs, threshold
-  Eigen::Array<bool, Eigen::Dynamic, 1> eta_larger =
-      eta_c.cwiseMax(eta_min).cwiseMin(eta_max).array() * w_eta_vec.array().sqrt() >
-      lambda_c.cwiseMax(lambda_min).cwiseMin(lambda_max).array() * w_lambda_vec.array().sqrt();
+  VectorXd eta_star = eta_c.cwiseMax(eta_min).cwiseMin(eta_max);
+  VectorXd lambda_star = lambda_c.cwiseMax(lambda_min).cwiseMin(lambda_max);
+
+  // Check if projecting to eta or lambda incurs less cost
+  Eigen::Array<bool, Eigen::Dynamic, 1> eta_cost_smaller =
+      w_eta_vec.array() * (eta_c - eta_star).array().square() +  w_lambda_vec.array() * lambda_c.array().square() <
+      w_lambda_vec.array() * (lambda_c - lambda_star).array().square() +  w_eta_vec.array() * eta_c.array().square();
 
   // Change thresholds pointwise to obey complimentarity
-  lambda_min = eta_larger.select(VectorXd::Zero(n_lambda_), lambda_min);
-  eta_min = eta_larger.select(eta_min, VectorXd::Zero(n_lambda_));
+  lambda_min = eta_cost_smaller.select(VectorXd::Zero(n_lambda_), lambda_min); // 
+  eta_min = eta_cost_smaller.select(eta_min, VectorXd::Zero(n_lambda_));
 
   lambda_c = lambda_c.cwiseMax(lambda_min).cwiseMin(lambda_max);
   eta_c = eta_c.cwiseMax(eta_min).cwiseMin(eta_max);
 
-  // Set larger cost to 0
+  // Select variable with smaller cost
   delta_proj.segment(n_x_, n_lambda_) =
-      eta_larger.select(VectorXd::Zero(n_lambda_), lambda_c);
+      eta_cost_smaller.select(VectorXd::Zero(n_lambda_), lambda_c);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
-      eta_larger.select(eta_c, VectorXd::Zero(n_lambda_));
+      eta_cost_smaller.select(eta_c, VectorXd::Zero(n_lambda_));
 
   delta_proj.segment(n_x_, n_lambda_) =
       delta_proj.segment(n_x_, n_lambda_).cwiseMax(0);
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
       delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(0);
 
-  // std::cout << "lambda projected " << delta_proj.segment(n_x_, n_lambda_).transpose() << std::endl;
-  // std::cout << "eta projected " << delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).transpose() << std::endl;
+  // std::cout << "lambda projected " << AnDn_ * delta_proj.segment(n_x_, n_lambda_).transpose() << std::endl;
+  // std::cout << "eta projected " << AnDn_ * delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).transpose() << std::endl;
+  // std::cout << std::endl;
 
   // if (admm_iteration == 0) {
   //   if (U.array().isNaN().any()) drake::log()->error("NaN found in U");

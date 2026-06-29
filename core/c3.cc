@@ -430,10 +430,6 @@ void C3::Solve(const VectorXd& x0) {
     // std::cout << "lambda after admm step " << iter << " " << delta.at(0).segment(n_x_, n_lambda_).transpose() << std::endl;
     // std::cout << "eta after admm step " << iter << " " << delta.at(0).segment(n_x_ + n_u_ + n_lambda_, n_lambda_).transpose() << std::endl;
   }
-    
-
-
-
 
   vector<VectorXd> WD(N_, VectorXd::Zero(n_z_));
   for (int i = 0; i < N_; ++i) {

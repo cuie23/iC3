@@ -135,8 +135,8 @@ c3_options["lcs_factory_options"]["dt"] = 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "stewart_and_trinkle"
 
 c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.07, -0.055, 0.05,   # finger 2
-                        -0.07, -0.055, 0.05,   # finger 3
+                        0.05, -0.07, 0.05,   # finger 2
+                        -0.05, -0.07, 0.05,   # finger 3
                         1, 0, 0, 0, # cube orientation
                         0, 0, 0.052,  # cube position
                         0, 0, 0,     # finger 1 velo
@@ -146,8 +146,8 @@ c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1
                         0, 0, 0])   	# cube velo
 
 c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.07, -0.055, 0.05,   # finger 2
-                        -0.07, -0.055, 0.05,   # finger 3
+                        0.05, -0.07, 0.05,   # finger 2
+                        -0.05, -0.07, 0.05,   # finger 3
                         0, 0, 0, 1, # cube orientation
                         0, 0, 0.052,  # cube position
                         0, 0, 0,     # finger 1 velo
@@ -184,8 +184,11 @@ alpha_object = trial.params["alpha_object"]
 
 accel_cost = trial.params["accel_cost"]
 
-Kp = trial.params["Kp"]
-Kd = trial.params["Kd"]
+# Kp = trial.params["Kp"]
+# Kd = trial.params["Kd"]
+
+Kp = 0
+Kd = 0
 
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)

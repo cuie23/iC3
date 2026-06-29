@@ -1,8 +1,8 @@
-num_iters: 3
-num_warmup_iters: 2
+num_iters: 2
+num_warmup_iters: 0
 
 N: 600
-num_segments: 5
+num_segments: 30
 
 
 add_position_constraints: true
@@ -17,7 +17,7 @@ use_drake_sim: false
 drake_sim_dt: 0.0001
 
 penalize_acceleration: true
-acceleration_cost_weight: 20
+acceleration_cost_weight: 50
 
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
@@ -25,15 +25,15 @@ defect_quaternion_regularizer_fraction: 0
 w_P: 0
 p_vector: [5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 1, 1, 1, 1, 1000, 1000, 1000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
-rollout_Kp: [200, 200, 200, 200, 200, 200, 200, 200, 200]
-rollout_Kd: [20, 20, 20, 20, 20, 20, 20, 20, 20]
-# rollout_Kp: [445, 445, 445, 445, 445, 445, 445, 445, 445]
-# rollout_Kd: [12, 12, 12, 12, 12, 12, 12, 12, 12]
+# rollout_Kp: [200, 200, 200, 200, 200, 200, 200, 200, 200]
+# rollout_Kd: [20, 20, 20, 20, 20, 20, 20, 20, 20]
+rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
+rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.07
-alpha_ee_step: 0.46499999999999997
+alpha_ee: 0.32
+alpha_ee_step: 0.6799999999999999
 
-alpha_object: 0.43
-alpha_object_step: 0.28500000000000003
+alpha_object: 0.25
+alpha_object_step: 0.75
 
-warm_start_alpha: 0.34
+warm_start_alpha: 0.31
