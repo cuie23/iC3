@@ -70,6 +70,9 @@
             <box><size>0.1 0.1 0.1</size></box>
           </geometry>
         <drake:proximity_properties>
+        
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>      
           <drake:mu_static>0.5</drake:mu_static>
           <drake:mu_dynamic>0.5</drake:mu_dynamic>
         </drake:proximity_properties>
@@ -79,10 +82,14 @@
           <pose>0.05 0.05 -0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
-          <drake:proximity_properties>            <drake:mu_static>0.5</drake:mu_static>
+          <drake:proximity_properties>  
+
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>       
+            <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
 
@@ -91,10 +98,14 @@
           <pose>-0.05 0.05 -0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
-          <drake:proximity_properties>            <drake:mu_static>0.5</drake:mu_static>
+          <drake:proximity_properties>  
+
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>             
+            <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
         </collision>
@@ -102,10 +113,13 @@
           <pose>0.05 -0.05 -0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
           <drake:proximity_properties>
+            
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>   
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
@@ -114,10 +128,13 @@
           <pose>-0.05 -0.05 -0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
           <drake:proximity_properties>
+            
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>   
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
@@ -126,10 +143,13 @@
           <pose>0.05 0.05 0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
           <drake:proximity_properties>
+            
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>   
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
@@ -138,10 +158,13 @@
           <pose>-0.05 0.05 0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
           <drake:proximity_properties>
+            
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>   
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
@@ -150,10 +173,13 @@
           <pose>0.05 -0.05 0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
           <drake:proximity_properties>
+            
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>   
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>
@@ -162,10 +188,13 @@
           <pose>-0.05 -0.05 0.05 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.001</radius>
+              <radius>0.002</radius>
             </sphere>
           </geometry>
           <drake:proximity_properties>
+            
+            <drake:point_contact_stiffness>50000.0</drake:point_contact_stiffness>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>   
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
           </drake:proximity_properties>

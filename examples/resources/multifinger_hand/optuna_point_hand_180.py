@@ -47,9 +47,10 @@ def objective(trial):
 
     # lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
     # eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
-    gamma_threshold = trial.suggest_int("gamma_threshold", 0, 10)
-    phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
+    gamma_threshold = trial.suggest_int("gamma_threshold", 0, 20)
+    phi_threshold = trial.suggest_int("phi_threshold", 0, 10)
     add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
+    epsilon = trial.suggest_int("epsilon", 1, 5)
 
     admm_iter = trial.suggest_int("admm_iter", 3, 8)
     finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
@@ -90,9 +91,10 @@ def objective(trial):
     # c3_options["c3_options"]["lambda_threshold"] = [lambda_threshold] * (4*n_contacts)
     c3_options["c3_options"]["lambda_threshold"] = []
     c3_options["c3_options"]["eta_threshold"] = []
-    c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold / 100.0] * (n_contacts)
-    c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 100.0] * (n_contacts)
+    c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold / 200.0] * (n_contacts)
+    c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 500.0] * (n_contacts)
     c3_options["c3_options"]["add_phi_buffer"] = True if add_phi_buffer == 1 else False
+    c3_options["c3_options"]["epsilon"] = [epsilon / 1000.0] * (n_contacts)
 
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers
@@ -113,10 +115,10 @@ def objective(trial):
     c3_options["lcs_factory_options"]["contact_model"] = "stewart_and_trinkle"
 
     c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
-                            0.05, -0.07, 0.05,   # finger 2
-                            -0.05, -0.07, 0.05,   # finger 3
+                            0.07, -0.055, 0.05,   # finger 2
+                            -0.07, -0.055, 0.05,   # finger 3
                             1, 0, 0, 0, # cube orientation
-                            0, 0, 0.051,  # cube position
+                            0, 0, 0.052,  # cube position
                             0, 0, 0,     # finger 1 velo
                             0, 0, 0,     # finger 2 velo
                             0, 0, 0,     # finger 3 velo
@@ -124,10 +126,10 @@ def objective(trial):
                             0, 0, 0]   	# cube velo
 
     c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
-                           0.05, -0.07, 0.05,   # finger 2
-                           -0.05, -0.07, 0.05,   # finger 3
+                           0.07, -0.055, 0.05,   # finger 2
+                           -0.07, -0.055, 0.05,   # finger 3
                            0, 0, 0, 1, # cube orientation
-                           0, 0, 0.051,  # cube position
+                           0, 0, 0.052,  # cube position
                            0, 0, 0,     # finger 1 velo
                            0, 0, 0,     # finger 2 velo
                            0, 0, 0,     # finger 3 velo
@@ -142,7 +144,7 @@ def objective(trial):
     c3_options["c3_options"]["q_vector"][13] = cube_position_weight
     c3_options["c3_options"]["q_vector"][14] = cube_position_weight
 
-    c3_options["c3_options"]["scale_lcs"] = False
+    c3_options["c3_options"]["scale_lcs"] = True
 
     with open(CONTORLLER_PARAMS, "w") as f:
         yaml.dump(c3_options, f, default_flow_style=True)
@@ -159,6 +161,9 @@ def objective(trial):
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
+
+    # Kp = trial.suggest_int("Kp", 5, 500, step=5)
+    # Kd = trial.suggest_int("Kd", 2, 100, step=2)
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -183,8 +188,8 @@ def objective(trial):
 
     ic3_options["acceleration_cost_weight"] = accel_cost
 
-    ic3_options["rollout_Kp"] = [0] * 9
-    ic3_options["rollout_Kd"] = [0] * 9
+    # ic3_options["rollout_Kp"] = [Kp] * 9
+    # ic3_options["rollout_Kd"] = [Kd] * 9
     ic3_options["rollout_dt_scaling"] = 10
     
     ic3_options["print_costs"] = False
@@ -269,8 +274,9 @@ def log_best_callback(study, trial):
             f.write("=========================================\n")
 
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml
-# sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
+# sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_optpython3 examples/resources/multifinger_hand/optuna_point_hand_180.pyions_point_hand_180.yaml
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180.py
+
 if __name__ == "__main__":
 
     STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_phi_thresholding.db"
@@ -281,7 +287,7 @@ if __name__ == "__main__":
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")
-    study.optimize(objective, n_trials=400, callbacks=[log_best_callback])
+    study.optimize(objective, n_trials=1000, callbacks=[log_best_callback])
 
     print("\n--- Optimization Complete ---")
     print(f"Best Trial Value: {study.best_value}")

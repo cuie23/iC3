@@ -90,7 +90,7 @@ def objective(trial):
                             0.07, -0.055, 0.05,   # finger 2
                             -0.07, -0.055, 0.05,   # finger 3
                             1, 0, 0, 0, # cube orientation
-                            0, 0, 0.051,  # cube position
+                            0, 0, 0.052,  # cube position
                             0, 0, 0,     # finger 1 velo
                             0, 0, 0,     # finger 2 velo
                             0, 0, 0,     # finger 3 velo
@@ -101,7 +101,7 @@ def objective(trial):
                             0.07, -0.055, 0.05,   # finger 2
                             -0.07, -0.055, 0.05,   # finger 3
                             0, 1, 0, 0, # cube orientation
-                            0, 0, 0.051,  # cube position
+                            0, 0, 0.052,  # cube position
                             0, 0, 0,     # finger 1 velo
                             0, 0, 0,     # finger 2 velo
                             0, 0, 0,     # finger 3 velo

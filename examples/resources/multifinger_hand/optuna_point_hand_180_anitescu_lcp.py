@@ -118,7 +118,7 @@ def objective(trial):
                             0.05, -0.07, 0.05,   # finger 2
                             -0.05, -0.07, 0.05,   # finger 3
                             1, 0, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
+                            0, 0, 0.051,  # cube position
                             0, 0, 0,     # finger 1 velo
                             0, 0, 0,     # finger 2 velo
                             0, 0, 0,     # finger 3 velo
@@ -129,7 +129,7 @@ def objective(trial):
                           0.05, -0.07, 0.05,   # finger 2
                           -0.05, -0.07, 0.05,   # finger 3
                            0, 0, 0, 1, # cube orientation
-                           0, 0, 0.052,  # cube position
+                           0, 0, 0.051,  # cube position
                            0, 0, 0,     # finger 1 velo
                            0, 0, 0,     # finger 2 velo
                            0, 0, 0,     # finger 3 velo
@@ -196,7 +196,7 @@ def objective(trial):
     
     ic3_options["print_costs"] = False
 
-    ic3_options["use_drake_sim"] = True
+    ic3_options["use_drake_sim"] = False
     ic3_options["drake_sim_dt"] = 0.0001
 
     with open(MSiC3_PARAMS, "w") as f:
@@ -254,7 +254,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_drake_pd_config3.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_pd_config3.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -265,7 +265,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_drake_pd_config3.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_pd_config3.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -278,14 +278,14 @@ def log_best_callback(study, trial):
 
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
-# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu.py
+# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_lcp.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake_pd_config3.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_pd_config3.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_anitescu_drake_pd_config3",
+        study_name="MSiC3_point_hand_180_anitescu_lcp_pd_config3",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

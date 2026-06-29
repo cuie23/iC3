@@ -76,7 +76,7 @@ private:
   VectorXd ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
                                   VectorXd x_init, int start_idx, int q_size, MatrixXd A_x, VectorXd lb_x, VectorXd ub_x); 
 
-  tuple<LCS, MatrixXd, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd x_hat_prev, MatrixXd c3_x_hat, MatrixXd u_hat, 
+  tuple<LCS, MatrixXd, MatrixXd, MatrixXd> DoLCSRollout(VectorXd x0, MatrixXd u_hat, 
                                               LCSFactory factory, LCSFactory rollout_factory, MatrixXd A_constraint_x, 
                                               VectorXd lower_bound_x, VectorXd upper_bound_x, MatrixXd A_constraint_u, 
                                               VectorXd lower_bound_u, VectorXd upper_bound_u, vector<MatrixXd> K, 

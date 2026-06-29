@@ -227,6 +227,7 @@ class C3 {
     return delta_projection_;
   }
   
+  double GetAnDn() { return AnDn_; }
 
  protected:
   /// @param lcs      Parameters defining the LCS.
@@ -343,7 +344,7 @@ class C3 {
                                        bool is_final_solve = false);
 
   LCS lcs_;
-  double AnDn_ = 1.0;  // Scaling factor for lambdas
+  double AnDn_;  // Scaling factor for lambdas
   CostMatrices cost_matrices_;
   std::vector<Eigen::VectorXd> x_desired_;
   std::vector<Eigen::VectorXd> u_desired_;

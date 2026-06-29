@@ -38,9 +38,8 @@
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
-            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
-            <drake:mesh_resolution_hint>0.003</drake:mesh_resolution_hint>
+            <drake:mesh_resolution_hint>0.001</drake:mesh_resolution_hint>
           </drake:proximity_properties>
         </collision>
       </link>
@@ -49,12 +48,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -62,12 +61,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -77,6 +76,7 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
+            <velocity>0.075</velocity>
             <lower> -0.06 </lower>
             <upper> 0.06 </upper>
           </limit>  
@@ -87,12 +87,12 @@
       <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -102,6 +102,7 @@
         <axis>
           <xyz>0 1 0</xyz>
            <limit>
+            <velocity>0.075</velocity>
             <lower> 0.01 </lower>
             <upper> 0.13 </upper>
           </limit>
@@ -114,6 +115,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
+            <velocity>0.075</velocity>
             <lower> 0.04 </lower>
             <upper> 0.06 </upper>
           </limit>
@@ -152,9 +154,8 @@
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
-            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
-            <drake:mesh_resolution_hint>0.003</drake:mesh_resolution_hint>
+            <drake:mesh_resolution_hint>0.001</drake:mesh_resolution_hint>
           </drake:proximity_properties>
         </collision>
       </link>
@@ -163,12 +164,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -176,12 +177,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -191,8 +192,9 @@
         <axis>
             <xyz>1 0 0</xyz>
           <limit>
-            <lower> 0.01 </lower>
-            <upper> 0.13 </upper>
+            <velocity>0.075</velocity>
+            <lower> -0.01 </lower>
+            <upper> 0.11 </upper>
           </limit>
         </axis>
       </joint>
@@ -201,12 +203,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -216,8 +218,9 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
-            <lower> -0.115 </lower>
-            <upper> 0.005 </upper>
+            <velocity>0.075</velocity>
+            <lower> -0.13 </lower>
+            <upper> -0.01 </upper>
           </limit>
         </axis>
       </joint>
@@ -228,6 +231,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
+            <velocity>0.075</velocity>
             <lower> 0.04 </lower>
             <upper> 0.06 </upper>
           </limit>
@@ -266,9 +270,8 @@
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
-            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
-            <drake:mesh_resolution_hint>0.003</drake:mesh_resolution_hint>
+            <drake:mesh_resolution_hint>0.001</drake:mesh_resolution_hint>
           </drake:proximity_properties>
         </collision>
       </link>
@@ -277,12 +280,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -290,12 +293,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -305,8 +308,9 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.13 </lower>
-            <upper> -0.01 </upper>
+            <velocity>0.075</velocity>
+            <lower> -0.11 </lower>
+            <upper> 0.01 </upper>
           </limit>
         </axis>
       </joint>
@@ -315,12 +319,12 @@
         <inertial>
           <mass>1.0e-6</mass>
           <inertia>
-            <ixx>1.0e-9</ixx>
+            <ixx>1.0e-6</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>1.0e-9</iyy>
+            <iyy>1.0e-6</iyy>
             <iyz>0</iyz>
-            <izz>1.0e-9</izz>
+            <izz>1.0e-6</izz>
           </inertia>
         </inertial>
       </link>
@@ -330,8 +334,9 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
-            <lower> -0.115 </lower>
-            <upper> 0.005 </upper>
+            <velocity>0.075</velocity>
+            <lower> -0.13 </lower>
+            <upper> -0.01 </upper>
           </limit>
         </axis>
       </joint>
@@ -342,6 +347,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
+            <velocity>0.075</velocity>
             <lower> 0.04 </lower>
             <upper> 0.06 </upper>
           </limit>

@@ -49,12 +49,10 @@ double LCS::ScaleComplementarityDynamics() {
   double Dn = D_[0].norm();
   double An = A_[0].norm();
   double scale = An / Dn;
-  for (size_t i = 0; i < N_; ++i) {
-    D_.at(i) *= scale;
-    E_.at(i) /= scale;
-    c_.at(i) /= scale;
-    H_.at(i) /= scale;
-  }
+  D_.at(0) *= scale;
+  E_.at(0) /= scale;
+  c_.at(0) /= scale;
+  H_.at(0) /= scale;  
   return scale;
 }
 

@@ -163,10 +163,12 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   if (options_.lambda_threshold.has_value() && options_.lambda_threshold.value().size() != 0) {
     lambda_min = Eigen::Map<const Eigen::VectorXd>(
           options_.lambda_threshold.value().data(), options_.lambda_threshold.value().size());
+    lambda_min /= AnDn_;
   }
   if (options_.eta_threshold.has_value() && options_.eta_threshold.value().size() != 0) {
     eta_min = Eigen::Map<const Eigen::VectorXd>(
           options_.eta_threshold.value().data(), options_.eta_threshold.value().size());
+    eta_min /= AnDn_;
   }
 
   // Assumes stewart and trinkle
@@ -175,7 +177,7 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
     VectorXd gamma_threshold(n_contacts);
     gamma_threshold = Eigen::Map<const Eigen::VectorXd>(
       options_.gamma_threshold.value().data(), n_contacts);
-    lambda_min.segment(0, n_contacts) = gamma_threshold;
+    lambda_min.segment(0, n_contacts) = gamma_threshold / AnDn_;
   }
 
   // Assumes stewart and trinkle
@@ -184,24 +186,31 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
     VectorXd phi_threshold(n_contacts);
     phi_threshold = Eigen::Map<const Eigen::VectorXd>(
       options_.phi_threshold.value().data(), n_contacts);
-    eta_min.segment(n_contacts, n_contacts) = phi_threshold;
+    phi_threshold /= AnDn_; // Adjust for scaling
   
-    if (options_.add_phi_buffer.value_or(false) && timestep >= 0) {
-      // THIS IS UNSAFE, EMPTY delta_projection_ HANDLED IN C3
-      VectorXd eta_prev = delta_projection_[delta_projection_.size()-1]
-                            .col(std::max(0, timestep-1)).segment(n_x_+n_lambda_+n_u_, n_lambda_);
-      VectorXd eta_next = delta_projection_[delta_projection_.size()-1]
-                            .col(std::min(N_, timestep+1)).segment(n_x_+n_lambda_+n_u_, n_lambda_);
-
-      VectorXd buffer = eta_prev.segment(n_contacts, n_contacts).cwiseMin(eta_next).segment(n_contacts, n_contacts);
-      eta_min.segment(n_contacts, n_contacts) += buffer;
-
-      // std::cout << "eta prev " << eta_prev.transpose() << std::endl;
-      // std::cout << "eta next " << eta_next.transpose() << std::endl;
-    }
-
-    // std::cout << "eta min " << eta_min.transpose() << std::endl;
+    eta_min.segment(n_contacts, n_contacts) = phi_threshold;
   }
+
+  if (options_.add_phi_buffer.value_or(false) && options_.epsilon.has_value() && options_.epsilon.value().size() != 0 &&
+      timestep >= 0 && delta_projection_.size() > 0) {
+    int n_contacts = options_.epsilon.value().size();
+  
+    VectorXd eta_prev = delta_projection_[delta_projection_.size()-1]
+                          .col(std::max(0, timestep-1)).segment(n_x_+n_lambda_+n_u_, n_lambda_);
+    VectorXd eta_next = delta_projection_[delta_projection_.size()-1]
+                          .col(std::min(N_, timestep+1)).segment(n_x_+n_lambda_+n_u_, n_lambda_);
+
+    VectorXd epsilon(n_contacts);
+    epsilon = Eigen::Map<const Eigen::VectorXd>(options_.epsilon.value().data(), n_contacts);
+
+    VectorXd phi_buffer = epsilon 
+        + eta_prev.segment(n_contacts, n_contacts).cwiseMin(eta_next.segment(n_contacts, n_contacts));
+    eta_min.segment(n_contacts, n_contacts) = eta_min.segment(n_contacts, n_contacts).cwiseMax(phi_buffer);
+  }
+
+  // std::cout << "AnDn " << AnDn_ << std::endl;
+  // std::cout << "lambda min " << lambda_min.transpose() << std::endl;
+  // std::cout << "eta min " << eta_min.transpose() << std::endl;
 
   // Compare costs, threshold
   Eigen::Array<bool, Eigen::Dynamic, 1> eta_larger =

@@ -1,39 +1,40 @@
 =========================================
        BEST HYPERPARAMETERS SO FAR       
 =========================================
-Best Trial Number: 4450
-Best Metric Value: 120.396
+Best Trial Number: 2450
+Best Metric Value: 69.8613
 
 Parameters:
-  w_G: 59
-  g_x_fingers: 38
-  g_x_cube: 76
-  g_u: 12
-  g_gamma: 4
-  g_lambda_n: 38
-  g_lambda_t: 100
-  g_eta_slack: 24
-  g_eta_n: 74
-  g_eta_t: 18
-  u_gamma: 42
-  u_lambda_n: 86
-  u_lambda_t: 90
-  u_eta_slack: 90
-  u_eta_n: 82
-  u_eta_t: 10
-  gamma_threshold: 7
-  phi_threshold: 1
+  w_G: 19
+  g_x_fingers: 18
+  g_x_cube: 10
+  g_u: 34
+  g_gamma: 8
+  g_lambda_n: 10
+  g_lambda_t: 72
+  g_eta_slack: 16
+  g_eta_n: 80
+  g_eta_t: 30
+  u_gamma: 84
+  u_lambda_n: 66
+  u_lambda_t: 38
+  u_eta_slack: 66
+  u_eta_n: 38
+  u_eta_t: 32
+  gamma_threshold: 0
+  phi_threshold: 10
   add_phi_buffer: 0
-  admm_iter: 8
-  finger_position_weight: 20000
-  cube_position_weight: 860000
-  tracking_N: 7
-  quat_weight: 9500
-  num_segments: 20
-  num_warmup_iters: 1
-  warm_start_alpha: 50
+  epsilon: 3
+  admm_iter: 7
+  finger_position_weight: 270000
+  cube_position_weight: 340000
+  tracking_N: 8
+  quat_weight: 6500
+  num_segments: 50
+  num_warmup_iters: 0
+  warm_start_alpha: 65
   num_iters: 2
-  alpha_ee: 75
-  alpha_object: 11
-  accel_cost: 20
+  alpha_ee: 76
+  alpha_object: 22
+  accel_cost: 30
 =========================================

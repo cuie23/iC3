@@ -458,10 +458,10 @@ void C3::Solve(const VectorXd& x0) {
 
   // Undoing to scaling to put variables back into correct units
   // This only scales lambda
-  for (int i = 0; i < N_; ++i) {
-    lambda_sol_->at(i) *= AnDn_;
-    z_sol_->at(i).segment(n_x_, n_lambda_) *= AnDn_;
-  }
+  // for (int i = 0; i < N_; ++i) {
+  //   lambda_sol_->at(i) *= AnDn_;
+  //   z_sol_->at(i).segment(n_x_, n_lambda_) *= AnDn_;
+  // }
 
   auto finish = std::chrono::high_resolution_clock::now();
   auto elapsed = finish - start;
@@ -666,38 +666,20 @@ vector<VectorXd> C3::SolveProjection(const vector<MatrixXd>& U,
   // clang-format on
 
   for (int i = 0; i < N_; ++i) {
-    if (admm_iteration > 0) {
-      if (warm_start_) {
-        if (i == N_ - 1) {
-          deltaProj[i] =
-              SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
-                                    lcs_.H()[i], lcs_.c()[i], admm_iteration, -1, i);
-        } else {
-          deltaProj[i] = SolveSingleProjection(
-              U[i], WZ[i], lcs_.E()[i], lcs_.F()[i], lcs_.H()[i], lcs_.c()[i],
-              admm_iteration, i + 1, i);
-        }
-      } else {
+    if (warm_start_) {
+      if (i == N_ - 1) {
         deltaProj[i] =
             SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
                                   lcs_.H()[i], lcs_.c()[i], admm_iteration, -1, i);
+      } else {
+        deltaProj[i] = SolveSingleProjection(
+            U[i], WZ[i], lcs_.E()[i], lcs_.F()[i], lcs_.H()[i], lcs_.c()[i],
+            admm_iteration, i + 1, i);
       }
     } else {
-      if (warm_start_) {
-        if (i == N_ - 1) {
-          deltaProj[i] =
-              SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
-                                    lcs_.H()[i], lcs_.c()[i], admm_iteration, -1);
-        } else {
-          deltaProj[i] = SolveSingleProjection(
-              U[i], WZ[i], lcs_.E()[i], lcs_.F()[i], lcs_.H()[i], lcs_.c()[i],
-              admm_iteration, i + 1);
-        }
-      } else {
-        deltaProj[i] =
-            SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
-                                  lcs_.H()[i], lcs_.c()[i], admm_iteration, -1);
-      }
+      deltaProj[i] =
+          SolveSingleProjection(U[i], WZ[i], lcs_.E()[i], lcs_.F()[i],
+                                lcs_.H()[i], lcs_.c()[i], admm_iteration, -1, i);
     }
   }
 

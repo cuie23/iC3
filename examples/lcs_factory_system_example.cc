@@ -70,6 +70,7 @@ DEFINE_string(experiment_type, "cube_pivoting",
               "Options: 'cartpole_softwalls [Frictionless Spring System]', "
               "'cube_pivoting [Stewart and Trinkle System]'");
 DEFINE_int32(optuna_instance, 0, "Parallelization instance for optuna");
+DEFINE_int32(ee_config, -1, "End effector configuration index, -1 = default");
 DEFINE_string(lcm_url, "udpm://239.255.76.67:7667?ttl=0",
               "LCM URL with IP, port, and TTL settings");
 DEFINE_string(diagram_path, "",
@@ -1829,6 +1830,11 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   std::string ms_c3_options_file;
   std::string ms_ic3_options_file;
 
+  std::string hand_config = "";
+  if (FLAGS_ee_config >= 0) {
+    hand_config = "_config_" + std::to_string(FLAGS_ee_config);
+  }
+
   if (example == 0) {
     ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml";
     ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml";
@@ -1850,10 +1856,14 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 	std::string cube_file_lcs;
   if (example == 0) {
     cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy.sdf";
-    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
-    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+    if (ms_ic3_options.use_drake_sim == true) {
+      cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+    } else {
+      cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_small_contacts.sdf";
+    }
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
   }
   // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
   const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
@@ -1897,13 +1907,17 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   std::string hand_file_rollout;
   if (example == 0) {
-    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
   }
   
-	const std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
-  // const std::string cube_file_rollout = "examples/resources/multifinger_hand/cylinder.sdf";
+	std::string cube_file_rollout;
+  if (ms_ic3_options.use_drake_sim == true) {
+    cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+  } else {
+    cube_file_rollout = "examples/resources/multifinger_hand/cube_small_contacts.sdf";
+  }
 	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
 
   parser_rollout.AddModels(hand_file_rollout);
@@ -2043,11 +2057,16 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
 
   std::string hand_file;
   if (example == 0) {
-    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    hand_file = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
   }
-  const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+  std::string cube_file;
+  if (ms_ic3_options.use_drake_sim == true) {
+    cube_file = "examples/resources/multifinger_hand/cube.sdf";
+  } else {
+    cube_file = "examples/resources/multifinger_hand/cube_small_contacts.sdf";
+  }
   //const std::string cube_file = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
@@ -2228,6 +2247,11 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
                             + std::to_string(instance) + ".yaml";
   }
 
+  std::string hand_config = "";
+  if (FLAGS_ee_config >= 0) {
+    hand_config = "_config_" + std::to_string(FLAGS_ee_config);
+  }
+
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
   // Build the plant and scene graph for the pivoting system.
@@ -2240,10 +2264,14 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 	std::string cube_file_lcs;
   if (example == 0) {
     cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy.sdf";
-    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
-    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+    if (ms_ic3_options.use_drake_sim == true) {
+      cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+    } else {
+      cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_small_contacts.sdf";
+    }
+    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
   }
 
   // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
@@ -2285,15 +2313,20 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-	const std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+	std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+  if (ms_ic3_options.use_drake_sim == true) {
+    cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+  } else {
+    cube_file_rollout = "examples/resources/multifinger_hand/cube_small_contacts.sdf";
+  }
   // const std::string cube_file_rollout = "examples/resources/multifinger_hand/cylinder.sdf";
 	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
 
   std::string hand_file_rollout;
   if (example == 0) {
-    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
   }
 
   parser_rollout.AddModels(hand_file_rollout);
@@ -2431,15 +2464,19 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
 
-	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
-  //const std::string cube_file = "examples/resources/multifinger_hand/cylinder.sdf";
+	std::string cube_file;
+  if (ms_ic3_options.use_drake_sim == true) {
+    cube_file = "examples/resources/multifinger_hand/cube.sdf";
+  } else {
+    cube_file = "examples/resources/multifinger_hand/cube_small_contacts.sdf";
+  }
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
   std::string hand_file;
   if (example == 0) {
-    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot.sdf";
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    hand_file = "examples/resources/multifinger_hand/simplified_hand_180.sdf";
+    hand_file = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
   }
 
   parser.AddModels(hand_file);
