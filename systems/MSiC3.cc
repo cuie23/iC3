@@ -307,34 +307,34 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
 
   // Get lambda_hat initial guess   
-  if (use_drake_sim_) {
-    for (int i = 0; i < N_; i++) {
-      plant_rollout_.SetPositionsAndVelocities(&context_rollout, x_hat.col(i));
+  // if (use_drake_sim_) {
+  //   for (int i = 0; i < N_; i++) {
+  //     plant_rollout_.SetPositionsAndVelocities(&context_rollout, x_hat.col(i));
 
-      plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_hat.col(i));
+  //     plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_hat.col(i));
 
-      Context<double>& root_context = simulator_->get_mutable_context();
-      double target_time = root_context.get_time() + dt_;
-      simulator_->AdvanceTo(target_time);
+  //     Context<double>& root_context = simulator_->get_mutable_context();
+  //     double target_time = root_context.get_time() + dt_;
+  //     simulator_->AdvanceTo(target_time);
 
-      auto abstract_contact_results = drake::AbstractValue::Make<drake::multibody::ContactResults<double>>({});
-      plant_rollout_.get_contact_results_output_port().Calc(context_rollout, abstract_contact_results.get());
-      const auto& contact_results = abstract_contact_results->get_value<drake::multibody::ContactResults<double>>();
+  //     auto abstract_contact_results = drake::AbstractValue::Make<drake::multibody::ContactResults<double>>({});
+  //     plant_rollout_.get_contact_results_output_port().Calc(context_rollout, abstract_contact_results.get());
+  //     const auto& contact_results = abstract_contact_results->get_value<drake::multibody::ContactResults<double>>();
         
-      // std::cout << plant_rollout_.GetPositionsAndVelocities(context_rollout).transpose() << std::endl;
+  //     // std::cout << plant_rollout_.GetPositionsAndVelocities(context_rollout).transpose() << std::endl;
 
-      lambda_hat.col(i) = ConstructLambdasFromContactResults(contact_results, controller_options_.lcs_factory_options.contact_model);
-      // std::cout << "lambda " << i << " " << lambda_hat.col(i).transpose() << std::endl;
-    }  
-  } else {
-    std::vector<MatrixXd> K_init(N_, Eigen::MatrixXd::Identity(n_u_, n_u_));
-    std::vector<VectorXd> K_ff_init(N_, VectorXd::Zero(n_u_));
-    auto [lcs_init_out, x_hat_init_out, u_hat_init_out, lambda_hat_init_out] = DoLCSRollout(x0, u_hat, 
-      lcs_factory, lcs_factory_rollout, MatrixXd::Zero(n_x_, n_x_), VectorXd::Zero(n_x_), VectorXd::Zero(n_x_), 
-      MatrixXd::Zero(n_u_, n_u_), VectorXd::Zero(n_u_), VectorXd::Zero(n_u_), 
-      K_init, K_ff_init, 0);
-    lambda_hat = lambda_hat_init_out;
-  }
+  //     lambda_hat.col(i) = ConstructLambdasFromContactResults(contact_results, controller_options_.lcs_factory_options.contact_model);
+  //     // std::cout << "lambda " << i << " " << lambda_hat.col(i).transpose() << std::endl;
+  //   }  
+  // } else {
+  //   std::vector<MatrixXd> K_init(N_, Eigen::MatrixXd::Identity(n_u_, n_u_));
+  //   std::vector<VectorXd> K_ff_init(N_, VectorXd::Zero(n_u_));
+  //   auto [lcs_init_out, x_hat_init_out, u_hat_init_out, lambda_hat_init_out] = DoLCSRollout(x0, u_hat, 
+  //     lcs_factory, lcs_factory_rollout, MatrixXd::Zero(n_x_, n_x_), VectorXd::Zero(n_x_), VectorXd::Zero(n_x_), 
+  //     MatrixXd::Zero(n_u_, n_u_), VectorXd::Zero(n_u_), VectorXd::Zero(n_u_), 
+  //     K_init, K_ff_init, 0);
+  //   lambda_hat = lambda_hat_init_out;
+  // }
   
 
   

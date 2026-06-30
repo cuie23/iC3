@@ -39,7 +39,7 @@
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
-            <drake:mesh_resolution_hint>0.001</drake:mesh_resolution_hint>
+            <drake:mesh_resolution_hint>0.005</drake:mesh_resolution_hint>
           </drake:proximity_properties>
         </collision>
       </link>
@@ -155,7 +155,7 @@
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
-            <drake:mesh_resolution_hint>0.001</drake:mesh_resolution_hint>
+            <drake:mesh_resolution_hint>0.005</drake:mesh_resolution_hint>
           </drake:proximity_properties>
         </collision>
       </link>
@@ -271,7 +271,7 @@
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
-            <drake:mesh_resolution_hint>0.001</drake:mesh_resolution_hint>
+            <drake:mesh_resolution_hint>0.005</drake:mesh_resolution_hint>
           </drake:proximity_properties>
         </collision>
       </link>

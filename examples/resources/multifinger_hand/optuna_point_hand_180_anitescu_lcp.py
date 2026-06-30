@@ -54,8 +54,8 @@ def objective(trial):
     # u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
 
     if (lambda_eta_threshold == 1):
-        lambda_threshold = trial.suggest_int("lambda_threshold", 2, 20)
-        eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
+        lambda_threshold = trial.suggest_int("lambda_threshold", 0, 20)
+        eta_threshold = trial.suggest_int("eta_threshold", 0, 20)
     else:
         lambda_threshold = 0
         eta_threshold = 0
@@ -268,7 +268,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_pd_config3{filename_lambda_eta}.txt", "a") as f:
+        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_config3{filename_lambda_eta}.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -279,7 +279,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_pd_config3{filename_lambda_eta}.txt", "w") as f:
+        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_config3{filename_lambda_eta}.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -295,11 +295,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_lcp.py
 if __name__ == "__main__":
 
-    STORAGE_URL = f"sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_pd_config3{filename_lambda_eta}.db"
+    STORAGE_URL = f"sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_config3{filename_lambda_eta}.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name=f"MSiC3_point_hand_180_anitescu_lcp_pd_config3{filename_lambda_eta}",
+        study_name=f"MSiC3_point_hand_180_anitescu_lcp_config3{filename_lambda_eta}",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")
