@@ -102,6 +102,13 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   std::vector<double> x_des = *controller_options_.x_des;
   VectorXd xd = Eigen::Map<VectorXd>(x_des.data(), x_des.size());  
+
+  for (int i = 0; i < controller_options_.quaternion_indices.size(); i++) {
+    int idx = controller_options_.quaternion_indices[i];
+    quat_orientation_.push_back(((x0 + xd)(idx) >= 0) ? 1 : -1);
+    std::cout << "quat orientation " << i << " " << quat_orientation_[i] << std::endl;
+  }
+
   vector<VectorXd> x_targets;
   for (int k = 0; k < N_+1; k++) {
     x_targets.push_back(xd);
@@ -275,17 +282,17 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.08;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.08;
+      lower_bound_x(3*i) = xd(3*i) - 0.07;
+      lower_bound_x(3*i+1) = xd(3*i+1) - 0.07;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.03;
 
       lower_bound_x(16 + 3*i) = -0.1;
       lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.1;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.08;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.08;
-      upper_bound_x(3*i+2) = xd(3*i+2) + 0.08;
+      upper_bound_x(3*i) = xd(3*i) + 0.07;
+      upper_bound_x(3*i+1) = xd(3*i+1) + 0.07;
+      upper_bound_x(3*i+2) = xd(3*i+2) + 0.07;
 
       upper_bound_x(16 + 3*i) = 0.1;
       upper_bound_x(16 + 3*i+1) = 0.1;
@@ -932,12 +939,19 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     auto c3_elapsed = c3_end - c3_start;
     double c3_solve_time =
         std::chrono::duration_cast<std::chrono::microseconds>(c3_elapsed).count() / 1e6;
-    if (ms_ic3_options_.print_costs) {
-      std::cout << "c3 solve time " << c3_solve_time << std::endl;
+    vector<MatrixXd> delta_proj = c3_tracking->GetDeltaProjection();
+    
+    // Rescale lambda, eta
+    double AnDn = c3_tracking->GetAnDn();
+    for (int ii = 0; ii < delta_proj.size(); ii++) {
+      for (int jj = 0; jj < delta_proj[ii].cols(); jj++) {
+        delta_proj[ii].col(jj).segment(n_x_, n_lambda_) *= AnDn;
+        delta_proj[ii].col(jj).segment(n_x_+n_lambda_+n_u_, n_lambda_) *= AnDn;
+      }
     }
 
-    vector<MatrixXd> delta_proj = c3_tracking->GetDeltaProjection();
     delta_projection_iter_.push_back(delta_proj);
+
 
     vector<Eigen::VectorXd> z_sol = c3_tracking->GetFullSolution();
 
@@ -1006,11 +1020,20 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     //                                         .segment(n_q_, n_v_).transpose() << std::endl;
     // }
 
-    // std::cout << "lambda proj " << delta_proj.at(delta_proj.size()-1).col(0).segment(n_x_, n_lambda_).transpose() << std::endl;
-    // std::cout << "eta proj " << delta_proj.at(delta_proj.size()-1).col(0).segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl;
+    // if (t % 5 == 0) {
+    //   double AnDn = c3_tracking->GetAnDn();
+    //   std::cout << "lambda proj "<< (start_idx + t) << " " 
+    //     << AnDn * delta_proj.at(delta_proj.size()-1).col(0).segment(n_x_, n_lambda_).transpose() << std::endl;
+    //   std::cout << "eta proj " << (start_idx + t) 
+    //     << " " << AnDn * delta_proj.at(delta_proj.size()-1).col(0).segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl;
+    //   std::cout << std::endl;
+    // }
 
-    // std::cout << "lambda qp " << z_sol[0].segment(n_x_, n_lambda_).transpose() << std::endl;
-    // std::cout << "eta qp " << z_sol[0].segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl;
+    // if (t % 5 == 0) {
+    //   double AnDn = c3_tracking->GetAnDn();
+    //   std::cout << "lambda qp " << (start_idx + t) << " " << AnDn * z_sol[0].segment(n_x_, n_lambda_).transpose() << std::endl;
+    //   std::cout << "eta qp " << (start_idx + t) << " "  << AnDn * z_sol[0].segment(n_x_+n_lambda_+n_u_, n_lambda_).transpose() << std::endl << std::endl;
+    // }
 
     VectorXd c3_u = z_sol[0].segment(n_x_ + n_lambda_, n_u_);
     VectorXd c3_x = z_sol[0].segment(0, n_x_);
@@ -1046,6 +1069,9 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
         std::cout << "c3 cost final with affine " << " finger cost " << final_finger_pos_cost << ", cube rot " 
                 << final_cube_rot_cost << ", cube pos " << final_cube_pos_cost << std::endl;
       }
+    }
+    if (ms_ic3_options_.print_costs) {
+      std::cout << "c3 solve time " << c3_solve_time << std::endl;
     }
 
     auto rollout_start = std::chrono::high_resolution_clock::now();
@@ -1086,11 +1112,15 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
         double simulator_solve_time =
             std::chrono::duration_cast<std::chrono::microseconds>(simulator_elapsed).count() / 1e6;
 
-        if (ms_ic3_options_.print_costs) {
-          std::cout << "simulator time " << simulator_solve_time << std::endl;
-        }
-
         x_next = plant_rollout_.GetPositionsAndVelocities(context_rollout);
+
+        // Ensure consistent quaternion convention
+        for (int i = 0; i < controller_options_.quaternion_indices.size(); i++) {
+          int idx = controller_options_.quaternion_indices[i];
+          if (x_next(idx) * quat_orientation_[i] < 0) {
+            x_next.segment(idx, 4) *= -1;
+          }
+        }
 
         // std::cout << "x next " << x_next.transpose() << std::endl;  
         // std::cout << "u " << u_tracking.transpose() << std::endl;

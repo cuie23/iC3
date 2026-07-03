@@ -1,8 +1,8 @@
 num_iters: 2
-num_warmup_iters: 2
+num_warmup_iters: 1
 
 N: 600
-num_segments: 30
+num_segments: 15
 
 
 add_position_constraints: true
@@ -12,37 +12,28 @@ early_termination: true
 
 print_costs: false
 
-rollout_dt_scaling: 4
+rollout_dt_scaling: 10
 use_drake_sim: true
 drake_sim_dt: 0.0001
 
 penalize_acceleration: true
-acceleration_cost_weight: 20
+acceleration_cost_weight: 40
 
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
 
 w_P: 0
-p_vector: [5000, 5000, 5000, 
-           5000, 5000, 5000, 
-           5000, 5000, 5000, 
-           1, 1, 1, 1,          # gets overwritten by quaternion logic
-           1000, 1000, 1000,
-           1, 1, 1,
-           1, 1, 1, 
-           1, 1, 1, 
-           1, 1, 1,
-           1, 1, 1]
+p_vector: [5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 1, 1, 1, 1, 1000, 1000, 1000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 # rollout_Kp: [30, 30, 0, 30, 30, 0, 30, 30, 0]
 # rollout_Kd: [2, 2, 0, 2, 2, 0, 2, 2, 0]
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.46
-alpha_ee_step: 0.54
+alpha_ee: 0.8
+alpha_ee_step: 0.19999999999999996
 
-alpha_object: 0.44
-alpha_object_step: 0.56
+alpha_object: 0.61
+alpha_object_step: 0.39
 
-warm_start_alpha: 0.40
+warm_start_alpha: 0.07

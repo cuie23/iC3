@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake_pd_config3.db"
-STUDY_NAME = "MSiC3_point_hand_180_anitescu_drake_pd_config3"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake_config1_lower_mus.db"
+STUDY_NAME = "MSiC3_point_hand_180_anitescu_drake_config1_lower_mus"
 
-TRIAL_NUMBER = 30
+TRIAL_NUMBER = 4267
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -116,16 +116,16 @@ c3_options["c3_options"]["u_u"] = flow_seq([1] * 9)
 
 c3_options["c3_options"]["admm_iter"] = admm_iter
 
-c3_options["lcs_factory_options"]["mu"] = flow_seq([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+c3_options["lcs_factory_options"]["mu"] = flow_seq([0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3])
 c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
 c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.05, -0.07, 0.05,   # finger 2
-                        -0.05, -0.07, 0.05,   # finger 3
+                        0.07, -0.055, 0.05,   # finger 2
+                        -0.07, -0.055, 0.05,   # finger 3
                         1, 0, 0, 0, # cube orientation
-                        0, 0, 0.051,  # cube position
+                        0, 0, 0.052,  # cube position
                         0, 0, 0,     # finger 1 velo
                         0, 0, 0,     # finger 2 velo
                         0, 0, 0,     # finger 3 velo
@@ -133,10 +133,10 @@ c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1
                         0, 0, 0])   	# cube velo
 
 c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.05, -0.07, 0.05,   # finger 2
-                        -0.05, -0.07, 0.05,   # finger 3
+                        0.07, -0.055, 0.05,   # finger 2
+                        -0.07, -0.055, 0.05,   # finger 3
                         0, 0, 0, 1, # cube orientation
-                        0, 0, 0.051,  # cube position
+                        0, 0, 0.052,  # cube position
                         0, 0, 0,     # finger 1 velo
                         0, 0, 0,     # finger 2 velo
                         0, 0, 0,     # finger 3 velo
@@ -155,6 +155,10 @@ c3_options["c3_options"]["q_vector"] = flow_seq(q_vector)
 c3_options["Q_quaternion_weight"] = quat_weight
 c3_options["c3_options"]["scale_lcs"] = True
 
+c3_options["c3_options"]["w_Q"] = 5
+c3_options["c3_options"]["w_R"] = 500
+c3_options["c3_options"]["w_U"] = 1
+
 with open(CONTORLLER_PARAMS, "w") as f:
     yaml.dump(c3_options, f)
 
@@ -171,8 +175,7 @@ alpha_object = trial.params["alpha_object"]
 
 accel_cost = trial.params["accel_cost"]
 
-# use_pd = trial.params["use_pd"]
-use_pd = 0
+use_pd = trial.params["use_pd"]
 
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)

@@ -164,6 +164,8 @@ private:
   int num_segments_;
   int L_;  // segment length
 
+  std::vector<int> quat_orientation_;
+
   int example_idx_;
 
   // Indexing: ic3 timestep, admm iteration, c3 horizon

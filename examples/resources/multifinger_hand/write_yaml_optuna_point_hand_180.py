@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_phi_thresholding.db"
-STUDY_NAME = "MSiC3_point_hand_180_phi_thresholding"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_phi_gamma_epsilon_thresholding_lower_mus.db"
+STUDY_NAME = "MSiC3_point_hand_180_phi_gamma_epsilon_thresholding_lower_mus"
 
-TRIAL_NUMBER = 180
+TRIAL_NUMBER = 200
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -35,25 +35,25 @@ g_x_fingers = trial.params["g_x_fingers"]
 g_x_cube = trial.params["g_x_cube"]
 g_u = trial.params["g_u"]
 
-# g_lambda = trial.params["g_lambda"]
-# g_eta = trial.params["g_eta"]
+g_lambda = trial.params["g_lambda"]
+g_eta = trial.params["g_eta"]
 
-g_gamma = trial.params["g_gamma"]
-g_lambda_n = trial.params["g_lambda_n"]
-g_lambda_t = trial.params["g_lambda_t"]
-g_eta_slack = trial.params["g_eta_slack"]
-g_eta_n = trial.params["g_eta_n"]
-g_eta_t = trial.params["g_eta_t"]
+# g_gamma = trial.params["g_gamma"]
+# g_lambda_n = trial.params["g_lambda_n"]
+# g_lambda_t = trial.params["g_lambda_t"]
+# g_eta_slack = trial.params["g_eta_slack"]
+# g_eta_n = trial.params["g_eta_n"]
+# g_eta_t = trial.params["g_eta_t"]
 
-# trial.params["u_lambda"]
-# trial.params["u_eta"]
+u_lambda = trial.params["u_lambda"]
+u_eta = trial.params["u_eta"]
 
-u_gamma = trial.params["u_gamma"]
-u_lambda_n = trial.params["u_lambda_n"]
-u_lambda_t = trial.params["u_lambda_t"]
-u_eta_slack = trial.params["u_eta_slack"]
-u_eta_n = trial.params["u_eta_n"]
-u_eta_t = trial.params["u_eta_t"]
+# u_gamma = trial.params["u_gamma"]
+# u_lambda_n = trial.params["u_lambda_n"]
+# u_lambda_t = trial.params["u_lambda_t"]
+# u_eta_slack = trial.params["u_eta_slack"]
+# u_eta_n = trial.params["u_eta_n"]
+# u_eta_t = trial.params["u_eta_t"]
 
 # lambda_threshold = trial.params["lambda_threshold"]
 # eta_threshold = trial.params["eta_threshold"]
@@ -80,30 +80,30 @@ c3_options["c3_options"]["w_G"] = w_G
 
 c3_options["c3_options"]["g_lambda"] = flow_seq([])
 c3_options["c3_options"]["g_eta"] = flow_seq([])
-c3_options["c3_options"]["g_gamma"] = flow_seq([g_gamma] * n_contacts)
-c3_options["c3_options"]["g_lambda_n"] = flow_seq([g_lambda_n] * n_contacts)
-c3_options["c3_options"]["g_lambda_t"] = flow_seq([g_lambda_t] * (4 * n_contacts))
-c3_options["c3_options"]["g_eta_slack"] = flow_seq([g_eta_slack] * n_contacts)
-c3_options["c3_options"]["g_eta_n"] = flow_seq([g_eta_n] * n_contacts)
-c3_options["c3_options"]["g_eta_t"] = flow_seq([g_eta_t] * (4 * n_contacts))
+c3_options["c3_options"]["g_gamma"] = flow_seq([g_lambda] * n_contacts)
+c3_options["c3_options"]["g_lambda_n"] = flow_seq([g_lambda] * n_contacts)
+c3_options["c3_options"]["g_lambda_t"] = flow_seq([g_lambda] * (4 * n_contacts))
+c3_options["c3_options"]["g_eta_slack"] = flow_seq([g_eta] * n_contacts)
+c3_options["c3_options"]["g_eta_n"] = flow_seq([g_eta] * n_contacts)
+c3_options["c3_options"]["g_eta_t"] = flow_seq([g_eta] * (4 * n_contacts))
 
 # c3_options["c3_options"]["u_lambda"] = flow_seq([u_lambda] * (4*n_contacts))
 # c3_options["c3_options"]["u_eta"] = flow_seq([u_eta] * (4*n_contacts))
 
 c3_options["c3_options"]["u_lambda"] = flow_seq([])
 c3_options["c3_options"]["u_eta"] = flow_seq([])
-c3_options["c3_options"]["u_gamma"] = flow_seq([u_gamma] * n_contacts)
-c3_options["c3_options"]["u_lambda_n"] = flow_seq([u_lambda_n] * n_contacts)
-c3_options["c3_options"]["u_lambda_t"] = flow_seq([u_lambda_t] * (4 * n_contacts))
-c3_options["c3_options"]["u_eta_slack"] = flow_seq([u_eta_slack] * n_contacts)
-c3_options["c3_options"]["u_eta_n"] = flow_seq([u_eta_n] * n_contacts)
-c3_options["c3_options"]["u_eta_t"] = flow_seq([u_eta_t] * (4 * n_contacts))
+c3_options["c3_options"]["u_gamma"] = flow_seq([u_lambda] * n_contacts)
+c3_options["c3_options"]["u_lambda_n"] = flow_seq([u_lambda] * n_contacts)
+c3_options["c3_options"]["u_lambda_t"] = flow_seq([u_lambda] * (4 * n_contacts))
+c3_options["c3_options"]["u_eta_slack"] = flow_seq([u_eta] * n_contacts)
+c3_options["c3_options"]["u_eta_n"] = flow_seq([u_eta] * n_contacts)
+c3_options["c3_options"]["u_eta_t"] = flow_seq([u_eta] * (4 * n_contacts))
 
 # c3_options["c3_options"]["lambda_threshold"] = flow_seq([lambda_threshold] * (4*n_contacts))
 c3_options["c3_options"]["lambda_threshold"] = flow_seq([])
 c3_options["c3_options"]["eta_threshold"] = flow_seq([])
 c3_options["c3_options"]["gamma_threshold"] = flow_seq([gamma_threshold / 200.0] * (n_contacts))
-c3_options["c3_options"]["phi_threshold"] = flow_seq([phi_threshold / 500.0] * (n_contacts))
+c3_options["c3_options"]["phi_threshold"] = flow_seq([phi_threshold / 1000.0] * (n_contacts))
 c3_options["c3_options"]["add_phi_buffer"] = True if add_phi_buffer == 1 else False
 c3_options["c3_options"]["epsilon"] = flow_seq([epsilon / 1000.0] * (n_contacts))
 
@@ -129,14 +129,14 @@ c3_options["c3_options"]["u_u"] = flow_seq([1] * 9)
 
 c3_options["c3_options"]["admm_iter"] = admm_iter
 
-c3_options["lcs_factory_options"]["mu"] = flow_seq([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+c3_options["lcs_factory_options"]["mu"] = flow_seq([0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3])
 c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "stewart_and_trinkle"
 
 c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.05, -0.07, 0.05,   # finger 2
-                        -0.05, -0.07, 0.05,   # finger 3
+                        0.07, -0.055, 0.05,   # finger 2
+                        -0.07, -0.055, 0.05,   # finger 3
                         1, 0, 0, 0, # cube orientation
                         0, 0, 0.052,  # cube position
                         0, 0, 0,     # finger 1 velo
@@ -146,8 +146,8 @@ c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1
                         0, 0, 0])   	# cube velo
 
 c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.05, -0.07, 0.05,   # finger 2
-                        -0.05, -0.07, 0.05,   # finger 3
+                        0.07, -0.055, 0.05,   # finger 2
+                        -0.07, -0.055, 0.05,   # finger 3
                         0, 0, 0, 1, # cube orientation
                         0, 0, 0.052,  # cube position
                         0, 0, 0,     # finger 1 velo

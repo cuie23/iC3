@@ -122,14 +122,14 @@ def objective(trial):
 
     c3_options["c3_options"]["admm_iter"] = admm_iter
 
-    c3_options["lcs_factory_options"]["mu"] = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    c3_options["lcs_factory_options"]["mu"] = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
     c3_options["lcs_factory_options"]["N"] = tracking_N
     c3_options["lcs_factory_options"]["dt"] = 0.02
     c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
     c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
-                            0.05, -0.07, 0.05,   # finger 2
-                            -0.05, -0.07, 0.05,   # finger 3
+                            0.07, -0.055, 0.05,   # finger 2
+                            -0.07, -0.055, 0.05,   # finger 3
                             1, 0, 0, 0, # cube orientation
                             0, 0, 0.051,  # cube position
                             0, 0, 0,     # finger 1 velo
@@ -139,8 +139,8 @@ def objective(trial):
                             0, 0, 0]   	# cube velo
 
     c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
-                          0.05, -0.07, 0.05,   # finger 2
-                          -0.05, -0.07, 0.05,   # finger 3
+                          0.07, -0.055, 0.05,   # finger 2
+                          -0.07, -0.055, 0.05,   # finger 3
                            0, 0, 0, 1, # cube orientation
                            0, 0, 0.051,  # cube position
                            0, 0, 0,     # finger 1 velo
@@ -158,6 +158,9 @@ def objective(trial):
     c3_options["c3_options"]["q_vector"][14] = cube_position_weight
 
     c3_options["c3_options"]["scale_lcs"] = True
+    c3_options["c3_options"]["w_Q"] = 5
+    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_U"] = 1
 
     with open(CONTORLLER_PARAMS, "w") as f:
         yaml.dump(c3_options, f, default_flow_style=True)
@@ -166,17 +169,16 @@ def objective(trial):
 
     # iC3 parameters
     num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 25, 30, 40, 50])
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
+    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
-    num_iters = trial.suggest_int("num_iters", 2, 3)
+    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
 
-    # use_pd = trial.suggest_int("use_pd", 0, 1)
-    use_pd = 0
+    use_pd = trial.suggest_int("use_pd", 0, 1)
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -221,7 +223,7 @@ def objective(trial):
         "./bazel-bin/examples/lcs_factory_system_example", 
         f"--optuna_instance={worker_id}", 
         "--experiment_type=MSiC3_point_hand_180_optuna",
-        "--ee_config=3"
+        "--ee_config=1"
     ]
     
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -268,7 +270,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_config3{filename_lambda_eta}.txt", "a") as f:
+        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_lcp_config1_lower_mus{filename_lambda_eta}.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -279,7 +281,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_config3{filename_lambda_eta}.txt", "w") as f:
+        with open(f"examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_lcp_config1_lower_mus{filename_lambda_eta}.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -295,11 +297,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_lcp.py
 if __name__ == "__main__":
 
-    STORAGE_URL = f"sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_config3{filename_lambda_eta}.db"
+    STORAGE_URL = f"sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_config1_lower_mus{filename_lambda_eta}.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name=f"MSiC3_point_hand_180_anitescu_lcp_config3{filename_lambda_eta}",
+        study_name=f"MSiC3_point_hand_180_anitescu_lcp_config1_lower_mus{filename_lambda_eta}",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

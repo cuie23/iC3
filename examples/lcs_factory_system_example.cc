@@ -2135,8 +2135,9 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
       plant_rollout_context, *plant_rollout_context_autodiff);
   std::cout << "computed traj" << std::endl;
+
   
-  c3::utils::SaveTrajectoryData(all_delta_projections, "all_delta_projections.bin");     
+  c3::utils::SaveTrajectoryData(all_delta_projections, "examples/resources/multifinger_hand/delta_projection_data/all_delta_projections.bin");     
 
   // Publishes input std::vector<MatrixXd> as a lcmt_timestamped_saved_traj
   auto traj_source_x = builder.AddSystem<TrajToLcmSystem>(x_traj);

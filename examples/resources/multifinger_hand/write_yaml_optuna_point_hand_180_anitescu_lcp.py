@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_pd_config3.db"
-STUDY_NAME = "MSiC3_point_hand_180_anitescu_lcp_pd_config3"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_lcp_config3_more_iter.db"
+STUDY_NAME = "MSiC3_point_hand_180_anitescu_lcp_config3_more_iter"
 
-TRIAL_NUMBER = 194
+TRIAL_NUMBER = 573
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -116,7 +116,7 @@ c3_options["c3_options"]["u_u"] = flow_seq([1] * 9)
 
 c3_options["c3_options"]["admm_iter"] = admm_iter
 
-c3_options["lcs_factory_options"]["mu"] = flow_seq([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+c3_options["lcs_factory_options"]["mu"] = flow_seq([0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3])
 c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
@@ -171,8 +171,7 @@ alpha_object = trial.params["alpha_object"]
 
 accel_cost = trial.params["accel_cost"]
 
-# use_pd = trial.params["use_pd"]
-use_pd = 0
+use_pd = trial.params["use_pd"]
 
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)

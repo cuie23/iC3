@@ -26,13 +26,15 @@ def objective(trial):
     g_u = trial.suggest_int("g_u", 2, 200, step=2)
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
-    u_x_fingers = trial.suggest_int("u_x_fingers", 2, 200, step=2)
-    u_x_cube = trial.suggest_int("u_x_cube", 2, 200, step=2)
-    u_u = trial.suggest_int("u_u", 2, 200, step=2)
-    u_lambda = trial.suggest_int("u_lambda", 2, 100, step=2)
-    u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
 
-    admm_iter = trial.suggest_int("admm_iter", 3, 8)
+    u_lambda = trial.suggest_int("u_lambda", 1, 100)
+    u_eta = trial.suggest_int("u_eta", 1, 100)
+
+    lambda_threshold = trial.suggest_int("lambda_threshold", 0, 20)
+    eta_threshold = trial.suggest_int("eta_threshold", 0, 20)
+
+    admm_iter = trial.suggest_int("admm_iter", 3, 7)
+    tracking_N = trial.suggest_int("tracking_N", 4, 7)
     finger_position_weight = trial.suggest_int("finger_position_weight", 5000, 200000, step=5000)
     cube_position_weight = trial.suggest_int("cube_position_weight", 5000, 1000000, step=5000)
     quat_weight = trial.suggest_int("quat_weight", 500, 20000, step=500)
@@ -55,8 +57,8 @@ def objective(trial):
     c3_options["c3_options"]["u_eta_t"] = []
     c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
 
-    c3_options["c3_options"]["lambda_threshold"] = []
-    c3_options["c3_options"]["eta_threshold"] = []
+    c3_options["c3_options"]["lambda_threshold"] = [(lambda_threshold / 100.0)] * (4 * n_contacts)
+    c3_options["c3_options"]["eta_threshold"] = [(eta_threshold / 10.0)] * (4 * n_contacts)
 
     c3_options["c3_options"]["admm_iter"] = admm_iter
 
@@ -65,14 +67,14 @@ def objective(trial):
 
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers
-        c3_options["c3_options"]["u_x"][i] = u_x_fingers
+        c3_options["c3_options"]["u_x"][i] = 1
 
     c3_options["c3_options"]["g_u"] = [g_u] * 9
-    c3_options["c3_options"]["u_u"] = [u_u] * 9
+    c3_options["c3_options"]["u_u"] = [1] * 9
 
     for i in range(7):
         c3_options["c3_options"]["g_x"][9+i] = g_x_cube
-        c3_options["c3_options"]["u_x"][9+i] = u_x_cube
+        c3_options["c3_options"]["u_x"][9+i] = 1
 
     c3_options["c3_options"]["q_vector"][13] = cube_position_weight
     c3_options["c3_options"]["q_vector"][14] = cube_position_weight
@@ -83,7 +85,8 @@ def objective(trial):
 
 
     c3_options["lcs_factory_options"]["num_contacts"] = 11
-    c3_options["lcs_factory_options"]["mu"] = [0.5] * 11
+    c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
+    c3_options["lcs_factory_options"]["N"] = tracking_N
 
 
     c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
@@ -108,6 +111,15 @@ def objective(trial):
                             0, 0, 0,     # cube ang velo
                             0, 0, 0]   	# cube velo
         
+    c3_options["c3_options"]["w_Q"] = 5
+    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_U"] = 1
+    c3_options["c3_options"]["scale_lcs"] = True
+
+    c3_options["c3_options"]["add_phi_buffer"] = False  
+    c3_options["c3_options"]["epsilon"] = []
+    c3_options["c3_options"]["phi_threshold"] = []
+    c3_options["c3_options"]["gamma_threshold"] = []
 
     with open(CONTORLLER_PARAMS, "w") as f:
         yaml.dump(c3_options, f, default_flow_style=True)
@@ -119,7 +131,7 @@ def objective(trial):
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
     num_segments = trial.suggest_categorical("num_segments", [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 40, 50])
 
-    num_iters = trial.suggest_int("num_iters", 2, 3)
+    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
@@ -150,7 +162,7 @@ def objective(trial):
 
     ic3_options["rollout_Kp"] = [0] * 9
     ic3_options["rollout_Kd"] = [0] * 9
-    ic3_options["rollout_dt_scaling"] = 4
+    ic3_options["rollout_dt_scaling"] = 10
 
     ic3_options["print_costs"] = False
 
@@ -164,7 +176,8 @@ def objective(trial):
     cmd = [
         "./bazel-bin/examples/lcs_factory_system_example", 
         f"--optuna_instance={worker_id}", 
-        "--experiment_type=MSiC3_point_hand_optuna"
+        "--experiment_type=MSiC3_point_hand_optuna",
+        "--ee_config=1"
     ]    
     
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -211,7 +224,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_drake_sim.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_anitescu_drake_config1.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -222,7 +235,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_drake_sim.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_anitescu_drake_config1.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -238,11 +251,11 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_pivot.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_drake_sim.db"
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_anitescu_drake_config1.db"
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_drake_sim",
+        study_name="MSiC3_point_hand_pivot_anitescu_drake_config1",
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")

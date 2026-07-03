@@ -25,3 +25,12 @@ cc_binary(
         "//tools:serialization_utils"
     ],
 )
+
+cc_binary(
+    name = "export_delta_proj_to_csv",
+    srcs = ["export_delta_proj_to_csv.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools:serialization_utils"
+    ],
+)

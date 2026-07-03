@@ -149,9 +149,9 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   VectorXd lambda_c = delta_c.segment(n_x_, n_lambda_);
   VectorXd eta_c = delta_c.segment(n_x_ + n_lambda_ + n_u_, n_lambda_);
 
-  // std::cout << "admm " << admm_iteration << std::endl;
-  // std::cout << "QP lambda " << admm_iteration << " " << AnDn_ * lambda_c.transpose() << std::endl;
-  // std::cout << "QP eta " << admm_iteration << " " << AnDn_ * eta_c.transpose() << std::endl;
+  std::cout << "admm " << admm_iteration << std::endl;
+  std::cout << "QP lambda " << admm_iteration << " " << AnDn_ * lambda_c.transpose() << std::endl;
+  std::cout << "QP eta " << admm_iteration << " " << AnDn_ * eta_c.transpose() << std::endl;
 
   // Set thresholds to 0/inf if not set
   VectorXd lambda_min(VectorXd::Zero(n_lambda_));
@@ -209,9 +209,9 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
     eta_min.segment(n_contacts, n_contacts) = eta_min.segment(n_contacts, n_contacts).cwiseMax(phi_buffer);
   }
 
-  // std::cout << "AnDn " << AnDn_ << std::endl;
-  // std::cout << "lambda min " << lambda_min.transpose() << std::endl;
-  // std::cout << "eta min " << eta_min.transpose() << std::endl;
+  std::cout << "AnDn " << AnDn_ << std::endl;
+  std::cout << "lambda min " << lambda_min.transpose() << std::endl;
+  std::cout << "eta min " << eta_min.transpose() << std::endl;
 
   // Compare costs, threshold
   VectorXd eta_star = eta_c.cwiseMax(eta_min).cwiseMin(eta_max);
@@ -240,9 +240,11 @@ VectorXd C3Plus::SolveSingleProjection(const MatrixXd& U,
   delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_) =
       delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).cwiseMax(0);
 
-  // std::cout << "lambda projected " << AnDn_ * delta_proj.segment(n_x_, n_lambda_).transpose() << std::endl;
-  // std::cout << "eta projected " << AnDn_ * delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).transpose() << std::endl;
-  // std::cout << std::endl;
+  std::cout << "x projected " << delta_proj.segment(0, n_x_).transpose() << std::endl;
+  std::cout << "u projected " << delta_proj.segment(n_x_+n_lambda_, n_u_).transpose() << std::endl;
+  std::cout << "lambda projected " << AnDn_ * delta_proj.segment(n_x_, n_lambda_).transpose() << std::endl;
+  std::cout << "eta projected " << AnDn_ * delta_proj.segment(n_x_ + n_lambda_ + n_u_, n_lambda_).transpose() << std::endl;
+  std::cout << std::endl;
 
   // if (admm_iteration == 0) {
   //   if (U.array().isNaN().any()) drake::log()->error("NaN found in U");
