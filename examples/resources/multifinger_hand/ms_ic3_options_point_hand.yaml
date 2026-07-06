@@ -23,7 +23,6 @@ defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
 
 w_P: 0
-p_vector: [5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 1, 1, 1, 1, 1000, 1000, 1000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 # rollout_Kp: [30, 30, 0, 30, 30, 0, 30, 30, 0]
 # rollout_Kd: [2, 2, 0, 2, 2, 0, 2, 2, 0]

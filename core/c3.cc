@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <iostream>
+#include <fstream>
+#include <ctime>
 
 #include <Eigen/Core>
 #include <drake/common/find_runfiles.h>
@@ -625,19 +627,14 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
 
   if (!result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
-
       
       drake::log()->warn("OSQP Status: {}", details.status_val); 
       drake::log()->warn("Iterations: {}", details.iter);
       std::cout << "Primal Res: " << details.primal_res << std::endl;
       std::cout << "Dual Res: " << details.dual_res << std::endl;
       std::cout << "x0 " << x0.transpose() << std::endl;
-
-      // if (details.status_val == -7 || details.status_val == -4) {
-      //   while (true) {}
-      // }
-
-  } else {
+      while (true) {}
+ } else {
     // const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
     // std::cout << "Iterations: " << details.iter << std::endl;
     // std::cout << "Primal Res: " << details.primal_res << std::endl;

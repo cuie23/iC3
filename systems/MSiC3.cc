@@ -94,6 +94,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   drake::systems::Context<double>& context_rollout,
   drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout) {
 
+  auto start_total = std::chrono::high_resolution_clock::now();
+
+
   // num segements must divide the entire time horizon (might be unnecessary but for ease of implementation)
   DRAKE_DEMAND((double)(N_ / num_segments_) == (double)N_ / num_segments_);
 
@@ -102,12 +105,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   std::vector<double> x_des = *controller_options_.x_des;
   VectorXd xd = Eigen::Map<VectorXd>(x_des.data(), x_des.size());  
-
-  for (int i = 0; i < controller_options_.quaternion_indices.size(); i++) {
-    int idx = controller_options_.quaternion_indices[i];
-    quat_orientation_.push_back(((x0 + xd)(idx) >= 0) ? 1 : -1);
-    std::cout << "quat orientation " << i << " " << quat_orientation_[i] << std::endl;
-  }
 
   vector<VectorXd> x_targets;
   for (int k = 0; k < N_+1; k++) {
@@ -591,52 +588,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     }
 
 
-    // Think up some logic for this, probably looking at some norm of the defects
-    if (ms_ic3_options_.early_termination) {
-
-    }
-
-    // Print costs
-    if (ms_ic3_options_.print_costs) {
-
-      // std::cout << "finger defect costs: ";
-      // for (int j = 0; j < num_segments_+1; j++) {
-      //   std::cout << defects.col(j).segment(0, 9).transpose() * P_[j*L_].block(0, 0, 9, 9) * defects.col(j).segment(0, 9) << ", ";
-      // }
-      // std::cout << std::endl;
-
-      // std::cout << "cube rotation defect costs: ";
-      // for (int j = 0; j < num_segments_+1; j++) {
-      //   std::cout <<   defects.col(j).segment(9, 4).transpose() * P_[j*L_].block(9, 9, 4, 4) * defects.col(j).segment(9, 4) << ", ";
-      // }
-      // std::cout << std::endl;
-
-      // std::cout << "cube position defect costs: ";
-      // for (int j = 0; j < num_segments_+1; j++) {
-      //   std::cout << defects.col(j).segment(13, 3).transpose() * P_[j*L_].block(13, 13, 3, 3) * defects.col(j).segment(13, 3) << ", ";
-      // }
-      // std::cout << "\n " << std::endl;
-
-      // double total_finger_defect_cost = 0;
-      // double total_cube_rot_defect_cost = 0;
-      // double total_cube_pos_defect_cost = 0;
-      // double total_defect_cost = 0;
-
-      //  for (int j = 0; j < num_segments_+1; j++) {
-      //   total_finger_defect_cost += defects.col(j).segment(0, 9).transpose() *  P_[j*L_].block(0, 0, 9, 9) * defects.col(j).segment(0, 9);
-      //   total_cube_rot_defect_cost += defects.col(j).segment(9, 4).transpose() *  P_[j*L_].block(9, 9, 4, 4) * defects.col(j).segment(9, 4);
-      //   total_cube_pos_defect_cost += defects.col(j).segment(13, 3).transpose() *  P_[j*L_].block(13, 13, 3, 3) * defects.col(j).segment(13, 3);
-
-      //   total_defect_cost += defects.col(j).transpose() * P_[j*L_] * defects.col(j);
-      // }
-      // std::cout << "FINGER DEFECT COST: " << total_finger_defect_cost << std::endl;
-      // std::cout << "CUBE ROT DEFECT COST: " << total_cube_rot_defect_cost << std::endl;
-      // std::cout << "CUBE POS DEFECT COST: " << total_cube_pos_defect_cost << std::endl;
-      // std::cout << "TOTAL DEFECT COST: " << total_defect_cost << std::endl;
-      // std::cout << std::endl;
-
-    
-    }
     
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
@@ -650,6 +601,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   gs.push_back(g);
   Ks.push_back(K);
   k_ffs.push_back(k_ff);
+
+  auto end_total = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end_total - start_total;
+  std::cout << "Total runtime: " << duration.count() << " seconds\n\n " << std::endl;
 
   return std::make_tuple(all_x_hats, all_u_hats, all_lambda_hats, Hs, gs, Ks, k_ffs, all_delta_projections);
 }
@@ -674,6 +629,7 @@ VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context,
         drake::multibody::JacobianWrtVariable::kQDot);
       phi_check = phi;
     }
+    x_out(z_idx) = x_out(z_idx) + 0.002; // Add a little extra to ensure no penetration
 
     return x_out;
 }
@@ -931,6 +887,13 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
     int lqr_idx = std::min(start_idx + t + tracking_N, N_); 
 
     VectorXd bias = g[lqr_idx] - H[lqr_idx] * x_hat.col(lqr_idx);
+
+    // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(H[lqr_idx]);
+    // std::cout << "H eigenvalues: " << es.eigenvalues().transpose() << std::endl;    
+    // std::cout << "g: " << g[lqr_idx].transpose() << std::endl;
+    // std::cout << "bias " << bias.transpose() << std::endl;
+
+    
     c3_tracking->UpdateFinalCost(H[lqr_idx], bias);
 
     auto c3_start = std::chrono::high_resolution_clock::now();
@@ -1100,7 +1063,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
 
         // std::cout << "u: " << u_tracking.transpose() << std::endl;
 
-        // std::cout << u_tracking.transpose() << std::endl;
         plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_tracking);
 
         double target_time = root_context.get_time() + dt_ / factor;
@@ -1117,7 +1079,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_h
         // Ensure consistent quaternion convention
         for (int i = 0; i < controller_options_.quaternion_indices.size(); i++) {
           int idx = controller_options_.quaternion_indices[i];
-          if (x_next(idx) * quat_orientation_[i] < 0) {
+          if (x_curr.segment(idx, 4).dot(x_next.segment(idx, 4)) < 0) {
             x_next.segment(idx, 4) *= -1;
           }
         }
@@ -1247,7 +1209,6 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
   vector<VectorXd> d = lcs.d();
   vector<MatrixXd> Q = Q_;
   vector<MatrixXd> R = R_;
-  vector<MatrixXd> P = P_;    
 
   vector<VectorXd> c; // Bias term from contact forces
   for (int t = 0; t < N_; t++) {
@@ -1265,7 +1226,7 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
   vector<MatrixXd> K(N_, MatrixXd::Zero(n_u_, n_x_));
   vector<VectorXd> k_ff(N_, VectorXd::Zero(n_u_));    
 
-  H[N_] = Q[N_] + P[N_]; // terminal condition
+  H[N_] = Q[N_]; // terminal condition
 
   for (int t = N_-1; t >= 0; t--) {
     int k = t / L_;
@@ -1273,15 +1234,15 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
     VectorXd x_t = x_hat.col(t);
     VectorXd u_t = u_hat.col(t);
           
-    MatrixXd Q_xx = Q[t] + A[t].transpose()*(H[t+1]+P[t])*A[t];
-    MatrixXd Q_uu = R[t] + B[t].transpose()*(H[t+1]+P[t])*B[t];
-    MatrixXd Q_ux = B[t].transpose()*(H[t+1]+P[t])*A[t];
+    MatrixXd Q_xx = Q[t] + A[t].transpose()*(H[t+1])*A[t];
+    MatrixXd Q_uu = R[t] + B[t].transpose()*(H[t+1])*B[t];
+    MatrixXd Q_ux = B[t].transpose()*(H[t+1])*A[t];
 
     VectorXd Q_x = Q[t]*(x_t - xd) + A[t].transpose()*g[t+1] + 
-                    A[t].transpose()*(H[t+1]+P[t])*(c[t]+defects.col(k+1));
+                    A[t].transpose()*(H[t+1])*(c[t]+defects.col(k+1));
 
     VectorXd Q_u = R[t]*(u_t - ud) + B[t].transpose()*g[t+1] + 
-                    B[t].transpose()*(H[t+1]+P[t])*(c[t]+defects.col(k+1));
+                    B[t].transpose()*(H[t+1])*(c[t]+defects.col(k+1));
 
     Eigen::LDLT<MatrixXd> solver(Q_uu);
     K[t] = -solver.solve(Q_ux);
@@ -1448,6 +1409,7 @@ LCS MSiC3::GetLCSSegment(LCS lcs, int start_idx, int length) {
 
 
 VectorXd MSiC3::ConstructLambdasFromContactResults(ContactResults<double> contact_results, std::string contact_model) {
+  DRAKE_DEMAND(controller_options_.lcs_factory_options.num_friction_directions == 2);
 
   // Assumes 2 friction directions
   VectorXd lambda(VectorXd::Zero(n_lambda_));
@@ -1542,13 +1504,8 @@ void MSiC3::UpdateQuaternionCosts(
   G_.clear();
   U_.clear();
 
-  P_.clear();
-
-  std::cout << ms_ic3_options_.P.rows() << ", " << ms_ic3_options_.P.cols() << std::endl;
-
   for (int i = 0; i < N_+1; i++) {
     Q_.push_back(controller_options_.c3_options.Q);
-    P_.push_back(ms_ic3_options_.P);
     if (i < N_) {
       R_.push_back(controller_options_.c3_options.R);
       G_.push_back(controller_options_.c3_options.G);
@@ -1580,15 +1537,6 @@ void MSiC3::UpdateQuaternionCosts(
         controller_options_.c3_options.w_Q * 
         controller_options_.Q_quaternion_weight * (quat_hessian_i + Q_quat_regularizer_1 + 
         controller_options_.quaternion_regularizer_fraction * Q_quat_regularizer_2 + Q_quat_regularizer_3);
-
-      Eigen::MatrixXd P_quat_regularizer_1 = std::max(0.0, -min_eigenval) * Eigen::MatrixXd::Identity(4, 4);
-      Eigen::MatrixXd P_quat_regularizer_2 = quat_des_i * quat_des_i.transpose();
-      Eigen::MatrixXd P_quat_regularizer_3 = 1e-4 * Eigen::MatrixXd::Identity(4, 4);
-
-      P_[i].block(index, index, 4, 4) = 
-        ms_ic3_options_.w_P * 
-        ms_ic3_options_.defect_quaternion_weight * (quat_hessian_i + P_quat_regularizer_1 + 
-        ms_ic3_options_.defect_quaternion_regularizer_fraction * P_quat_regularizer_2 + P_quat_regularizer_3);
 
       // double q_min_eigenval = Q_[i].eigenvalues().real().minCoeff();
       // std::cout << "Q_" << i << " min eigenvalue " <<  q_min_eigenval << std::endl;
@@ -1623,16 +1571,7 @@ void MSiC3::UpdateQuaternionCostAtIdx(
       controller_options_.c3_options.w_Q * 
       controller_options_.Q_quaternion_weight * (quat_hessian_i + Q_quat_regularizer_1 + 
       controller_options_.quaternion_regularizer_fraction * Q_quat_regularizer_2 + Q_quat_regularizer_3);
-
-    Eigen::MatrixXd P_quat_regularizer_1 = std::max(0.0, -min_eigenval) * Eigen::MatrixXd::Identity(4, 4);
-    Eigen::MatrixXd P_quat_regularizer_2 = quat_des_i * quat_des_i.transpose();
-    Eigen::MatrixXd P_quat_regularizer_3 = 1e-4 * Eigen::MatrixXd::Identity(4, 4);
-
-    P_[idx].block(index, index, 4, 4) = 
-      ms_ic3_options_.w_P * 
-      ms_ic3_options_.defect_quaternion_weight * (quat_hessian_i + P_quat_regularizer_1 + 
-      ms_ic3_options_.defect_quaternion_regularizer_fraction * P_quat_regularizer_2 + P_quat_regularizer_3);
-
+   
     // double q_min_eigenval = Q_[i].eigenvalues().real().minCoeff();
     // std::cout << "Q_" << i << " min eigenvalue " <<  q_min_eigenval << std::endl;
   }

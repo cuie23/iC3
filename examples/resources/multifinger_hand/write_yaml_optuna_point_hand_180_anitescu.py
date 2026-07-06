@@ -18,7 +18,7 @@ MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_18
 STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake_config1_lower_mus.db"
 STUDY_NAME = "MSiC3_point_hand_180_anitescu_drake_config1_lower_mus"
 
-TRIAL_NUMBER = 4267
+TRIAL_NUMBER = 9912
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -213,6 +213,11 @@ ic3_options["print_costs"] = False
 ic3_options["use_drake_sim"] = True
 ic3_options["drake_sim_dt"] = 0.0001
 
+if "p_vector" in ic3_options:
+    del ic3_options["p_vector"]
+if "w_P" in ic3_options:
+    del ic3_options["w_P"]
+    
 with open(MSiC3_PARAMS, "w") as f:
     yaml.dump(ic3_options, f)
 

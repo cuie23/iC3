@@ -31,10 +31,6 @@ struct MSiC3Options {
   double defect_quaternion_weight;
   double defect_quaternion_regularizer_fraction;
 
-  double w_P;
-  std::vector<double> p_vector; // cost weights for defect
-
-  MatrixXd P;
 
   VectorXd rollout_Kp;
   VectorXd rollout_Kd;
@@ -64,8 +60,6 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(drake_sim_dt));
     a->Visit(DRAKE_NVP(defect_quaternion_weight));
     a->Visit(DRAKE_NVP(defect_quaternion_regularizer_fraction));
-    a->Visit(DRAKE_NVP(w_P));
-    a->Visit(DRAKE_NVP(p_vector));
     a->Visit(DRAKE_NVP(rollout_Kp));
     a->Visit(DRAKE_NVP(rollout_Kd));
     a->Visit(DRAKE_NVP(alpha_ee));
@@ -74,10 +68,6 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(alpha_object_step));
     a->Visit(DRAKE_NVP(warm_start_alpha));
 
-    Eigen::VectorXd p_diag = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
-      this->p_vector.data(), this->p_vector.size());
-      
-    P = w_P * p_diag.asDiagonal();
   }
 };
 

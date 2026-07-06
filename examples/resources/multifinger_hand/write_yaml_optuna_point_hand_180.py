@@ -223,6 +223,11 @@ ic3_options["print_costs"] = False
 ic3_options["use_drake_sim"] = True
 ic3_options["drake_sim_dt"] = 0.0001
 
+if "p_vector" in ic3_options:
+    del ic3_options["p_vector"]
+if "w_P" in ic3_options:
+    del ic3_options["w_P"]
+    
 with open(MSiC3_PARAMS, "w") as f:
     yaml.dump(ic3_options, f)
 

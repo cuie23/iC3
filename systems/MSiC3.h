@@ -158,13 +158,10 @@ private:
   mutable std::vector<Eigen::MatrixXd> G_;  ///< State-input cross-term matrices.
   mutable std::vector<Eigen::MatrixXd> U_;  ///< Constraint matrices.
   
-  mutable std::vector<Eigen::MatrixXd> P_;  ///< Defect cost matrices
 
   int N_;  // Horizon length (of whole trajectory).
   int num_segments_;
   int L_;  // segment length
-
-  std::vector<int> quat_orientation_;
 
   int example_idx_;
 

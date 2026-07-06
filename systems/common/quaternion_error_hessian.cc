@@ -1,6 +1,4 @@
 #include "quaternion_error_hessian.h"
-#include <iostream> 
-
 namespace c3 {
 namespace systems {
 namespace common {
@@ -41,24 +39,22 @@ MatrixXd hessian_of_squared_quaternion_angle_difference(
     // Check the inputs are of expected shape.
     DRAKE_DEMAND(quat.size() == 4);
     DRAKE_DEMAND(quat_desired.size() == 4);
+    DRAKE_DEMAND(quat.norm() > 0.0);
+    DRAKE_DEMAND(quat_desired.norm() > 0.0);
 
-    // If difference is very small set to closed-form limit to avoid NaN's
-    if ((quat - quat_desired).norm() < 1e-3 ||
-        std::abs(quat.dot(quat_desired) - 1.0) < 1e-3) {
-        // std::cout << "quaternion fallback" << std::endl;
-        return small_angle_hessian_at(quat);
-    }
+    const Eigen::Vector4d q = quat.normalized();
+    const Eigen::Vector4d r = quat_desired.normalized();
 
     // Extract the quaternion components.
-    double q_w = quat(0);
-    double q_x = quat(1);
-    double q_y = quat(2);
-    double q_z = quat(3);
+    double q_w = q(0);
+    double q_x = q(1);
+    double q_y = q(2);
+    double q_z = q(3);
 
-    double r_w = quat_desired(0);
-    double r_x = quat_desired(1);
-    double r_y = quat_desired(2);
-    double r_z = quat_desired(3);
+    double r_w = r(0);
+    double r_x = r(1);
+    double r_y = r(2);
+    double r_z = r(3);
     
     // Define reusable expressions.
     double exp_1 = std::atan2(
@@ -94,6 +90,12 @@ MatrixXd hessian_of_squared_quaternion_angle_difference(
         q_y*std::pow(r_x, 2) - q_y*std::pow(r_z, 2) + q_z*r_y*r_z;
     double exp_13 = q_w*r_w*r_x - q_x*std::pow(r_w, 2) - q_x*std::pow(r_y, 2) -
         q_x*std::pow(r_z, 2) + q_y*r_x*r_y + q_z*r_x*r_z;
+
+    // If difference is very small set to closed-form limit to avoid NaN's
+    if (exp_2 + exp_3 < 1e-4) {
+        // std::cout << "quaternion fallback" << std::endl;
+        return small_angle_hessian_at(q);
+    }
 
     // Define the Hessian elements.
     double H_ww = 8*(-(2*q_w*(exp_7)*(exp_2 + exp_3) -

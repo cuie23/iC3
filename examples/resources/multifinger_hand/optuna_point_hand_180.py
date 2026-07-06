@@ -28,27 +28,27 @@ def objective(trial):
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    # g_gamma = trial.suggest_int("g_gamma", 2, 100, step=2)
-    # g_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
-    # g_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
-    # g_eta_slack = trial.suggest_int("g_eta_slack", 2, 100, step=2)
-    # g_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
-    # g_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
+    g_gamma = trial.suggest_int("g_gamma", 2, 100, step=2)
+    g_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
+    g_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
+    g_eta_slack = trial.suggest_int("g_eta_slack", 2, 100, step=2)
+    g_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
+    g_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
 
     u_lambda = trial.suggest_int("u_lambda", 2, 100, step=2)
     u_eta = trial.suggest_int("u_eta", 2, 100, step=2)
 
-    # u_gamma = trial.suggest_int("u_gamma", 2, 100, step=2)
-    # u_lambda_n = trial.suggest_int("u_lambda_n", 2, 100, step=2)
-    # u_lambda_t = trial.suggest_int("u_lambda_t", 2, 100, step=2)
-    # u_eta_slack = trial.suggest_int("u_eta_slack", 2, 100, step=2)
-    # u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
-    # u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
+    u_gamma = trial.suggest_int("u_gamma", 2, 100, step=2)
+    u_lambda_n = trial.suggest_int("u_lambda_n", 2, 100, step=2)
+    u_lambda_t = trial.suggest_int("u_lambda_t", 2, 100, step=2)
+    u_eta_slack = trial.suggest_int("u_eta_slack", 2, 100, step=2)
+    u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
+    u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
 
     # lambda_threshold = trial.suggest_float("lambda_threshold", 0.0, 2.0, step=0.1)
     # eta_threshold = trial.suggest_float("eta_threshold", 0.0, 0.05, step=0.01)
-    gamma_threshold = trial.suggest_int("gamma_threshold", 0, 15)
-    phi_threshold = trial.suggest_int("phi_threshold", 0, 15)
+    gamma_threshold = trial.suggest_int("gamma_threshold", 0, 20)
+    phi_threshold = trial.suggest_int("phi_threshold", 0, 20)
     add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
     epsilon = trial.suggest_int("epsilon", 1, 5)
 
@@ -69,24 +69,24 @@ def objective(trial):
 
     c3_options["c3_options"]["g_lambda"] = []
     c3_options["c3_options"]["g_eta"] = []
-    c3_options["c3_options"]["g_gamma"] = [g_lambda] * n_contacts
-    c3_options["c3_options"]["g_lambda_n"] = [g_lambda] * n_contacts
-    c3_options["c3_options"]["g_lambda_t"] = [g_lambda] * (4 * n_contacts)
-    c3_options["c3_options"]["g_eta_slack"] = [g_eta] * n_contacts
-    c3_options["c3_options"]["g_eta_n"] = [g_eta] * n_contacts
-    c3_options["c3_options"]["g_eta_t"] = [g_eta] * (4 * n_contacts)
+    c3_options["c3_options"]["g_gamma"] = [g_gamma] * n_contacts
+    c3_options["c3_options"]["g_lambda_n"] = [g_lambda_n] * n_contacts
+    c3_options["c3_options"]["g_lambda_t"] = [g_lambda_t] * (4 * n_contacts)
+    c3_options["c3_options"]["g_eta_slack"] = [g_eta_slack] * n_contacts
+    c3_options["c3_options"]["g_eta_n"] = [g_eta_n] * n_contacts
+    c3_options["c3_options"]["g_eta_t"] = [g_eta_t] * (4 * n_contacts)
 
     # c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4*n_contacts)
     # c3_options["c3_options"]["u_eta"] = [u_eta] * (4*n_contacts)
 
     c3_options["c3_options"]["u_lambda"] = []
     c3_options["c3_options"]["u_eta"] = []
-    c3_options["c3_options"]["u_gamma"] = [u_lambda] * n_contacts
-    c3_options["c3_options"]["u_lambda_n"] = [u_lambda] * n_contacts
-    c3_options["c3_options"]["u_lambda_t"] = [u_lambda] * (4 * n_contacts)
-    c3_options["c3_options"]["u_eta_slack"] = [u_eta] * n_contacts
-    c3_options["c3_options"]["u_eta_n"] = [u_eta] * n_contacts
-    c3_options["c3_options"]["u_eta_t"] = [u_eta] * (4 * n_contacts)
+    c3_options["c3_options"]["u_gamma"] = [u_gamma] * n_contacts
+    c3_options["c3_options"]["u_lambda_n"] = [u_lambda_n] * n_contacts
+    c3_options["c3_options"]["u_lambda_t"] = [u_lambda_t] * (4 * n_contacts)
+    c3_options["c3_options"]["u_eta_slack"] = [u_eta_slack] * n_contacts
+    c3_options["c3_options"]["u_eta_n"] = [u_eta_n] * n_contacts
+    c3_options["c3_options"]["u_eta_t"] = [u_eta_t] * (4 * n_contacts)
 
     c3_options["c3_options"]["lambda_threshold"] = []
     c3_options["c3_options"]["eta_threshold"] = []
@@ -199,6 +199,11 @@ def objective(trial):
     ic3_options["use_drake_sim"] = True
     ic3_options["drake_sim_dt"] = 0.0001
 
+    if "p_vector" in ic3_options:
+        del ic3_options["p_vector"]
+    if "w_P" in ic3_options:
+        del ic3_options["w_P"]
+        
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 
@@ -290,7 +295,7 @@ if __name__ == "__main__":
         storage=STORAGE_URL,
         load_if_exists=True,  
         direction="minimize")
-    study.optimize(objective, n_trials=1000, callbacks=[log_best_callback])
+    study.optimize(objective, n_trials=5000, callbacks=[log_best_callback])
 
     print("\n--- Optimization Complete ---")
     print(f"Best Trial Value: {study.best_value}")
