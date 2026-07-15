@@ -1,0 +1,27 @@
+=========================================
+       BEST HYPERPARAMETERS SO FAR       
+=========================================
+Best Trial Number: 685
+Best Metric Value: 33.4007
+
+Parameters:
+  w_G: 68
+  g_x_cube: 24
+  g_lambda: 78
+  g_eta: 20
+  u_ratio_finger: -176
+  u_ratio_cube: -70
+  admm_iter: 5
+  finger_position_weight: 170000
+  cube_position_weight: 240000
+  tracking_N: 4
+  quat_weight: 3000
+  cube_model: 3
+  num_segments: 15
+  warm_start_alpha: 100
+  num_iters: 2
+  alpha_ee: 94
+  alpha_object: 54
+  value_function_scaling: 49
+  traj_N: 720
+=========================================

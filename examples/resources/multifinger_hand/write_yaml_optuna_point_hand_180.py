@@ -184,6 +184,11 @@ alpha_object = trial.params["alpha_object"]
 
 accel_cost = trial.params["accel_cost"]
 
+try:
+    use_rollout_lambdas = trial.params["use_rollout_lambdas"]
+except KeyError:
+    use_rollout_lambdas = False
+
 # Kp = trial.params["Kp"]
 # Kd = trial.params["Kd"]
 
@@ -222,6 +227,8 @@ ic3_options["print_costs"] = False
 
 ic3_options["use_drake_sim"] = True
 ic3_options["drake_sim_dt"] = 0.0001
+
+ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
 
 if "p_vector" in ic3_options:
     del ic3_options["p_vector"]

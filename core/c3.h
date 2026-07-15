@@ -262,7 +262,7 @@ class C3 {
   int N_penalize_input_change_;
 
   bool use_parallelization_in_projection_ = true;
-  bool penalize_change_ = true;
+  bool penalize_change_ = false;
 
   /*!
    * Project delta_c onto the LCP constraint.

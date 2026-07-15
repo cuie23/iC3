@@ -6,7 +6,7 @@ publish_frequency: 1000
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 500
+Q_quaternion_weight: 4000
 
 quaternion_regularizer_fraction: 0.0
 
@@ -23,15 +23,15 @@ lcs_factory_options:
 
   # 3 fingertip-cube, 4 cube-ground
   mu: [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3]
-  N: 5
+  N: 6
   dt: 0.02
 
 c3_options:
-  penalize_input_change: false # Currently combines u-u_prev and u-u_des
-  input_change_weight: 1000 # ratio of u-u_prev weight to u-u_des weight
+  penalize_input_change: true  # Currently combines u-u_prev and u-u_des
+  input_change_weight: 0.0  # ratio of u-u_prev weight to u-u_des weight
 
-  penalize_x_change: false # Currently combines x-x_prev and x-x_des
-  x_change_weight: 1000 # ratio of x-x_prev weight to x-x_des weight
+  penalize_x_change: true  # Currently combines x-x_prev and x-x_des
+  x_change_weight: 0.0  # ratio of x-x_prev weight to x-x_des weight
 
   # EXPERIMENTAL
   # penalize_snap: false
@@ -46,28 +46,30 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 3
+  admm_iter: 4
   gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 25  #Penalty on all decision variables, assuming scalar
+  w_G: 87  #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  q_vector: [220000, 220000, 220000, 220000, 220000, 220000, 220000, 220000, 220000, 1, 1, 1, 1, 240000, 240000, 80000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.2, 0.2, 0.2, 5, 5, 5]
+  w_G_final: 1
+
+  q_vector: [30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 1, 1, 1, 1, 560000, 560000, 80000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.2, 0.2, 0.2, 5, 5, 5]
 
   r_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1] # finger 3 actuation
 
-  g_x: [80, 80, 80, 80, 80, 80, 80, 80, 80, 34, 34, 34, 34, 34, 34, 34, 10, 10, 10, 10, 10, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1]          # cube velo
-  g_u: [58, 58, 58, 58, 58, 58, 58, 58, 58]
+  g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50, 78, 78, 78, 78, 78, 78, 78, 10, 10, 10, 10, 10, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1]          # cube velo
+  g_u: [50, 50, 50, 50, 50, 50, 50, 50, 50]
   g_gamma: []
   g_lambda_n: []
   g_lambda_t: []
   g_eta_slack: []
   g_eta_n: []
   g_eta_t: []
-  g_lambda: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
-  g_eta: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+  g_lambda: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50]
+  g_eta: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
 
   u_x: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] # cube velo
   u_u: [1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -77,11 +79,10 @@ c3_options:
   u_eta_slack: []
   u_eta_n: []
   u_eta_t: []
-  u_lambda: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12]
-  u_eta: [82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82, 82]
-
-  lambda_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-  eta_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  u_lambda: [12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 12.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  u_eta: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4, 9.4]
+  lambda_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  eta_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   add_phi_buffer: false
 
   gamma_threshold: []

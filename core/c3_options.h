@@ -77,6 +77,9 @@ struct C3Options {
   std::vector<double> g_lambda_t;
   std::vector<double> g_lambda;
   std::vector<double> g_u;
+
+  std::optional<double> w_G_final;
+
   std::optional<std::vector<double>> g_eta_slack;
   std::optional<std::vector<double>> g_eta_n;
   std::optional<std::vector<double>> g_eta_t;
@@ -143,6 +146,7 @@ struct C3Options {
     a->Visit(DRAKE_NVP(g_lambda_t));
     a->Visit(DRAKE_NVP(g_lambda));
     a->Visit(DRAKE_NVP(g_u));
+    a->Visit(DRAKE_NVP(w_G_final));
     a->Visit(DRAKE_NVP(g_eta_slack));
     a->Visit(DRAKE_NVP(g_eta_n));
     a->Visit(DRAKE_NVP(g_eta_t));

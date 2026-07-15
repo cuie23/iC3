@@ -357,6 +357,7 @@ void C3::Solve(const VectorXd& x0) {
     }
   }
 
+
   if (penalize_change_ && options_.penalize_input_change) {
     std::cout << "penalizing change u " << std::endl;
     if (u_sol_->size() < N_) {
@@ -566,19 +567,22 @@ void C3::StoreQPResults(const MathematicalProgramResult& result,
 
 vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
                              const vector<VectorXd>& WD, int admm_iteration,
-                             bool is_final_solve) {                    
+                             bool is_final_solve) {         
+  
+  double w_final = (is_final_solve && options_.end_on_qp_step) ? (options_.w_G_final.value_or(1)) : 1;     
+
   // Add or update augmented costs
   if (augmented_costs_.size() == 0) {
     for (int i = 0; i < N_; ++i)
       augmented_costs_.push_back(prog_
-                                     .AddQuadraticCost(2 * G.at(i),
-                                                       -2 * G.at(i) * WD.at(i),
+                                     .AddQuadraticCost(2 * w_final * G.at(i),
+                                                       -2 * w_final * G.at(i) * WD.at(i),
                                                        z_.at(i), 1)
                                      .evaluator());
   } else {
     for (int i = 0; i < N_; ++i)
-      augmented_costs_[i]->UpdateCoefficients(2 * G.at(i),
-                                              -2 * G.at(i) * WD.at(i));
+      augmented_costs_[i]->UpdateCoefficients(2 * w_final * G.at(i),
+                                              -2 * w_final * G.at(i) * WD.at(i));
   }
   SetInitialGuessQP(x0, admm_iteration);
 
@@ -627,19 +631,14 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
 
   if (!result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
-      
-      drake::log()->warn("OSQP Status: {}", details.status_val); 
-      drake::log()->warn("Iterations: {}", details.iter);
+      std::cout << "OSQP Status: " << details.status_val << std::endl;
+      std::cout << "Iterations: " << details.iter << std::endl;
       std::cout << "Primal Res: " << details.primal_res << std::endl;
       std::cout << "Dual Res: " << details.dual_res << std::endl;
       std::cout << "x0 " << x0.transpose() << std::endl;
-      while (true) {}
- } else {
+  } else {
     // const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
     // std::cout << "Iterations: " << details.iter << std::endl;
-    // std::cout << "Primal Res: " << details.primal_res << std::endl;
-    // std::cout << "Dual Res: " << details.dual_res << std::endl;
-
   }
   StoreQPResults(result, admm_iteration, is_final_solve);
 

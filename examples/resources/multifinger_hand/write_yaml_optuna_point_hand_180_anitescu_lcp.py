@@ -173,6 +173,11 @@ accel_cost = trial.params["accel_cost"]
 
 use_pd = trial.params["use_pd"]
 
+try:
+    use_rollout_lambdas = trial.params["use_rollout_lambdas"]
+except KeyError:
+    use_rollout_lambdas = False
+
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
 
@@ -208,6 +213,8 @@ ic3_options["print_costs"] = False
 
 ic3_options["use_drake_sim"] = False
 ic3_options["drake_sim_dt"] = 0.0001
+
+ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
 
 if "p_vector" in ic3_options:
     del ic3_options["p_vector"]

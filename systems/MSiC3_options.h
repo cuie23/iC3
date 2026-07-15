@@ -17,6 +17,8 @@ struct MSiC3Options {
   bool add_position_constraints;
   bool add_input_constraints;
 
+  bool use_rollout_lambdas;
+
   bool early_termination;
 
   bool print_costs;
@@ -43,6 +45,8 @@ struct MSiC3Options {
 
   double warm_start_alpha;
 
+  double value_function_scaling;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(num_iters));
@@ -62,6 +66,8 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(defect_quaternion_regularizer_fraction));
     a->Visit(DRAKE_NVP(rollout_Kp));
     a->Visit(DRAKE_NVP(rollout_Kd));
+    a->Visit(DRAKE_NVP(use_rollout_lambdas));
+    a->Visit(DRAKE_NVP(value_function_scaling));
     a->Visit(DRAKE_NVP(alpha_ee));
     a->Visit(DRAKE_NVP(alpha_object));
     a->Visit(DRAKE_NVP(alpha_ee_step));

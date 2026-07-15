@@ -1,8 +1,8 @@
-num_iters: 6
+num_iters: 3
 num_warmup_iters: 0
 
 N: 600
-num_segments: 50
+num_segments: 15
 
 
 add_position_constraints: true
@@ -17,7 +17,7 @@ use_drake_sim: true
 drake_sim_dt: 0.0001
 
 penalize_acceleration: true
-acceleration_cost_weight: 10
+acceleration_cost_weight: 25
 
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
@@ -25,10 +25,13 @@ defect_quaternion_regularizer_fraction: 0
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.0
-alpha_ee_step: 0.2
+alpha_ee: 0.68
+alpha_ee_step: 0.15999999999999998
 
-alpha_object: 0.28
-alpha_object_step: 0.144
+alpha_object: 0.2
+alpha_object_step: 0.4
 
-warm_start_alpha: 0.09
+warm_start_alpha: 0.17
+use_rollout_lambdas: false
+
+value_function_scaling: 1.0

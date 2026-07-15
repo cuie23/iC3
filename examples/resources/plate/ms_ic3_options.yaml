@@ -1,41 +1,37 @@
-num_iters: 3
+num_iters: 5
 num_warmup_iters: 1
 
-N: 50
+N: 90
 num_segments: 2
+
 
 add_position_constraints: true
 add_input_constraints: true
 
 early_termination: true
 
-print_costs: true
+print_costs: false
+
 rollout_dt_scaling: 5
+use_drake_sim: true
+drake_sim_dt: 0.0001
 
-penalize_acceleration: false
-acceleration_cost_weight: 0
+use_rollout_lambdas: true
 
-defect_quaternion_weight: 0
+penalize_acceleration: true
+acceleration_cost_weight: 30
+
+defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
 
-w_P: 0
-p_vector: [1, 1, 1,
-           1, 1, 
-           1, 1, 1, 1, 
-           1, 1, 1, 
-           1, 1, 1, 
-           1, 1, 
-           1, 1, 1, 
-           1, 1, 1]
+rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
+rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+alpha_ee: 0.45
+alpha_ee_step: 0.1375
 
-rollout_Kp: [0, 0, 0, 0, 0]
-rollout_Kd: [0, 0, 0, 0, 0]
+alpha_object: 0.75
+alpha_object_step: 0.0625
 
-alpha_ee: 0.5
-alpha_ee_step: 0.25
-
-alpha_object: 0.4
-alpha_object_step: 0.3
-
-warm_start_alpha: 0.5
+warm_start_alpha: 0.87
+value_function_scaling: 0.16

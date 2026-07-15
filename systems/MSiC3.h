@@ -61,8 +61,14 @@ public:
   // 4: Linear terms for LQR value function for each MSiC3 iteration
   // 5: LQR feedback gains for each MSiC3 iteration
   // 6: LQR feedforward gains for each MSiC3 iteration
-  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
-      vector<vector<MatrixXd>>, vector<vector<VectorXd>>, vector<vector<vector<MatrixXd>>> > ComputeTrajectory(
+  // 7: c3 projections for each MSiC3 iteration
+  // 8: c3 z solutions for each MSiC3 iteration
+  // 9: gammas for each MSiC3 iteration
+  // 10: whether each contact point is in contact for each MSiC3 iteration
+  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, 
+        vector<vector<VectorXd>>, vector<vector<MatrixXd>>, vector<vector<VectorXd>>, 
+        vector<vector<vector<MatrixXd>>>, vector<vector<vector<VectorXd>>>,
+        vector<MatrixXd>, vector<MatrixXd>> ComputeTrajectory(
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     drake::systems::Context<double>& context_rollout,
@@ -84,11 +90,10 @@ private:
 
   // Given an initial x, nominal u, time-varying lcs, simulate with C3 mpc
   // Number of steps simulated = number of cols in u_hat
-  // lcs, H, g, x_targets are all over the entire iC3 time horizon, indexing done in function
+  // x_hat, lcs, H, g, x_targets are all over the entire iC3 time horizon, indexing done in function
   // start_idx is the timestep w.r.t the entire iC3 time horizon to start from
-  // returns x_hat, u_hat, lambda_hat
-  // TODO: context and contact_geoms only get used for debugging
-  tuple<MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, VectorXd ud, 
+  // returns x_hat, u_hat, lambda_hat, gamma, in_contact
+  tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, VectorXd ud, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -115,7 +120,8 @@ private:
   LCS GetLCSSegment(LCS lcs, int start_idx, int length);
 
   // ASSUMES ANITESCU AND 2 FRICTION DIRECTIONS
-  VectorXd ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, std::string contact_model);
+  // Returns lambda, gamma, in_contact
+  std::tuple<VectorXd, VectorXd, VectorXd> ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, std::string contact_model);
 
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
@@ -125,7 +131,7 @@ private:
     VectorXd x_curr, VectorXd x_des, int idx);
     
   C3::CostMatrices UpdateQuaternionCosts(
-    VectorXd x_curr, VectorXd x_des, C3::CostMatrices costs);
+    VectorXd x_curr, vector<VectorXd> x_des, C3::CostMatrices costs);
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;
@@ -167,6 +173,9 @@ private:
 
   // Indexing: ic3 timestep, admm iteration, c3 horizon
   std::vector<std::vector<Eigen::MatrixXd>> delta_projection_iter_;
+
+  // Indexing: ic3_timestep, c3 horizon
+  std::vector<std::vector<Eigen::VectorXd>> z_sol_iter_;
 
 };
 

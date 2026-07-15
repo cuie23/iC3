@@ -11,7 +11,8 @@ int main(int argc, char* argv[]) {
   int n_lambda = 28;
 
   std::string filename = "all_delta_projections.bin";
-  vector<vector<vector<MatrixXd>>> all_delta_projections = c3::utils::LoadTrajectoryData(filename);
+  const c3::utils::NestedMatrixDataC3Proj all_delta_projections =
+      c3::utils::LoadTrajectoryData<c3::utils::NestedMatrixDataC3Proj>(filename);
 
 
   std::cout << all_delta_projections.size() << std::endl;

@@ -180,6 +180,8 @@ def objective(trial):
 
     use_pd = trial.suggest_int("use_pd", 0, 1)
 
+    use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
+
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
@@ -215,11 +217,13 @@ def objective(trial):
     ic3_options["use_drake_sim"] = False
     ic3_options["drake_sim_dt"] = 0.0001
 
+    ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+
     if "p_vector" in ic3_options:
         del ic3_options["p_vector"]
     if "w_P" in ic3_options:
         del ic3_options["w_P"]
-        
+
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 

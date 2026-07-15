@@ -149,7 +149,7 @@ const VectorXd LCS::SimulateAtTimestep(VectorXd& x_init, VectorXd& u,
     flag = LCPSolver.SolveLcpLemke(F_[k], E_[k] * x_init + c_[k] + H_[k] * u, &force);
   }
   if (!flag) {
-    std::cout << "LCP at timestep " << k << " failed: returning x_init" << std::endl;
+    // std::cout << "LCP at timestep " << k << " failed: returning x_init" << std::endl;
     return x_init;
   }
   x_final = A_[k] * x_init + B_[k] * u + D_[k] * force + d_[k];

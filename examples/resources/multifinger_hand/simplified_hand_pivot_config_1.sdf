@@ -102,8 +102,8 @@
         <axis>
           <xyz>0 1 0</xyz>
            <limit>
-            <lower> -0.0 </lower>
-            <upper> 0.14 </upper>
+            <lower> -0.005 </lower>
+            <upper> 0.135 </upper>
           </limit>
         </axis>
       </joint>
@@ -114,7 +114,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.02 </lower>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
         </axis>
@@ -191,8 +191,8 @@
         <axis>
             <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.0 </lower>
-            <upper> 0.14 </upper>
+            <lower> -0.005 </lower>
+            <upper> 0.135 </upper>
           </limit>
         </axis>
       </joint>
@@ -216,8 +216,8 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
-            <lower> -0.125 </lower>
-            <upper> 0.015 </upper>
+            <lower> -0.12 </lower>
+            <upper> 0.02 </upper>
           </limit>
         </axis>
       </joint>
@@ -228,7 +228,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.02 </lower>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
         </axis>
@@ -305,8 +305,8 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.14 </lower>
-            <upper> 0.0 </upper>
+            <lower> -0.135 </lower>
+            <upper> 0.005 </upper>
           </limit>
         </axis>
       </joint>
@@ -330,8 +330,8 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
-            <lower> -0.125 </lower>
-            <upper> 0.015 </upper>
+            <lower> -0.12 </lower>
+            <upper> 0.02 </upper>
           </limit>
         </axis>
       </joint>
@@ -342,7 +342,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.02 </lower>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
         </axis>
