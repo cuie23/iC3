@@ -174,6 +174,15 @@ drake::systems::EventStatus C3Controller::ComputePlan(
   c3_->UpdateTarget(target);
   c3_->Solve(x0);
 
+
+  vector<VectorXd> z_sol = c3_->GetFullSolution();
+
+  for (int i = 0; i < z_sol.size(); i++) {
+    // std::cout << "lambda i " << z_sol[i].segment(n_x_, 12).transpose() << std::endl;
+    std::cout << "cube " << z_sol[i].segment(9, 7).transpose() << std::endl;
+  }
+  std::cout << std::endl;
+
   // Measure solve time
   auto finish = std::chrono::high_resolution_clock::now();
   double time_elapsed =

@@ -4,6 +4,7 @@ import re
 import subprocess
 import optuna
 import sys
+import platform
 
 def get_quaternion_angle_diff(q1, q2):
     """Computes the angular difference (in radians) between two quaternions."""
@@ -39,7 +40,7 @@ def objective(trial):
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    w_G_final = trial.suggest_int("w_G_final", 1, 20)
+    w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) # -100 = lambda/eta = 0.1 
     u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) # -100 = lambda/eta = 0.1
@@ -53,7 +54,7 @@ def objective(trial):
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
     finger_position_weight = trial.suggest_int("finger_position_weight", 50, 2000, step=50)
     cube_position_weight = trial.suggest_int("cube_position_weight", 50, 10000, step=50)
-    quat_weight = trial.suggest_int("quat_weight", 5, 200, step=5)
+    quat_weight = trial.suggest_int("quat_weight", 500, 50000, step=500)
 
     # finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
     finger_config = 1
@@ -406,8 +407,12 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_pivot_pruning_no_thresh.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_wG_final_no_thresh.db"
-    
+    print(platform.release().lower())
+    if "microsoft" in platform.release().lower():
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_wG_final_no_thresh.db"
+    else:
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_wG_final_no_thresh.db"
+        
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  

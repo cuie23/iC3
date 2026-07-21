@@ -18,7 +18,7 @@ MSiC3_PARAMS = "examples/resources/plate/ms_ic3_options.yaml"
 STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate.db"
 STUDY_NAME = "MSiC3_plate"
 
-TRIAL_NUMBER = 505
+TRIAL_NUMBER = 90
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None

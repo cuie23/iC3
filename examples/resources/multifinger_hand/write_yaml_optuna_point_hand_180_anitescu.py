@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_ablation_less_params.db"
-STUDY_NAME = "MSiC3_point_hand_180_ablation_less_params"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final.db"
+STUDY_NAME = "MSiC3_point_hand_180_180_wG_final"
 
-TRIAL_NUMBER = 112
+TRIAL_NUMBER = 149
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None

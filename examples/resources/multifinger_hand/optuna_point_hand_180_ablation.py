@@ -7,6 +7,7 @@ import optuna
 import optunahub
 import sys
 import math
+import platform
 
 def get_quaternion_angle_diff(q1, q2):
     """Computes the angular difference (in radians) between two quaternions."""
@@ -46,7 +47,7 @@ def objective(trial):
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    w_G_final = trial.suggest_int("w_G_final", 1, 20)
+    w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     # g_gamma = trial.suggest_int("g_gamma", 2, 100, step=2)
     # g_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
@@ -419,7 +420,7 @@ def objective(trial):
 
     # If the first trial is bad, just return some heuristic score to save compute
     if final_score_thresh > 130:
-        return final_score_thresh * 2.4
+        return final_score_thresh * 2.2
 
 # =====================================================================================================
 # =====================================================================================================
@@ -525,7 +526,7 @@ def objective(trial):
     trial.set_user_attr("final_score_no_thresh", final_score_no_thresh)
     trial.set_user_attr("score_diff", abs(final_score_thresh - final_score_no_thresh))
 
-    return final_score_thresh + final_score_no_thresh + abs(final_score_thresh - final_score_no_thresh)
+    return final_score_thresh + final_score_no_thresh + 0.5 * abs(final_score_thresh - final_score_no_thresh)
 
 def log_best_callback(study, trial):
     if trial.value is None:
@@ -540,7 +541,7 @@ def log_best_callback(study, trial):
     if trial.value < 70:
         print(f"--> Good trial found (Metric: {trial.value} < 70). Logging to historic file...")
 
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_70_trials_ablation_wG_final.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_70_trials_ablation_wG_final3.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write(f"  final_score_thresh:    {score_thresh}\n")
             f.write(f"  final_score_no_thresh: {score_no_thresh}\n")
@@ -554,7 +555,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
 
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_ablation_wG_final.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_ablation_wG_final3.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -574,7 +575,13 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180_ablation.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_ablation_wG_final.db"
+    print(platform.release().lower())
+    if "microsoft" in platform.release().lower():
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_ablation_wG_final3.db"
+    else:
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_ablation_wG_final3.db"
+    
+    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_ablation_wG_final3.db"
     
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -586,7 +593,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_ablation_wG_final",
+        study_name="MSiC3_point_hand_180_ablation_wG_final3",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

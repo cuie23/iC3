@@ -2,18 +2,18 @@ projection_type: "C3+"
 
 solve_time_filter_alpha: 0.0
 #set to 0 to publish as fast as possible
-publish_frequency: 1000
+publish_frequency: 10
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 4000
+Q_quaternion_weight: 50000
 
 quaternion_regularizer_fraction: 0.0
 
-x_init: [-0.01, 0.08, 0.05,  # finger 1 
-         0.07, -0.055, 0.05,   # finger 2
-         -0.07, -0.055, 0.05,   # finger 3
-         0.92, 0, 0, 0.38, # cube orientation
+x_init: [0.0, 0.07, 0.07,  # finger 1 
+         0.05, -0.07, 0.03,   # finger 2
+         -0.05, -0.07, 0.03,   # finger 3
+         1, 0, 0, 0, # cube orientation
          0, 0, 0.052,  # cube position
          0, 0, 0,     # finger 1 velo
          0, 0, 0,     # finger 2 velo
@@ -22,10 +22,10 @@ x_init: [-0.01, 0.08, 0.05,  # finger 1
          0, 0, 0]   	# cube velo
 
 
-x_des: [0, 0.07, 0.05,  # finger 1  
-         0.07, -0.055, 0.05,   # finger 2
-         -0.07, -0.055, 0.05,   # finger 3
-         0, 0, 0, 1,  # cube orientation (180 about z)
+x_des: [0.0, 0.07, 0.05,  # finger 1 
+         0.05, -0.07, 0.05,   # finger 2
+         -0.05, -0.07, 0.05,   # finger 3
+         0, 1, 0, 0, # cube orientation
          0, 0, 0.052,  # cube position
          0, 0, 0,     # finger 1 velo
          0, 0, 0,     # finger 2 velo
@@ -39,13 +39,13 @@ lcs_factory_options:
   # contact_model : 'stewart_and_trinkle'
   contact_model: "anitescu"
   num_friction_directions: 2
-  num_contacts: 7
+  num_contacts: 11
   spring_stiffness: 0
 
-  # 3 fingertip-cube, 4 cube-ground
-  mu: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6] #, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
-  N: 8
-  dt: 0.01
+  # 3 fingertip-cube, 8 cube-ground
+  mu: [0.33, 0.33, 0.33, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+  N: 4
+  dt: 0.1
 
 c3_options:
   penalize_input_change: false # Currently combines u-u_prev and u-u_des
@@ -67,24 +67,26 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 9
+  admm_iter: 3
   gamma: 1.00
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
-  w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 70 #Penalty on all decision variables, assuming scalar
+  w_R: 10 #Penalty on all decision variables, assuming scalar
+  w_G: 0.0001 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  q_vector: [60000, 60000, 60000,    # finger 1
-             60000, 60000, 60000,    # finger 2
-             60000, 60000, 60000,    # finger 3
+  w_G_final: 10
+
+  q_vector: [50, 50, 50,    # finger 1
+             50, 50, 50,    # finger 2
+             50, 50, 50,    # finger 3
              1, 1, 1, 1,
-             200000, 200000, 80000,
+             50, 50, 5,
              1, 1, 1,          # finger 1 velo
              1, 1, 1,          # finger 2 velo
              1, 1, 1,          # finger 3 velo 
-             0.2, 0.2, 0.2,
-             5, 5, 5]
+             1, 1, 1,
+             1, 1, 1]
 
   r_vector: [1, 1, 1,        # finger 1 actuation
              1, 1, 1,        # finger 2 actuation
@@ -96,28 +98,43 @@ c3_options:
         1, 1, 1, 1, 1, 1]                                 # cube velo
 
 
-  g_lambda: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
-  
-  g_eta_slack: [3, 3, 3, 3, 3, 3, 3] 
-  g_eta_n: [3, 3, 3, 3, 3, 3, 3] 
-  g_eta_t: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3] 
-  g_eta: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3] 
+  g_lambda: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+             50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
+             50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50]
+  g_eta: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 
+          15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+          15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15] 
+
+  g_eta_slack: [] 
+  g_eta_n: [] 
+  g_eta_t: [] 
   g_u: [50, 50, 50, 50, 50, 50, 50, 50, 50] 
 
 
 
-  u_x: [50, 50, 50, 50, 50, 50, 50, 50, 50,   # hand pos
-        50, 50, 50, 50, 50, 50, 50,                       # cube pos
+  u_x: [1, 1, 1, 1, 1, 1, 1, 1, 1,   # hand pos
+        1, 1, 1, 1, 1, 1, 1,                       # cube pos
         10, 10, 10, 10, 10, 10, 10, 10, 10,   # hand velo
         1, 1, 1, 1, 1, 1]                           # cube velo
 
-  u_lambda: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5] 
-  u_u: [50, 50, 50, 50, 50, 50, 50, 50, 50]
+  u_lambda: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] 
+  u_eta: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
-  u_eta_slack: [6, 6, 6, 6, 6, 6, 6] 
-  u_eta_n: [6, 6, 6, 6, 6, 6, 6] 
-  u_eta_t: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6] 
-  u_eta: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+  u_u: [1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+  lambda_threshold: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+                      0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+                      0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5] 
+  eta_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  u_eta_slack: [] 
+  u_eta_n: [] 
+  u_eta_t: [] 
 
   g_gamma: []
   g_lambda_n: []

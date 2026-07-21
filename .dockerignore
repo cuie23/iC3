@@ -1,0 +1,10 @@
+# .dockerignore
+bazel-*
+.git
+.venv
+__pycache__
+*.pyc
+
+# Exclude the docker image export, but NOT the gurobi tarball
+ic3.tar.gz
+ic3.tar

@@ -106,6 +106,71 @@ using drake::math::RigidTransform;
 using drake::math::RotationMatrix;
 using drake::math::RollPitchYaw;
 
+#include <drake/systems/framework/leaf_system.h>
+
+class VelocityLimitFilter : public drake::systems::LeafSystem<double> {
+ public:
+  VelocityLimitFilter(int num_states, int num_actuators, 
+                      const std::vector<int>& actuated_v_indices, 
+                      double max_velocity)
+      : num_actuators_(num_actuators), 
+        actuated_v_indices_(actuated_v_indices),
+        max_velocity_(max_velocity) {
+    
+    // Input Port 0: Full Plant State (positions + velocities)
+    state_input_port_index_ = 
+        this->DeclareVectorInputPort("plant_state", 
+                                     drake::systems::BasicVector<double>(num_states)).get_index();
+    
+    // Input Port 1: Nominal MPC Control Input
+    nominal_input_port_index_ = 
+        this->DeclareVectorInputPort("nominal_input", 
+                                     drake::systems::BasicVector<double>(num_actuators)).get_index();
+    
+    // Output Port: Filtered Safe Input
+    this->DeclareVectorOutputPort("safe_input", 
+                                  drake::systems::BasicVector<double>(num_actuators),
+                                  &VelocityLimitFilter::CalcSafeInput);
+  }
+
+ private:
+  void CalcSafeInput(const drake::systems::Context<double>& context,
+                    drake::systems::BasicVector<double>* output) const {
+    const auto& state = this->EvalVectorInput(context, state_input_port_index_)->get_value();
+    const auto& u_nom = this->EvalVectorInput(context, nominal_input_port_index_)->get_value();
+
+    Eigen::VectorXd u_safe = u_nom;
+
+    const double max_damping_gain = 10.0;
+    const double buffer = 0.2 * max_velocity_;  // start damping at 80% of limit
+
+    for (int i = 0; i < num_actuators_; ++i) {
+      double v_i = state(actuated_v_indices_[i]);
+      double soft_limit = max_velocity_ - buffer;
+
+      if (v_i > soft_limit) {
+        // Ramp damping smoothly from 0 (at soft_limit) to max (at max_velocity_)
+        double ratio = (v_i - soft_limit) / buffer;   // 0 -> 1 (can exceed 1)
+        double gain = max_damping_gain * ratio;
+        u_safe(i) -= gain * (v_i - soft_limit);
+      }
+      else if (v_i < -soft_limit) {
+        double ratio = (-v_i - soft_limit) / buffer;
+        double gain = max_damping_gain * ratio;
+        u_safe(i) -= gain * (v_i + soft_limit);
+      }
+      // else: within safe zone, no modification
+    }
+
+    output->SetFromVector(u_safe);
+  }
+  int num_actuators_;
+  std::vector<int> actuated_v_indices_;
+  double max_velocity_;
+  drake::systems::InputPortIndex state_input_port_index_;
+  drake::systems::InputPortIndex nominal_input_port_index_;
+};
+
 class TimedGravityCompGate final : public drake::systems::LeafSystem<double> {
  public:
   // input_size = # of actuators (n_u)
@@ -1183,7 +1248,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
-      AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
@@ -1227,6 +1292,22 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 		contact_pairs.emplace_back(plate_collision_geom, geom_id);
 	}
 
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder_rollout;
+  auto [plant_rollout, scene_graph_rollout] =
+      AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
+  Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
+
+  const std::string plate_file_rollout = "examples/resources/plate/plate.sdf";
+	const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
+
+  parser_rollout.AddModels(plate_file_rollout);
+  parser_rollout.AddModels(cube_file_rollout);
+
+  plant_rollout.Finalize();
+
+  auto plant_diagram_rollout = plant_builder_rollout.Build();
+
   // Build the main diagram.
   DiagramBuilder<double> builder;
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
@@ -1248,13 +1329,21 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
       plant_for_lcs, plant_diagram_context.get());
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context_rollout =
+      plant_diagram_rollout->CreateDefaultContext();
+  auto plant_autodiff_rollout =
+      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
+  auto& plant_context_rollout = plant_diagram_rollout->GetMutableSubsystemContext(
+      plant_rollout, plant_diagram_context_rollout.get());
+  auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
+
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
-        *plant_diagram, std::move(plant_diagram_context), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_rollout, *plant_autodiff_rollout, 
+        *plant_diagram_rollout, std::move(plant_diagram_context_rollout), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_for_lcs_context, *plant_context_autodiff);
+      plant_context_rollout, *plant_context_autodiff_rollout);
       
   std::cout << "computed traj" << std::endl;
 
@@ -1337,16 +1426,16 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
 
 int OptunaPlateTestMSiC3() {
-  // Load controller options and cost matrices.
+ // Load controller options and cost matrices.
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
-      "examples/resources/plate/optuna_ms_c3_tracking_options.yaml");
+      "examples/resources/plate/ms_c3_tracking_options.yaml");
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
-      "examples/resources/plate/optuna_ms_ic3_options.yaml");
+      "examples/resources/plate/ms_ic3_options.yaml");
 
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
-      AddMultibodyPlantSceneGraph(&plant_builder, ms_ic3_options.drake_sim_dt);
+      AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
@@ -1356,6 +1445,18 @@ int OptunaPlateTestMSiC3() {
   parser_for_lcs.AddModels(cube_file_lcs);
 
   plant_for_lcs.Finalize();
+
+  std::cout << "floating " << plant_for_lcs.GetBodyByName("plate").is_floating() << std::endl;
+
+  for (drake::multibody::JointIndex i(0); i < plant_for_lcs.num_joints(); ++i) {
+    const auto& j = plant_for_lcs.get_joint(i);
+    std::cout << j.name() << ": "
+              << j.position_lower_limits().transpose() << " -> "
+              << j.position_upper_limits().transpose() << std::endl;
+  }
+  std::cout << "approx: "
+            << static_cast<int>(plant_for_lcs.get_discrete_contact_approximation())
+            << std::endl;
 
   // Build the plant diagram.
   auto plant_diagram = plant_builder.Build();
@@ -1378,6 +1479,22 @@ int OptunaPlateTestMSiC3() {
 		contact_pairs.emplace_back(plate_collision_geom, geom_id);
 	}
 
+  // Build the plant and scene graph for the pivoting system.
+  DiagramBuilder<double> plant_builder_rollout;
+  auto [plant_rollout, scene_graph_rollout] =
+      AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
+  Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
+
+  const std::string plate_file_rollout = "examples/resources/plate/plate.sdf";
+	const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
+
+  parser_rollout.AddModels(plate_file_rollout);
+  parser_rollout.AddModels(cube_file_rollout);
+
+  plant_rollout.Finalize();
+
+  auto plant_diagram_rollout = plant_builder_rollout.Build();
+
   // Build the main diagram.
   DiagramBuilder<double> builder;
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
@@ -1399,17 +1516,23 @@ int OptunaPlateTestMSiC3() {
       plant_for_lcs, plant_diagram_context.get());
   auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
-  std::cout << "before init msic3 " << std::endl;
+  std::unique_ptr<drake::systems::Context<double>> plant_diagram_context_rollout =
+      plant_diagram_rollout->CreateDefaultContext();
+  auto plant_autodiff_rollout =
+      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
+  auto& plant_context_rollout = plant_diagram_rollout->GetMutableSubsystemContext(
+      plant_rollout, plant_diagram_context_rollout.get());
+  auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_for_lcs, *plant_autodiff, 
-        *plant_diagram, std::move(plant_diagram_context), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
-
-  std::cout << "before compute traj msic3 " << std::endl;
+     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_rollout, *plant_autodiff_rollout, 
+        *plant_diagram_rollout, std::move(plant_diagram_context_rollout), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_for_lcs_context, *plant_context_autodiff);
+      plant_context_rollout, *plant_context_autodiff_rollout);
+      
+  std::cout << "computed traj" << std::endl;
 
   double metric = 0;
   double total_angle_diff = 0;
@@ -2634,8 +2757,8 @@ int RunPointHandMPC() {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand.sdf";
-	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs.sdf";
+  const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot_config_3.sdf";
+	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_test.sdf";
 	const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
 
   parser_for_lcs.AddModels(hand_file_lcs);
@@ -2716,7 +2839,7 @@ int RunPointHandMPC() {
   }
 
   // cube-ground contact pairs
-  for (int i = 1; i <= 4; i++) {
+  for (int i = 1; i <= 8; i++) {
     contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
   }    
 
@@ -2725,7 +2848,7 @@ int RunPointHandMPC() {
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, 0.0001);
   Parser parser(&plant, &scene_graph);
 
-  const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
+  const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot_config_3.sdf";
 	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
@@ -2778,6 +2901,11 @@ int RunPointHandMPC() {
 
 	std::cout << "After add C3 controller" << std::endl;
 
+  Eigen::VectorXd xd(31);
+  std::vector<double> x_des = *options.x_des;
+  xd = Eigen::Map<Eigen::VectorXd>(x_des.data(), x_des.size()); 
+	std::cout << "xd: " << xd.transpose() << std::endl;
+
   // Add linear constraints to the controller.
   Eigen::MatrixXd A_x = Eigen::MatrixXd::Zero(31, 31);
   Eigen::MatrixXd A_u = Eigen::MatrixXd::Zero(9, 9);
@@ -2792,35 +2920,40 @@ int RunPointHandMPC() {
     A_x(3*i+1, 3*i+1) = 1;
     A_x(3*i+2, 3*i+2) = 1;
 
-    lower_bound_x(3*i) = -0.08;
-    lower_bound_x(3*i+1) = -0.08;
-    lower_bound_x(3*i+2) = -0.08;
-    upper_bound_x(3*i) = 0.08;
-    upper_bound_x(3*i+1) = 0.08;
-    upper_bound_x(3*i+2) = 0.08;
+    lower_bound_x(3*i) = xd(3*i) - 0.07;
+    lower_bound_x(3*i+1) = xd(3*i+1) - 0.07;
+
+    double lb = (i == 0) ? 0.01 : 0.03;
+    lower_bound_x(3*i+2) = xd(3*i+2) - lb;
+
+    upper_bound_x(3*i) = xd(3*i) + 0.07;
+    upper_bound_x(3*i+1) = xd(3*i+1) + 0.07;
+    
+    double ub = (i == 0) ? 0.04 : 0.01;
+    upper_bound_x(3*i+2) = xd(3*i+2) + ub;
 
     A_x(16+3*i, 16+3*i) = 1;
     A_x(16+ 3*i+1, 16+3*i+1) = 1;
     A_x(3*i+2, 3*i+2) = 1;
 
-    lower_bound_x(16+3*i) = -0.3;
-    lower_bound_x(16+3*i+1) = -0.3;
-    lower_bound_x(16+3*i+2) = -0.3;
-    upper_bound_x(16+3*i) = 0.3;
-    upper_bound_x(16+3*i+1) = 0.3;
-    upper_bound_x(16+3*i+2) = 0.3;
+    lower_bound_x(16+3*i) = -0.08;
+    lower_bound_x(16+3*i+1) = -0.08;
+    lower_bound_x(16+3*i+2) = -0.08;
+    upper_bound_x(16+3*i) = 0.08;
+    upper_bound_x(16+3*i+1) = 0.08;
+    upper_bound_x(16+3*i+2) = 0.08;
 
     A_u(3*i, 3*i) = 1; 
     A_u(3*i+1, 3*i+1) = 1; 
     A_u(3*i+2, 3*i+2) = 1; 
 
-    lower_bound_u(3*i) = -0.5;
-    lower_bound_u(3*i+1) = -0.5;
-    lower_bound_u(3*i+2) = 0.15;
+    lower_bound_u(3*i) = -1;
+    lower_bound_u(3*i+1) = -1;
+    lower_bound_u(3*i+2) = -0.2;
     
-    upper_bound_u(3*i) = 0.5;
-    upper_bound_u(3*i+1) = 0.5;
-    upper_bound_u(3*i+2) = 0.25;
+    upper_bound_u(3*i) = 1;
+    upper_bound_u(3*i+1) = 1;
+    upper_bound_u(3*i+2) = 0.8;
   }
   // A_x(13, 13) = 1;
   // A_x(14, 14) = 1;
@@ -2832,15 +2965,10 @@ int RunPointHandMPC() {
   c3_controller->AddLinearConstraint(A_x, lower_bound_x, upper_bound_x,
                                      ConstraintVariable::STATE);
 
-  // c3_controller->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
-  //                                    ConstraintVariable::INPUT);
+  c3_controller->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
+                                     ConstraintVariable::INPUT);
 
-  Eigen::VectorXd xd(31);
 
-  std::vector<double> x_des = *options.x_des;
-  xd = Eigen::Map<Eigen::VectorXd>(x_des.data(), x_des.size()); 
-
-	std::cout << "xd: " << xd.transpose() << std::endl;
 
   auto xdes =
       builder.AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
@@ -2866,8 +2994,31 @@ int RunPointHandMPC() {
   builder.Connect(c3_controller->get_output_port_c3_solution(),
                   c3_input->get_input_port_c3_solution());
 
-	builder.Connect(c3_input->get_output_port_c3_input(),
-									plant.get_actuation_input_port());
+// 1. Define the indices of your actuated velocities within the 31D state vector.
+  // Example: If positions are 0-15 and velocities are 16-30, and your 9 actuators 
+  // map to velocities 16 through 24:
+  std::vector<int> actuated_vel_indices = {16, 17, 18, 19, 20, 21, 22, 23, 24}; 
+  double velocity_limit = 0.15; // rad/s or m/s
+
+  // 2. Add the custom filter to the diagram
+  auto velocity_filter = builder.AddSystem<VelocityLimitFilter>(
+      plant.num_positions() + plant.num_velocities(), 
+      plant.num_actuators(), 
+      actuated_vel_indices, 
+      velocity_limit);
+  velocity_filter->set_name("velocity_limit_filter");
+
+  // 3. Connect state to the filter
+  builder.Connect(plant.get_state_output_port(),
+                  velocity_filter->get_input_port(0));
+
+  // 4. Connect the MPC output (or zero-order hold output) to the filter
+  builder.Connect(c3_input->get_output_port_c3_input(),
+                  velocity_filter->get_input_port(1));
+
+  // 5. Connect the filter's safe output to the plant's actuation port
+  builder.Connect(velocity_filter->get_output_port(0),
+                  plant.get_actuation_input_port());
 
   // Add a ZeroOrderHold system for state updates.
   auto input_zero_order_hold =

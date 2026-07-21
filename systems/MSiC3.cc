@@ -136,10 +136,11 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
       contact_geoms_, controller_options_.lcs_factory_options);
 
-  std::cout << "rollout factory before " << std::endl;
   LCSFactory lcs_factory_rollout(plant_rollout_, context_rollout, plant_ad_rollout_,
       context_ad_rollout, contact_geoms_rollout_, controller_options_.lcs_factory_options);
-  std::cout << "rollout factory after " << std::endl;
+
+  std::cout << "plant lcs dt " << plant_.time_step() << std::endl;
+  std::cout << "plant rollout dt " << plant_rollout_.time_step() << std::endl;
 
   // Set initial guess to something kinda reasonable
   // Set initial guess for x - linear interpolation (including in quaternion space)
@@ -291,33 +292,36 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       // Offset from initial position
       lower_bound_x(3*i) = xd(3*i) - 0.07;
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.07;
-      lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
+      lower_bound_x(3*i+2) = xd(3*i+2) - 0.02;
 
-      lower_bound_x(16 + 3*i) = -0.08;
-      lower_bound_x(16 + 3*i+1) = -0.08;
-      lower_bound_x(16 + 3*i+2) = -0.08;
+      lower_bound_x(16 + 3*i) = -0.1;
+      lower_bound_x(16 + 3*i+1) = -0.1;
+      lower_bound_x(16 + 3*i+2) = -0.1;
 
       upper_bound_x(3*i) = xd(3*i) + 0.07;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.07;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.07;
 
-      upper_bound_x(16 + 3*i) = 0.08;
-      upper_bound_x(16 + 3*i+1) = 0.08;
-      upper_bound_x(16 + 3*i+2) = 0.08;
+      upper_bound_x(16 + 3*i) = 0.1;
+      upper_bound_x(16 + 3*i+1) = 0.1;
+      upper_bound_x(16 + 3*i+2) = 0.1;
 
       A_u(3*i, 3*i) = 1;
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -1;
-      lower_bound_u(3*i+1) = -1;
+      lower_bound_u(3*i) = -0.8;
+      lower_bound_u(3*i+1) = -0.8;
       lower_bound_u(3*i+2) = -0.4;
       
-      upper_bound_u(3*i) = 1;
-      upper_bound_u(3*i+1) = 1;
+      upper_bound_u(3*i) = 0.8;
+      upper_bound_u(3*i+1) = 0.8;
       upper_bound_u(3*i+2) = 0.8;
     }
   }
+
+  std::cout << "lb x " << lower_bound_x.transpose() << std::endl;
+  std::cout << "ub x " << upper_bound_x.transpose() << std::endl;
 
 
   // Get lambda_hat initial guess   
@@ -540,6 +544,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
           Eigen::Quaterniond slerp = q0.slerp(alpha_object, qf);
           new_x_anchors.col(i+1).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
         }
+      }
+      // Don't update final anchor
+      if (i == num_segments_) {
+        new_x_anchors.col(i+1) = xd;
       }
       
       // Ensure anchors don't have penetration

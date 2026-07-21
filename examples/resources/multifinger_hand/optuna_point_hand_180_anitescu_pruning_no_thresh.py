@@ -7,6 +7,7 @@ import optuna
 import optunahub
 import sys
 import math
+import platform
 
 def get_quaternion_angle_diff(q1, q2):
     """Computes the angular difference (in radians) between two quaternions."""
@@ -73,13 +74,14 @@ def objective(trial):
     # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
 
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
-    cube_position_weight = trial.suggest_int("cube_position_weight", 200000, 1000000, step=20000)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 3000, step=100)
+    cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
     quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
     cube_model = trial.suggest_int("cube_model", 1, 3)
+    w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
     u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
@@ -96,7 +98,7 @@ def objective(trial):
     c3_options["c3_options"]["input_change_weight"] = (u_change_weight-1) / 100.0
     c3_options["c3_options"]["x_change_weight"] = (x_change_weight-1) / 100.0
 
-    c3_options["c3_options"]["w_G"] = w_G
+    c3_options["c3_options"]["w_G"] = w_G / 100.0
     c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
     c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
 
@@ -106,6 +108,8 @@ def objective(trial):
     c3_options["c3_options"]["g_eta_slack"] = []
     c3_options["c3_options"]["g_eta_n"] = []
     c3_options["c3_options"]["g_eta_t"] = []
+
+    c3_options["c3_options"]["w_G_final"] = w_G_final
 
     finger_ratio = abs(u_ratio_finger) / 10.0
     if (u_ratio_finger < 0):
@@ -455,8 +459,12 @@ def log_best_callback(study, trial):
 # python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_pruning_no_thresh.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_reg_weight_no_thresh.db"
-    
+    print(platform.release().lower())
+    if "microsoft" in platform.release().lower():
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_wG_final_no_thresh.db"
+    else:
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final_no_thresh.db"
+        
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
@@ -467,7 +475,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_reg_weight_no_thresh",
+        study_name="MSiC3_point_hand_180_wG_final_no_thresh",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

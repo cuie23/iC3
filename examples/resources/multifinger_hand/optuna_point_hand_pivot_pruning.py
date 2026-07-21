@@ -4,6 +4,7 @@ import re
 import subprocess
 import optuna
 import sys
+import platform
 
 def get_quaternion_angle_diff(q1, q2):
     """Computes the angular difference (in radians) between two quaternions."""
@@ -32,14 +33,14 @@ MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_pivot/opt
 
 def objective(trial):
     # C3 parameters
-    w_G = trial.suggest_int("w_G", 1, 100)
+    w_G = trial.suggest_int("w_G", 1, 1000)
     g_x_fingers = trial.suggest_int("g_x_fingers", 10, 100, step=10)
     g_x_cube = trial.suggest_int("g_x_cube", 10, 100, step=10)
     g_u = trial.suggest_int("g_u", 10, 100, step=10)
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    w_G_final = trial.suggest_int("w_G_final", 1, 20)
+    w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) # -100 = lambda/eta = 0.1 
     u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) # -100 = lambda/eta = 0.1
@@ -47,11 +48,11 @@ def objective(trial):
     lambda_threshold = trial.suggest_int("lambda_threshold", 0, 60)
     eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
 
-    admm_iter = trial.suggest_int("admm_iter", 3, 8)
+    admm_iter = trial.suggest_int("admm_iter", 3, 7)
     tracking_N = trial.suggest_int("tracking_N", 3, 8)
     finger_position_weight = trial.suggest_int("finger_position_weight", 100, 2000, step=100)
     cube_position_weight = trial.suggest_int("cube_position_weight", 100, 10000, step=100)
-    quat_weight = trial.suggest_int("quat_weight", 5, 200, step=5)
+    quat_weight = trial.suggest_int("quat_weight", 1000, 500000, step=1000)
 
     # finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
     finger_config = 1
@@ -137,12 +138,12 @@ def objective(trial):
     c3_options["lcs_factory_options"]["num_contacts"] = 11
     c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
     c3_options["lcs_factory_options"]["N"] = tracking_N
-    c3_options["lcs_factory_options"]["dt"] = 0.01
+    c3_options["lcs_factory_options"]["dt"] = 0.02
 
     if (finger_config == 1):
-        c3_options["x_init"] = [0.0, 0.065, 0.05,  # finger 1 
-                                0.065, -0.05, 0.05,   # finger 2
-                                -0.065, -0.05, 0.05,   # finger 3
+        c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
+                                0.07, -0.055, 0.05,   # finger 2
+                                -0.07, -0.055, 0.05,   # finger 3
                                 1, 0, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -151,9 +152,9 @@ def objective(trial):
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
         
-        c3_options["x_des"] = [0.0, 0.065, 0.05,  # finger 1 
-                                0.065, -0.05, 0.05,   # finger 2
-                                -0.065, -0.05, 0.05,   # finger 3
+        c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
+                                0.07, -0.055, 0.05,   # finger 2
+                                -0.07, -0.055, 0.05,   # finger 3
                                 0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -207,7 +208,7 @@ def objective(trial):
                                 0, 0, 0]   	# cube velo
         
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_R"] = 50
     c3_options["c3_options"]["w_U"] = 1
     c3_options["c3_options"]["scale_lcs"] = True
 
@@ -240,7 +241,7 @@ def objective(trial):
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
-    ic3_options["N"] = 960
+    ic3_options["N"] = 600
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -413,8 +414,11 @@ def log_best_callback(study, trial):
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
 # python3 examples/resources/multifinger_hand/optuna_point_hand_pivot_pruning.py
 if __name__ == "__main__":
-
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_wG_final_thresh.db"
+    print(platform.release().lower())
+    if "microsoft" in platform.release().lower():
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_wG_final_thresh.db"
+    else:
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_wG_final_thresh.db"
     
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
