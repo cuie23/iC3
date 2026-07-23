@@ -114,8 +114,8 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.04 </lower>
-            <upper> 0.09 </upper>
+            <lower> 0.03 </lower>
+            <upper> 0.12 </upper>
           </limit>
         </axis>
       </joint>
@@ -228,8 +228,8 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.02 </lower>
-            <upper> 0.06 </upper>
+            <lower> 0.03 </lower>
+            <upper> 0.12 </upper>
           </limit>
         </axis>
       </joint>
@@ -342,8 +342,8 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.02 </lower>
-            <upper> 0.06 </upper>
+            <lower> 0.03 </lower>
+            <upper> 0.12 </upper>
           </limit>
         </axis>
       </joint>

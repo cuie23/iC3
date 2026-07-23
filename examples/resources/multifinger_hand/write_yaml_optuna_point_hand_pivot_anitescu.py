@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_vf_scalar_no_thresh.db"
-STUDY_NAME = "MSiC3_point_hand_pivot_vf_scalar_no_thresh"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_smaller_dt_thresh.db"
+STUDY_NAME = "MSiC3_point_hand_pivot_smaller_dt_thresh"
 
-TRIAL_NUMBER = 1244
+TRIAL_NUMBER = 2013
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -34,6 +34,11 @@ w_G = trial.params["w_G"]
 g_x_fingers = trial.params["g_x_fingers"]
 g_x_cube = trial.params["g_x_cube"]
 g_u = trial.params["g_u"]
+
+try:
+    w_G_final = trial.params["w_G_final"]
+except KeyError:
+    w_G_final = 1
 
 g_lambda = trial.params["g_lambda"]
 g_eta = trial.params["g_eta"]
@@ -74,7 +79,7 @@ except KeyError:
 
 try:
     x_change_weight = trial.params["x_change_weight"]
-    u_change_weight = trial.params["x_change_weight"]
+    u_change_weight = trial.params["u_change_weight"]
 except:
     x_change_weight = 1
     u_change_weight = 1
@@ -96,7 +101,7 @@ c3_options["c3_options"]["penalize_x_change"] = True
 c3_options["c3_options"]["input_change_weight"] = (u_change_weight-1) / 100.0
 c3_options["c3_options"]["x_change_weight"] = (x_change_weight-1) / 100.0
 
-c3_options["c3_options"]["w_G"] = w_G
+c3_options["c3_options"]["w_G"] = w_G / 100.0
 c3_options["c3_options"]["g_lambda"] = flow_seq([g_lambda] * (4*n_contacts))
 c3_options["c3_options"]["g_eta"] = flow_seq([g_eta] * (4*n_contacts))
 
@@ -106,6 +111,8 @@ c3_options["c3_options"]["g_lambda_t"] = flow_seq([])
 c3_options["c3_options"]["g_eta_slack"] = flow_seq([])
 c3_options["c3_options"]["g_eta_n"] = flow_seq([])
 c3_options["c3_options"]["g_eta_t"] = flow_seq([])
+
+c3_options["c3_options"]["w_G_final"] = w_G_final
 
 
 finger_ratio = abs(u_ratio_finger) / 10.0
@@ -160,6 +167,7 @@ c3_options["c3_options"]["u_u"] = flow_seq([1] * 9)
 c3_options["c3_options"]["admm_iter"] = admm_iter
 
 c3_options["lcs_factory_options"]["mu"] = flow_seq([0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
+c3_options["lcs_factory_options"]["num_contacts"] = 11
 c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.01
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
@@ -246,7 +254,7 @@ c3_options["Q_quaternion_weight"] = quat_weight
 c3_options["c3_options"]["scale_lcs"] = True
 
 c3_options["c3_options"]["w_Q"] = 5
-c3_options["c3_options"]["w_R"] = 500
+c3_options["c3_options"]["w_R"] = 50
 c3_options["c3_options"]["w_U"] = 1
 
 with open(CONTORLLER_PARAMS, "w") as f:
@@ -266,7 +274,7 @@ alpha_ee = trial.params["alpha_ee"]
 alpha_object = trial.params["alpha_object"]
 
 # accel_cost = trial.params["accel_cost"]
-accel_cost = 50
+accel_cost = 25
 
 try:
     value_function_scaling = trial.params["value_function_scaling"]
@@ -282,7 +290,7 @@ with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
 
            
-ic3_options["N"] = 960
+ic3_options["N"] = 1200
 ic3_options["num_segments"] = num_segments
 
 ic3_options["num_warmup_iters"] = num_warmup_iters

@@ -1425,12 +1425,21 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 }
 
 
-int OptunaPlateTestMSiC3() {
+int OptunaPlateTestMSiC3(int optuna_instance) {
+  std::cout << "optuna instance " << optuna_instance << std::endl;
+
  // Load controller options and cost matrices.
-  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(
-      "examples/resources/plate/ms_c3_tracking_options.yaml");
-  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
-      "examples/resources/plate/ms_ic3_options.yaml");
+  std::string c3_controller_options_file = 
+    "examples/resources/plate/optuna_plate/optuna_yamls/optuna_ms_c3_tracking_options_" 
+        + std::to_string(optuna_instance) + ".yaml";
+  std::string ms_ic3_options_file = 
+    "examples/resources/plate/optuna_plate/optuna_yamls/optuna_ms_ic3_options_"
+        + std::to_string(optuna_instance) + ".yaml";
+
+  C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(c3_controller_options_file);
+  MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
+
+  std::cout << "after read yamls" << std::endl;
 
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
@@ -1542,7 +1551,8 @@ int OptunaPlateTestMSiC3() {
  
   MatrixXd x_hat_final = x_traj.at(x_traj.size() - 1);
 
-  for (int i = 6; i > 0; i--) {
+  
+  for (int i = 20; i > 0; i--) {
     VectorXd x_last = x_hat_final.col(x_hat_final.cols() - i);
 
     // Extract final angle difference
@@ -1556,13 +1566,13 @@ int OptunaPlateTestMSiC3() {
     Eigen::Quaterniond qf(x_last(quat_idx), x_last(quat_idx+1), x_last(quat_idx+2), x_last(quat_idx+3));
 
     // Get z height of object
-    double z_diff = x_last(11) + 0.05;
+    double z_diff = x_last(11);
     double x_diff = x_last(9) - xd(9);
 
     std::cout << x_last.segment(0, 12).transpose() << std::endl;
 
-    z_cost += 10000 * z_diff * z_diff;
-    x_cost += 3000 * x_diff * x_diff;
+    z_cost += 20000 * z_diff * z_diff;
+    x_cost += 5000 * x_diff * x_diff;
     total_angle_diff += qd.angularDistance(qf) * 180 / M_PI;
     plate_rot_cost += 300 * x_last(3) * x_last(3);
     plate_rot_cost += 300 * x_last(4) * x_last(4);
@@ -2947,12 +2957,12 @@ int RunPointHandMPC() {
     A_u(3*i+1, 3*i+1) = 1; 
     A_u(3*i+2, 3*i+2) = 1; 
 
-    lower_bound_u(3*i) = -1;
-    lower_bound_u(3*i+1) = -1;
+    lower_bound_u(3*i) = -0.8;
+    lower_bound_u(3*i+1) = -0.8;
     lower_bound_u(3*i+2) = -0.2;
     
-    upper_bound_u(3*i) = 1;
-    upper_bound_u(3*i+1) = 1;
+    upper_bound_u(3*i) = 0.8;
+    upper_bound_u(3*i+1) = 0.8;
     upper_bound_u(3*i+2) = 0.8;
   }
   // A_x(13, 13) = 1;
@@ -3130,7 +3140,7 @@ int main(int argc, char* argv[]) {
     return RunPlateTestMSiC3(lcm);
 
   } else if (FLAGS_experiment_type == "MSiC3_plate_optuna") {
-    return OptunaPlateTestMSiC3();
+    return OptunaPlateTestMSiC3(FLAGS_optuna_instance);
 
   } else if (FLAGS_experiment_type == "iC3_point_hand") {
     return RunPointHandTestiC3(lcm, 0);

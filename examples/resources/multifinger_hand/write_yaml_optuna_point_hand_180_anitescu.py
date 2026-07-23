@@ -16,9 +16,9 @@ CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
 STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final.db"
-STUDY_NAME = "MSiC3_point_hand_180_180_wG_final"
+STUDY_NAME = "MSiC3_point_hand_180_wG_final"
 
-TRIAL_NUMBER = 149
+TRIAL_NUMBER = 2495
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -231,8 +231,14 @@ except KeyError:
     value_function_scaling = 100   
 
 # accel_cost = trial.params["accel_cost"]
-accel_cost = 5
 
+# oops 
+if (STORAGE_PATH == 
+    "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final_no_thresh.db"):
+    accel_cost = 25
+else:
+    accel_cost = 5
+    
 traj_N = trial.params["traj_N"]
 
 # use_pd = trial.params["use_pd"]

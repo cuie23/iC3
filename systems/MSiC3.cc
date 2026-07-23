@@ -97,8 +97,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout) {
 
   auto start_total = std::chrono::high_resolution_clock::now();
-
-
+  
   // num segements must divide the entire time horizon (might be unnecessary but for ease of implementation)
   DRAKE_DEMAND((double)(N_ / num_segments_) == (double)N_ / num_segments_);
 
@@ -107,82 +106,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   std::vector<double> x_des = *controller_options_.x_des;
   VectorXd xd = Eigen::Map<VectorXd>(x_des.data(), x_des.size());  
-
-  vector<VectorXd> x_targets;
-  for (int k = 0; k < N_+1; k++) {
-    x_targets.push_back(xd);
-  }
-
-  // ith column = ith timestep
-  MatrixXd x_hat = x0.replicate(1, N_+1);
-  MatrixXd u_hat(Eigen::MatrixXd::Zero(n_u_, N_));
-  MatrixXd lambda_hat = MatrixXd::Zero(n_lambda_, N_);
-  MatrixXd x_anchors = MatrixXd::Zero(n_x_, num_segments_+1);
-  MatrixXd defects = MatrixXd::Zero(n_x_, num_segments_+1);
-  MatrixXd gamma = MatrixXd::Zero(n_lambda_ / 4, N_);
-  MatrixXd in_contact = MatrixXd::Zero(n_lambda_ / 4, N_);
-
-  VectorXd gravity;
-  if (example_idx_ == 0) {
-    gravity = VectorXd::Zero(5);
-    gravity[2] = 8.33;
-  } else if (example_idx_ == 1 || example_idx_ == 2) {
-    gravity = VectorXd::Zero(9);
-    gravity[2] = 0.196;
-    gravity[5] = 0.196;
-    gravity[8] = 0.196;
-  }
-
-  LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
-      contact_geoms_, controller_options_.lcs_factory_options);
-
-  LCSFactory lcs_factory_rollout(plant_rollout_, context_rollout, plant_ad_rollout_,
-      context_ad_rollout, contact_geoms_rollout_, controller_options_.lcs_factory_options);
-
-  std::cout << "plant lcs dt " << plant_.time_step() << std::endl;
-  std::cout << "plant rollout dt " << plant_rollout_.time_step() << std::endl;
-
-  // Set initial guess to something kinda reasonable
-  // Set initial guess for x - linear interpolation (including in quaternion space)
-  VectorXd x_diff = xd - x0;
-  for (int k = 0; k < N_+1; k++) {
-    x_hat.col(k) = x0 + k * x_diff / (N_);
-    
-    // Linearly interpolate quaternions correctly
-    for (auto idx : controller_options_.quaternion_indices) {
-      double rotation = (double)k / (N_);
-
-      Eigen::Quaterniond q0(x0(idx), x0(idx+1), x0(idx+2), x0(idx+3));
-      Eigen::Quaterniond qd(xd(idx), xd(idx+1), xd(idx+2), xd(idx+3));
-      VectorXd v0 = x0.segment(idx, 4);
-      VectorXd vd = xd.segment(idx, 4);
-
-      // Ensure quaternions are in the same hemisphere 
-      if (v0.dot(vd) < 0) {
-          vd = -vd;
-          qd = Eigen::Quaterniond(vd(0), vd(1), vd(2), vd(3));
-      }
-
-      if (-1e-3 < q0.dot(qd) && q0.dot(qd) < 1e-3) { 
-        // Fallback for antipodal points, use linear interpolation in R3 to get default axis
-        Eigen::Vector4d mid = v0 + vd;
-        Eigen::Vector4d tangent = (mid - mid.dot(v0) * v0).normalized();
-
-        double theta = std::acos(std::clamp(v0.dot(vd), -1.0, 1.0)); 
-        Eigen::Vector4d v_interpolated = v0 * std::cos(rotation * theta) + tangent * std::sin(rotation * theta);
-
-        x_hat.col(k).segment(idx, 4) = v_interpolated;
-
-      } else {
-        Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
-        x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
-      }
-    }
-
-    if (k < N_) {
-      u_hat.col(k) = gravity;
-    }
-  }
 
   // Add linear constraints
   MatrixXd A_x(MatrixXd::Zero(n_x_, n_x_));
@@ -199,30 +122,36 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     A_x(3, 3) = 1;
     A_x(4, 4) = 1;
 
-    lower_bound_x(0) = -0.08;
-    lower_bound_x(1) = -0.08;
-    lower_bound_x(2) = -0.1; 
-    lower_bound_x(3) = -0.5;
-    lower_bound_x(4) = -0.5;
+    lower_bound_x(0) = -0.1;
+    lower_bound_x(1) = -0.1;
+    lower_bound_x(2) = -0.15; 
+    lower_bound_x(3) = -0.6;
+    lower_bound_x(4) = -0.6;
 
-    upper_bound_x(0) = 0.08;
-    upper_bound_x(1) = 0.08;
-    upper_bound_x(2) = 0.1;
-    upper_bound_x(3) = 0.5;
-    upper_bound_x(4) = 0.5;
+    upper_bound_x(0) = 0.1;
+    upper_bound_x(1) = 0.1;
+    upper_bound_x(2) = 0.15;
+    upper_bound_x(3) = 0.6;
+    upper_bound_x(4) = 0.6;
 
     // Actuation limits
+    A_u(0, 0) = 1;
+    A_u(1, 1) = 1;
     A_u(2, 2) = 1;
     A_u(3, 3) = 1;
     A_u(4, 4) = 1;
 
+    lower_bound_u(0) = -2;
+    lower_bound_u(1) = -2;
     lower_bound_u(2) = 0;
-    lower_bound_u(3) = -1.8;
-    lower_bound_u(4) = -1.8;
+    lower_bound_u(3) = -0.7;
+    lower_bound_u(4) = -0.7;
 
-    upper_bound_u(2) = 18;
-    upper_bound_u(3) = 1.8;
-    upper_bound_u(4) = 1.8;
+    upper_bound_u(0) = 2;
+    upper_bound_u(1) = 2;
+    upper_bound_u(2) = 25;
+    upper_bound_u(3) = 0.7;
+    upper_bound_u(4) = 0.7;
 
   } else if (example_idx_ == 1) { // trifinger 180
 
@@ -324,7 +253,124 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   std::cout << "ub x " << upper_bound_x.transpose() << std::endl;
 
 
-  // Get lambda_hat initial guess   
+  vector<VectorXd> x_targets;
+  for (int k = 0; k < N_+1; k++) {
+    x_targets.push_back(xd);
+  }
+
+  // ith column = ith timestep
+  MatrixXd x_hat = x0.replicate(1, N_+1);
+  MatrixXd u_hat(Eigen::MatrixXd::Zero(n_u_, N_));
+  MatrixXd lambda_hat = MatrixXd::Zero(n_lambda_, N_);
+  MatrixXd x_anchors = MatrixXd::Zero(n_x_, num_segments_+1);
+  MatrixXd defects = MatrixXd::Zero(n_x_, num_segments_+1);
+  MatrixXd gamma = MatrixXd::Zero(n_lambda_ / 4, N_);
+  MatrixXd in_contact = MatrixXd::Zero(n_lambda_ / 4, N_);
+
+  VectorXd gravity;
+  if (example_idx_ == 0) {
+    gravity = VectorXd::Zero(5);
+    gravity[2] = 8.33;
+  } else if (example_idx_ == 1 || example_idx_ == 2) {
+    gravity = VectorXd::Zero(9);
+    gravity[2] = 0.196;
+    gravity[5] = 0.196;
+    gravity[8] = 0.196;
+  }
+
+  LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
+      contact_geoms_, controller_options_.lcs_factory_options);
+
+  LCSFactory lcs_factory_rollout(plant_rollout_, context_rollout, plant_ad_rollout_,
+      context_ad_rollout, contact_geoms_rollout_, controller_options_.lcs_factory_options);
+
+  std::cout << "plant lcs dt " << plant_.time_step() << std::endl;
+  std::cout << "plant rollout dt " << plant_rollout_.time_step() << std::endl;
+
+  // Set initial guess to something kinda reasonable
+  // Set initial guess for x - linear interpolation (including in quaternion space)
+  // But project contacts so that each x is feasible (i.e. no penetration)
+  VectorXd x_diff = xd - x0;
+  for (int k = 0; k < N_+1; k++) {
+    x_hat.col(k) = x0 + k * x_diff / (N_);
+    
+    // Linearly interpolate quaternions correctly
+    for (auto idx : controller_options_.quaternion_indices) {
+      double rotation = (double)k / (N_);
+
+      Eigen::Quaterniond q0(x0(idx), x0(idx+1), x0(idx+2), x0(idx+3));
+      Eigen::Quaterniond qd(xd(idx), xd(idx+1), xd(idx+2), xd(idx+3));
+      VectorXd v0 = x0.segment(idx, 4);
+      VectorXd vd = xd.segment(idx, 4);
+
+      // Ensure quaternions are in the same hemisphere 
+      if (v0.dot(vd) < 0) {
+          vd = -vd;
+          qd = Eigen::Quaterniond(vd(0), vd(1), vd(2), vd(3));
+      }
+
+      if (-1e-3 < q0.dot(qd) && q0.dot(qd) < 1e-3) { 
+        // Fallback for antipodal points, use linear interpolation in R3 to get default axis
+        Eigen::Vector4d mid = v0 + vd;
+        Eigen::Vector4d tangent = (mid - mid.dot(v0) * v0).normalized();
+
+        double theta = std::acos(std::clamp(v0.dot(vd), -1.0, 1.0)); 
+        Eigen::Vector4d v_interpolated = v0 * std::cos(rotation * theta) + tangent * std::sin(rotation * theta);
+
+        x_hat.col(k).segment(idx, 4) = v_interpolated;
+
+      } else {
+        Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
+        x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
+      }
+    }
+
+    VectorXd x_projected = x_hat.col(k);
+    if (example_idx_ == 0) {  
+      drake::geometry::GeometryId plate_collision_geom =
+        plant_.GetCollisionGeometriesForBody(
+            plant_.GetBodyByName("plate"))[0];
+      drake::geometry::GeometryId cube_collision_geom =
+        plant_.GetCollisionGeometriesForBody(
+            plant_.GetBodyByName("cube"))[0];
+      SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
+
+      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+    } else if (example_idx_ == 1) {
+
+      // Ensure anchors don't have penetration
+      for (int j = 0; j < 3; j++) {
+        x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
+                                      A_x, lower_bound_x, upper_bound_x);
+      }
+
+    } else if (example_idx_ == 2) {
+      // Ensure cube not penetrating ground
+      drake::geometry::GeometryId cube_collision_geom =
+        plant_.GetCollisionGeometriesForBody(
+            plant_.GetBodyByName("cube"))[0];
+      drake::geometry::GeometryId ground_collision_geom =
+        plant_.GetCollisionGeometriesForBody(
+            plant_.GetBodyByName("ground"))[0];
+      SortedPair<GeometryId>cube_plate_contact(cube_collision_geom, ground_collision_geom);
+
+      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 15);
+
+
+      // Ensure fingers don't have penetration
+      for (int j = 0; j < 3; j++) {
+        x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
+                                      A_x, lower_bound_x, upper_bound_x);
+      }
+    }
+    x_hat.col(k) = x_projected;
+
+    if (k < N_) {
+      u_hat.col(k) = gravity;
+    }
+  }
+
+  // Get lambda_hat initial guess and defects
   MatrixXd x_hat_init(MatrixXd::Zero(n_x_, N_+1));
   if (use_drake_sim_) {
     VectorXd x_curr = x0;
@@ -1158,6 +1204,11 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
         VectorXd u_tracking = c3_u + Kp * (c3_x_tracking.segment(q_idx, Kp.rows()) - x_curr.segment(q_idx, Kp.rows())) 
           + Kd * (c3_x_tracking.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
 
+        for (int j = 0; j < A_u.rows(); j++) {
+          if (A_u(j, j) == 1) {
+            u_tracking(j) = std::clamp(u_tracking(j), lb_u(j), ub_u(j));
+          }
+        }
         // std::cout << "u: " << u_tracking.transpose() << std::endl;
 
         plant_rollout_.get_actuation_input_port().FixValue(&context_rollout, u_tracking);
@@ -1236,6 +1287,12 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
           + Kd * (c3_x_tracking.segment(v_idx, Kd.rows()) - x_curr.segment(v_idx, Kd.rows()));
         // std::cout << "tracking u " << u_tracking.transpose() << std::endl;
 
+        for (int j = 0; j < A_u.rows(); j++) {
+          if (A_u(j, j) == 1) {
+            u_tracking(j) = std::clamp(u_tracking(j), lb_u(j), ub_u(j));
+          }
+        }
+        // std::cout << "u: " << u_tracking.transpose() << std::endl;
 
         rollout_factory.UpdateStateAndInput(x_curr, u_tracking);
         LCS lcs_rollout = rollout_factory.GenerateLCS();  

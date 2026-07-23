@@ -63,8 +63,8 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.08 </lower>
-            <upper> 0.08 </upper>
+            <lower> -0.1 </lower>
+            <upper> 0.1 </upper>
           </limit>  
         </axis>
       </joint>
@@ -88,8 +88,8 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
-            <lower> -0.08 </lower>
-            <upper> 0.08 </upper>
+            <lower> -0.1 </lower>
+            <upper> 0.1 </upper>
           </limit>  
         </axis>
       </joint>
@@ -113,8 +113,8 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> -0.1 </lower>
-            <upper> 0.1 </upper>
+            <lower> -0.15 </lower>
+            <upper> 0.15 </upper>
           </limit>  
         </axis>
       </joint>
@@ -137,7 +137,7 @@
         <child>link_roll</child>
         <axis>
           <xyz>1 0 0</xyz>
-          <limit><lower>-0.5</lower><upper>0.5</upper></limit>
+          <limit><lower>-0.6</lower><upper>0.6</upper></limit>
         </axis>
       </joint>
 
@@ -147,7 +147,7 @@
         <pose>0 0 0 0 0 0</pose>
         <axis>
           <xyz>0 1 0</xyz>
-          <limit><lower>-0.5</lower><upper>0.5</upper></limit>
+          <limit><lower>-0.6</lower><upper>0.6</upper></limit>
         </axis>
       </joint>
 

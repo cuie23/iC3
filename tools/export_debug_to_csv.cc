@@ -15,31 +15,31 @@ int main(int argc, char* argv[]) {
   int n_lambda = 28;
 
   std::string c3_proj_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/all_delta_projections_180_thresh5.bin";
+      "examples/resources/multifinger_hand/ic3_debug_data/all_delta_projections_180_separate_thresh.bin";
   const c3::utils::NestedMatrixDataC3Proj all_delta_projections =
       c3::utils::LoadTrajectoryData<c3::utils::NestedMatrixDataC3Proj>(
           c3_proj_filename);
 
   std::string z_sol_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/all_z_sols_180_thresh5.bin";
+      "examples/resources/multifinger_hand/ic3_debug_data/all_z_sols_180_separate_thresh.bin";
   const c3::utils::NestedVectorDataZSol all_z_sols =
       c3::utils::LoadTrajectoryData<c3::utils::NestedVectorDataZSol>(
           z_sol_filename);
 
   std::string z_sol_rollout_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/rollout_z_sol_180_thresh5.bin";
+      "examples/resources/multifinger_hand/ic3_debug_data/rollout_z_sol_180_separate_thresh.bin";
   vector<MatrixXd> z_sol_rollout =
       c3::utils::LoadTrajectoryData<vector<MatrixXd>>(
           z_sol_rollout_filename);
 
   std::string gamma_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/gammas_180_thresh5.bin";
+      "examples/resources/multifinger_hand/ic3_debug_data/gammas_180_separate_thresh.bin";
   vector<MatrixXd> gamma =
       c3::utils::LoadTrajectoryData<vector<MatrixXd>>(
           gamma_filename);
 
   std::string in_contact_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/in_contact_180_thresh5.bin";
+      "examples/resources/multifinger_hand/ic3_debug_data/in_contact_180_separate_thresh.bin";
   vector<MatrixXd> in_contact =
       c3::utils::LoadTrajectoryData<vector<MatrixXd>>(
           in_contact_filename);
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
   std::cout << "ADMM iter " << admm_iter << std::endl;
 
   std::string c3_proj_csv_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/csv/delta_projections_180_thresh5.csv";
+      "examples/resources/multifinger_hand/ic3_debug_data/csv/delta_projections_180_separate_thresh.csv";
   std::ofstream outfile_proj(c3_proj_csv_filename);
 
   outfile_proj << "timestep";
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
 
 
   std::string z_sol_csv_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/csv/z_sol_180_thresh5.csv";
+      "examples/resources/multifinger_hand/ic3_debug_data/csv/z_sol_180_separate_thresh.csv";
   std::ofstream outfile_z_sol(z_sol_csv_filename);
 
   outfile_z_sol << "timestep";
@@ -125,15 +125,15 @@ int main(int argc, char* argv[]) {
 
 
   std::string rollout_csv_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/csv/rollout_180_thresh5.csv";
+      "examples/resources/multifinger_hand/ic3_debug_data/csv/rollout_180_separate_thresh.csv";
   std::ofstream outfile_rollout(rollout_csv_filename);
 
   std::string gamma_csv_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/csv/gammas_180_thresh5.csv";
+      "examples/resources/multifinger_hand/ic3_debug_data/csv/gammas_180_separate_thresh.csv";
   std::ofstream outfile_gamma(gamma_csv_filename);
 
   std::string in_contact_csv_filename = 
-      "examples/resources/multifinger_hand/ic3_debug_data/csv/in_contact_180_thresh5.csv";
+      "examples/resources/multifinger_hand/ic3_debug_data/csv/in_contact_180_separate_thresh.csv";
   std::ofstream outfile_in_contact(in_contact_csv_filename);
 
   outfile_rollout << "timestep";
@@ -142,11 +142,11 @@ int main(int argc, char* argv[]) {
   for (int j = 0; j < n_lambda; j++) outfile_rollout << ",lambda_" << j;
   outfile_rollout << "\n";
 
-  outfile_gamma << "gamma";
+  outfile_gamma << "timestep";
   for (int j = 0; j < n_lambda / 4; j++) outfile_gamma << ",gamma_" << j;
   outfile_gamma << "\n";
 
-  outfile_in_contact << "gamma";
+  outfile_in_contact << "timestep";
   for (int j = 0; j < n_lambda / 4; j++) outfile_in_contact << ",in_contact_" << j;
   outfile_in_contact << "\n";
 

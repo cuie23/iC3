@@ -270,7 +270,7 @@ def objective(trial):
     value_function_scaling = 100
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
-    accel_cost = 25
+    accel_cost = 5
 
     # use_pd = trial.suggest_categorical("use_pd", [True, False])
     use_pd = False
@@ -432,7 +432,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_reg_weight_no_thresh.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_wG_final_no_thresh2.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -443,7 +443,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_reg_weight_no_thresh.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_wG_final_no_thresh2.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -456,14 +456,14 @@ def log_best_callback(study, trial):
 
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
-# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_pruning_no_thresh.py
+# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_pruning_no_thresh2.py
 if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_wG_final_no_thresh.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_wG_final_no_thresh2.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final_no_thresh.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final_no_thresh2.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -475,7 +475,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_wG_final_no_thresh",
+        study_name="MSiC3_point_hand_180_wG_final_no_thresh2",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

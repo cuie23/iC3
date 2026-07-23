@@ -33,10 +33,12 @@ MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_pivot/opt
 
 def objective(trial):
     # C3 parameters
-    w_G = trial.suggest_int("w_G", 1, 1000)
-    g_x_fingers = trial.suggest_int("g_x_fingers", 10, 100, step=10)
+    w_G = trial.suggest_int("w_G", 1, 5000)
+    # g_x_fingers = trial.suggest_int("g_x_fingers", 10, 100, step=10)
+    g_x_fingers = 50
     g_x_cube = trial.suggest_int("g_x_cube", 10, 100, step=10)
-    g_u = trial.suggest_int("g_u", 10, 100, step=10)
+    # g_u = trial.suggest_int("g_u", 10, 100, step=10)
+    g_u = 50
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
@@ -49,15 +51,18 @@ def objective(trial):
     eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
 
     admm_iter = trial.suggest_int("admm_iter", 3, 7)
-    tracking_N = trial.suggest_int("tracking_N", 3, 8)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 2000, step=100)
+    tracking_N = trial.suggest_int("tracking_N", 3, 7)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 5000, step=100)
     cube_position_weight = trial.suggest_int("cube_position_weight", 100, 10000, step=100)
-    quat_weight = trial.suggest_int("quat_weight", 1000, 500000, step=1000)
+    quat_weight = trial.suggest_int("quat_weight", 10000, 1000000, step=10000)
 
-    # finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
-    finger_config = 1
+    finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
+    # finger_config = 1
 
-    cube_model = trial.suggest_int("cube_model", 1, 5)
+    cube_model = trial.suggest_int("cube_model", 1, 10)
+
+    mu_finger_cube = trial.suggest_int("mu_finger_cube", 1, 100)
+    mu_ground_cube = trial.suggest_int("mu_ground_cube", 1, 100)
 
     # x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
     # u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
@@ -136,9 +141,13 @@ def objective(trial):
 
 
     c3_options["lcs_factory_options"]["num_contacts"] = 11
-    c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
+
+    mu_fc = mu_finger_cube / 100.0
+    mu_gc = mu_ground_cube / 100.0
+    c3_options["lcs_factory_options"]["mu"] = [mu_fc, mu_fc, mu_fc, mu_gc, mu_gc, mu_gc, mu_gc, mu_gc, mu_gc, mu_gc, mu_gc]
+    # c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
     c3_options["lcs_factory_options"]["N"] = tracking_N
-    c3_options["lcs_factory_options"]["dt"] = 0.02
+    c3_options["lcs_factory_options"]["dt"] = 0.01
 
     if (finger_config == 1):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
@@ -226,22 +235,21 @@ def objective(trial):
     # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     num_warmup_iters = 0
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 30, 40, 60])
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 30, 40, 60, 80])
 
     num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
-
-    accel_cost = 5
+    accel_cost = 25
 
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
-    use_rollout_lambdas = False
+    use_rollout_lambdas = True
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
-    ic3_options["N"] = 600
+    ic3_options["N"] = 1200
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -388,7 +396,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_wG_final_thresh.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_choose_mu.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -399,7 +407,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_wG_final_thresh.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_choose_mu.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -416,9 +424,9 @@ def log_best_callback(study, trial):
 if __name__ == "__main__":
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_wG_final_thresh.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_choose_mu.db"
     else:
-        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_wG_final_thresh.db"
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_choose_mu.db"
     
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
@@ -427,7 +435,7 @@ if __name__ == "__main__":
     )
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_wG_final_thresh",
+        study_name="MSiC3_point_hand_pivot_choose_mu",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

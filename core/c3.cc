@@ -634,6 +634,7 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
       std::cout << "OSQP Status: " << details.status_val << std::endl;
       std::cout << "Iterations: " << details.iter << std::endl;
       std::cout << "is_final_solve: " << is_final_solve << std::endl;
+      std::cout << "x0: " << x0.transpose() << std::endl;
       std::cout << "Primal Res: " << details.primal_res << std::endl;
       std::cout << "Dual Res: " << details.dual_res << std::endl;
   } else {
