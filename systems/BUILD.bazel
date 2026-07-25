@@ -13,6 +13,7 @@ cc_library(
         ":c3_controller",
         ":iC3",
         ":MSiC3",
+        ":MSiC3_parallel",
         ":ms_ic3_options",
         ":manual_input",
         ":lcs_simulator",
@@ -108,6 +109,63 @@ cc_library( name = "MSiC3",
         "@drake//:drake_shared_library",
     ],
 )
+
+
+cc_library( name = "MSiC3_parallel",
+    srcs = [
+        "MSiC3_parallel.cc",
+    ],
+    hdrs = [
+        "MSiC3_parallel.h",
+    ],
+    deps = [
+        ":options",
+        ":framework",
+        "//core:c3",
+        "//core:lcs",
+        "//core:options",
+        "//systems:ms_ic3_options",
+        "//systems:PdInputSource",
+        "//multibody:lcs_factory",
+        "//systems:quaternion_error_hessian",
+        "@drake//:drake_shared_library",
+    ],
+    copts = [
+        "-fopenmp",
+    ],
+    linkopts = [
+        "-lgomp",
+    ],
+)
+
+
+cc_library( name = "hybrid_mpc",
+    srcs = [
+        "hybrid_mpc.cc",
+    ],
+    hdrs = [
+        "hybrid_mpc.h",
+    ],
+    deps = [
+        ":options",
+        ":framework",
+        "//core:c3",
+        "//core:lcs",
+        "//core:options",
+        "//systems:ms_ic3_options",
+        "//multibody:lcs_factory",
+        "//systems:quaternion_error_hessian",
+        "@drake//:drake_shared_library",
+    ],
+)
+
+
+cc_library(
+    name = "hybrid_mpc_options",
+    hdrs = ["hybrid_mpc_options.h"],
+    visibility = ["//visibility:public"],
+)
+
 
 cc_library( name = "PdInputSource",
     srcs = [

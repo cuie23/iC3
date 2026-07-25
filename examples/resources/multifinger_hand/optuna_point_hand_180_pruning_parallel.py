@@ -40,7 +40,8 @@ def objective(trial):
     w_G = trial.suggest_int("w_G", 1, 100)
     # g_x_fingers = trial.suggest_int("g_x_fingers", 2, 100, step=2)
     g_x_fingers = 50
-    g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
+    # g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
+    g_x_cube = 50
     # g_u = trial.suggest_int("g_u", 2, 100, step=2)
     g_u = 50
 
@@ -74,13 +75,15 @@ def objective(trial):
     # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
 
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 3000, step=100)
-    cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 5000, step=100)
+    cube_position_weight = trial.suggest_int("cube_position_weight", 200, 10000, step=200)
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
-    quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
+    quat_weight = trial.suggest_int("quat_weight", 200, 10000, step=200)
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
-    cube_model = trial.suggest_int("cube_model", 1, 3)
+    # cube_model = trial.suggest_int("cube_model", 1, 3)
+    cube_model = 1
+    
     w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
@@ -248,7 +251,7 @@ def objective(trial):
 
     c3_options["c3_options"]["scale_lcs"] = True
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_R"] = 100
     c3_options["c3_options"]["w_U"] = 1
 
     with open(CONTORLLER_PARAMS, "w") as f:
@@ -260,22 +263,22 @@ def objective(trial):
     num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 40, 60])
     # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
     num_warmup_iters = 0
-    warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
-    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
+    num_iters = trial.suggest_int("num_iters", 5, 15)
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
     
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
-    value_function_scaling = 100
+    use_value_function = trial.suggest_categorical("use_value_function", [True, False])
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
-    accel_cost = 5
+    accel_cost = 20
 
     # use_pd = trial.suggest_categorical("use_pd", [True, False])
     use_pd = False
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
-    use_rollout_lambdas = False
+    use_rollout_lambdas = True
 
     traj_N = trial.suggest_categorical("traj_N", [600, 720, 840])
 
@@ -287,21 +290,24 @@ def objective(trial):
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
 
-    warm_start_alpha_real = warm_start_alpha / 100.0
+    warm_start_alpha_real = 0 / 100.0
     ic3_options["warm_start_alpha"] = warm_start_alpha_real
 
     ic3_options["num_iters"] = num_iters
 
     alpha_ee_real = alpha_ee / 100.0
     ic3_options["alpha_ee"] = alpha_ee_real
-    ic3_options["alpha_ee_step"] = (1 - alpha_ee_real) / (num_iters - 1)
+    # ic3_options["alpha_ee_step"] = (1 - alpha_ee_real) / (num_iters - 1)
+    ic3_options["alpha_ee_step"] = 0
 
     alpha_object_real = alpha_object / 100.0
     ic3_options["alpha_object"] = alpha_object_real
-    ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
+    # ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
+    ic3_options["alpha_object_step"] = 0
 
     ic3_options["acceleration_cost_weight"] = accel_cost
-    
+
+    value_function_scaling = 100 if use_value_function else 0
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 
     kp = 200 if use_pd else 0
@@ -312,6 +318,8 @@ def objective(trial):
     ic3_options["rollout_dt_scaling"] = 10
     
     ic3_options["print_costs"] = False
+
+    ic3_options["num_threads"] = 32
 
     ic3_options["use_drake_sim"] = True
     ic3_options["drake_sim_dt"] = 0.0001
@@ -330,7 +338,7 @@ def objective(trial):
     cmd = [
         "./bazel-bin/examples/lcs_factory_system_example", 
         f"--optuna_instance={worker_id}", 
-        "--experiment_type=MSiC3_point_hand_180_optuna",
+        "--experiment_type=MSiC3_point_hand_180_optuna_parallel",
         f"--ee_config={finger_config}",
         f"--cube_model={cube_model}"
     ]
@@ -350,7 +358,7 @@ def objective(trial):
     try:
         for line in iter(process.stdout.readline, ''):
             full_output.append(line)
-            
+
             # 1. Check for Early Solver Failures
             if "LCP failed: returning x_init" in line:
                 raise optuna.TrialPruned("LCP solver failed")
@@ -369,7 +377,7 @@ def objective(trial):
                 current_iteration_cost = 0.0  # Reset the sum for the new iteration
                 
             # 3. Extract the target (anchor) quaternion
-            elif "x anchor cube" in line:
+            elif "x_anchor cube" in line:
                 raw_numbers = line.split("cube")[1].split()
                 current_anchor_q = [float(val) for val in raw_numbers[0:4]]
                 
@@ -391,7 +399,7 @@ def objective(trial):
                     raise optuna.TrialPruned(f"Pruned at iC3 iteration {current_iteration} (Summed Angle Error: {current_iteration_cost:.4f})")
 
             # 6. Extract Final Metric
-            final_match = re.search(r"FINAL_METRIC:\s*([0-9.]+)", line)
+            final_match = re.search(r"FINAL_METRIC:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)", line)
             if final_match:
                 final_score = float(final_match.group(1))
 
@@ -432,7 +440,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_wG_final_no_thresh2.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/sub_15_trials_180_parallel.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -443,7 +451,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_wG_final_no_thresh2.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/best_params_180_parallel.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -456,14 +464,14 @@ def log_best_callback(study, trial):
 
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
-# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_pruning_no_thresh2.py
+# python3 examples/resources/multifinger_hand/optuna_point_hand_180_pruning_parallel.py
 if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_wG_final_no_thresh2.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_parallel.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final_no_thresh2.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180_parallel/optuna_results_180_parallel.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -475,7 +483,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_wG_final_no_thresh2",
+        study_name="MSiC3_point_hand_180_parallel",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

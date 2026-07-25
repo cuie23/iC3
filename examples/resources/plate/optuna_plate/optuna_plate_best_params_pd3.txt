@@ -1,0 +1,28 @@
+=========================================
+       BEST HYPERPARAMETERS SO FAR       
+=========================================
+Best Trial Number: 1970
+Best Metric Value: 6093.56
+
+Parameters:
+  admm_iter: 6
+  w_G: 29
+  plate_z_cost: 750
+  plate_rot_cost: 1800
+  tracking_N: 4
+  quat_weight: 31500
+  u_ratio: 13
+  num_warmup_iters: 0
+  warm_start_alpha: 73
+  num_segments: 10
+  num_iters: 5
+  alpha_ee: 65
+  alpha_object: 31
+  accel_cost: 0
+  Kp_xy: 700
+  Kd_xy: 60
+  Kp_z: 500
+  Kd_z: 140
+  Kp_rot: 900
+  Kd_rot: 140
+=========================================

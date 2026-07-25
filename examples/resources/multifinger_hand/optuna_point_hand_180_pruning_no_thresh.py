@@ -1,9 +1,26 @@
+
+from py import process
 import yaml
-import os
 import re
 import subprocess
 import optuna
+import optunahub
 import sys
+import math
+import platform
+
+def get_quaternion_angle_diff(q1, q2):
+    """Computes the angular difference (in radians) between two quaternions."""
+    # 1. Compute the dot product
+    dot_product = sum(a * b for a, b in zip(q1, q2))
+    
+    # 2. Clamp the dot product to [-1, 1] to avoid math domain errors from floating point drift
+    dot_product = max(min(dot_product, 1.0), -1.0)
+    
+    # 3. Calculate the angle. We use abs() because q and -q represent the same rotation.
+    angle_rads = 2 * math.acos(abs(dot_product))
+    return angle_rads
+
 
 if len(sys.argv) > 1:
     worker_id = int(sys.argv[1])
@@ -37,8 +54,8 @@ def objective(trial):
     # g_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
     # g_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
 
-    u_ratio_finger = trial.suggest_int("u_ratio_finger", -100, 99) # -100 = lambda/eta = 0.1, 100 
-    u_ratio_cube = trial.suggest_int("u_ratio_cube", -100, 99) # -100 = lambda/eta = 0.1, 100 
+    u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) # -100 = lambda/eta = 0.1, 100 
+    u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) # -100 = lambda/eta = 0.1, 100 
 
     # u_gamma = trial.suggest_int("u_gamma", 2, 100, step=2)
     # u_lambda_n = trial.suggest_int("u_lambda_n", 2, 100, step=2)
@@ -47,20 +64,27 @@ def objective(trial):
     # u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
     # u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
 
-    lambda_threshold = trial.suggest_int("lambda_threshold", 0, 60, step=5)
-    eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
+    # lambda_threshold = trial.suggest_int("lambda_threshold", 0, 60, step=5)
+    # eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
+    lambda_threshold = 0
+    eta_threshold = 0
+
     # gamma_threshold = trial.suggest_int("gamma_threshold", 0, 10)
     # phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
     # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
 
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 10000, 300000, step=10000)
-    cube_position_weight = trial.suggest_int("cube_position_weight", 200000, 1000000, step=20000)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 3000, step=100)
+    cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
     quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
-    cube_model = trial.suggest_categorical("cube_model", [1, 2, 3])
+    cube_model = trial.suggest_int("cube_model", 1, 3)
+    w_G_final = trial.suggest_int("w_G_final", 1, 100)
+
+    x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
+    u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
 
     finger_config = 1
 
@@ -69,7 +93,12 @@ def objective(trial):
         
     n_contacts = 7
 
-    c3_options["c3_options"]["w_G"] = w_G
+    c3_options["c3_options"]["penalize_input_change"] = True
+    c3_options["c3_options"]["penalize_x_change"] = True
+    c3_options["c3_options"]["input_change_weight"] = (u_change_weight-1) / 100.0
+    c3_options["c3_options"]["x_change_weight"] = (x_change_weight-1) / 100.0
+
+    c3_options["c3_options"]["w_G"] = w_G / 100.0
     c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
     c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
 
@@ -79,6 +108,8 @@ def objective(trial):
     c3_options["c3_options"]["g_eta_slack"] = []
     c3_options["c3_options"]["g_eta_n"] = []
     c3_options["c3_options"]["g_eta_t"] = []
+
+    c3_options["c3_options"]["w_G_final"] = w_G_final
 
     finger_ratio = abs(u_ratio_finger) / 10.0
     if (u_ratio_finger < 0):
@@ -226,7 +257,7 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 60])
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 40, 60])
     # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
     num_warmup_iters = 0
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
@@ -234,16 +265,19 @@ def objective(trial):
     num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
+    
+    # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
+    value_function_scaling = 100
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
-    accel_cost = 25
+    accel_cost = 5
 
     # use_pd = trial.suggest_categorical("use_pd", [True, False])
     use_pd = False
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
-    use_rollout_lambdas = False
+    use_rollout_lambdas = True
 
-    traj_N = trial.suggest_categorical("traj_N", [540, 600, 720, 840])
+    traj_N = trial.suggest_categorical("traj_N", [600, 720, 840])
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -267,6 +301,8 @@ def objective(trial):
     ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
 
     ic3_options["acceleration_cost_weight"] = accel_cost
+    
+    ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 
     kp = 200 if use_pd else 0
     kd = 20 if use_pd else 0
@@ -299,34 +335,87 @@ def objective(trial):
         f"--cube_model={cube_model}"
     ]
     
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
-    if result.returncode != 0:
-            print(f"Trial failed with exit code {result.returncode}")
-            print(f"Error log: {result.stderr}")
-            raise optuna.TrialPruned()
 
-    # Parse metric from std out
-    print(result.stdout)
-    match = re.search(r"FINAL_METRIC:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", result.stdout)
+    final_score = None
     
-    solver_error_primal = re.search(r"Primal Res:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", result.stdout)
-    solver_error_dual = re.search(r"Dual Res:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", result.stdout)
+    # --- State Variables for the iC3 Iteration ---
+    current_iteration = None
+    current_iteration_cost = 0.0
+    current_anchor_q = None
 
-    if ("LCP failed: returning x_init" in result.stdout):
-        raise optuna.TrialPruned("LCP solver failed")
+    full_output = []
+
+    try:
+        for line in iter(process.stdout.readline, ''):
+            full_output.append(line)
+            
+            # 1. Check for Early Solver Failures
+            if "LCP failed: returning x_init" in line:
+                raise optuna.TrialPruned("LCP solver failed")
+            
+            primal_match = re.search(r"Primal Res:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", line)
+            dual_match = re.search(r"Dual Res:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", line)
+            
+            if primal_match and float(primal_match.group(1)) > 0.01:
+                raise optuna.TrialPruned(f"Large Primal Residual ({float(primal_match.group(1))})")
+            if dual_match and float(dual_match.group(1)) > 0.01:
+                raise optuna.TrialPruned(f"Large Dual Residual ({float(dual_match.group(1))})")
+
+            # 2. Start a new iC3 iteration
+            if line.startswith("iC3 iteration"):
+                current_iteration = int(line.split()[-1])
+                current_iteration_cost = 0.0  # Reset the sum for the new iteration
+                
+            # 3. Extract the target (anchor) quaternion
+            elif "x anchor cube" in line:
+                raw_numbers = line.split("cube")[1].split()
+                current_anchor_q = [float(val) for val in raw_numbers[0:4]]
+                
+            # 4. Extract the actual (hat) quaternion and add to the running cost
+            elif "x_hat[L] cube:" in line:
+                raw_numbers = line.split("cube:")[1].split()
+                hat_q = [float(val) for val in raw_numbers[0:4]]
+                
+                if current_anchor_q is not None:
+                    angle_diff = get_quaternion_angle_diff(current_anchor_q, hat_q)
+                    current_iteration_cost += angle_diff
+                    current_anchor_q = None # Reset to prevent double-counting on malformed logs
+                    
+            # 5. End of iteration: REPORT AND PRUNE
+            elif "Iteration runtime:" in line and current_iteration is not None:
+                # Prune if angle sum is too small
+                if current_iteration_cost < 0.35 and current_iteration != num_iters: # ~20 degrees
+                    print()
+                    raise optuna.TrialPruned(f"Pruned at iC3 iteration {current_iteration} (Summed Angle Error: {current_iteration_cost:.4f})")
+
+            # 6. Extract Final Metric
+            final_match = re.search(r"FINAL_METRIC:\s*([0-9.]+)", line)
+            if final_match:
+                final_score = float(final_match.group(1))
+
+    except optuna.TrialPruned as e:
+        # Kill the C++ subprocess immediately to save compute time
+        process.terminate() 
+        process.wait() 
+        raise e 
     
-    if (solver_error_primal is not None):
-        if (float(solver_error_primal.group(1)) > 0.01):
-            raise optuna.TrialPruned(f"Large Primal Residual ({float(solver_error_primal.group(1))})")
-        if (float(solver_error_dual.group(1)) > 0.01):
-            raise optuna.TrialPruned(f"Large Dual Residual ({float(solver_error_dual.group(1))})")
+    finally:
+        process.stdout.close()
+        process.stderr.close()
+        print("".join(full_output))  # Print all captured output for debugging
 
-    if match:
-        score = float(match.group(1))
-        return score
+    process.wait()
+    if process.returncode != 0:
+        print(f"Trial failed with exit code {process.returncode}")
+        raise optuna.TrialPruned("Process crashed or returned non-zero exit code")
+
+
+    if final_score is not None:
+        return final_score
     else:
-        raise optuna.TrialPruned("Could not find metric in output.")
+        raise optuna.TrialPruned("Could not find FINAL_METRIC in output.")
     
 def log_best_callback(study, trial):
     """
@@ -343,7 +432,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_anitescu_drake_reduced_params.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_new_vf_no_thresh.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -354,7 +443,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_anitescu_drake_reduced_params.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_new_vf_no_thresh.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -367,12 +456,18 @@ def log_best_callback(study, trial):
 
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
-# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu.py
+# python3 examples/resources/multifinger_hand/optuna_point_hand_180_pruning_no_thresh.py
 if __name__ == "__main__":
 
-    STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_anitescu_drake_reduced_params.db"
-    
-    sampler = optuna.samplers.TPESampler(multivariate=True)
+    print(platform.release().lower())
+    if "microsoft" in platform.release().lower():
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_new_vf_no_thresh.db"
+    else:
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_new_vf_no_thresh.db"
+        
+    # module = optunahub.load_module(package="samplers/catcmawm")
+    # sampler = module.CatCmawmSampler()
+    sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  
         heartbeat_interval=60            
@@ -380,7 +475,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_anitescu_drake_reduced_params",
+        study_name="MSiC3_point_hand_180_new_vf_no_thresh",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

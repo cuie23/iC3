@@ -1,12 +1,9 @@
-
-from py import process
 import yaml
+import math
 import re
 import subprocess
 import optuna
-import optunahub
 import sys
-import math
 import platform
 
 def get_quaternion_angle_diff(q1, q2):
@@ -21,7 +18,6 @@ def get_quaternion_angle_diff(q1, q2):
     angle_rads = 2 * math.acos(abs(dot_product))
     return angle_rads
 
-
 if len(sys.argv) > 1:
     worker_id = int(sys.argv[1])
     print(f"Running worker number: {worker_id}")
@@ -32,82 +28,54 @@ else:
 
 
 # Define paths to your parameter files
-CONTORLLER_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_{worker_id}.yaml"
-MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_{worker_id}.yaml"
+CONTORLLER_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_c3_tracking_options_pivot_{worker_id}.yaml"
+MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_ic3_options_pivot_{worker_id}.yaml"
 
 def objective(trial):
     # C3 parameters
-    w_G = trial.suggest_int("w_G", 1, 100)
-    # g_x_fingers = trial.suggest_int("g_x_fingers", 2, 100, step=2)
+    w_G = trial.suggest_int("w_G", 5, 5000, step=5)
+    # g_x_fingers = trial.suggest_int("g_x_fingers", 10, 100, step=10)
+    # g_x_cube = trial.suggest_int("g_x_cube", 10, 100, step=10)
+    # g_u = trial.suggest_int("g_u", 10, 100, step=10)
     g_x_fingers = 50
-    g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
-    # g_u = trial.suggest_int("g_u", 2, 100, step=2)
+    g_x_cube = 50
     g_u = 50
 
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    # g_gamma = trial.suggest_int("g_gamma", 2, 100, step=2)
-    # g_lambda_n = trial.suggest_int("g_lambda_n", 2, 100, step=2)
-    # g_lambda_t = trial.suggest_int("g_lambda_t", 2, 100, step=2)
-    # g_eta_slack = trial.suggest_int("g_eta_slack", 2, 100, step=2)
-    # g_eta_n = trial.suggest_int("g_eta_n", 2, 100, step=2)
-    # g_eta_t = trial.suggest_int("g_eta_t", 2, 100, step=2)
-
-    u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) # -100 = lambda/eta = 0.1, 100 
-    u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) # -100 = lambda/eta = 0.1, 100 
-
-    # u_gamma = trial.suggest_int("u_gamma", 2, 100, step=2)
-    # u_lambda_n = trial.suggest_int("u_lambda_n", 2, 100, step=2)
-    # u_lambda_t = trial.suggest_int("u_lambda_t", 2, 100, step=2)
-    # u_eta_slack = trial.suggest_int("u_eta_slack", 2, 100, step=2)
-    # u_eta_n = trial.suggest_int("u_eta_n", 2, 100, step=2)
-    # u_eta_t = trial.suggest_int("u_eta_t", 2, 100, step=2)
-
-    lambda_threshold = trial.suggest_int("lambda_threshold", 0, 60, step=5)
-    eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
-    # gamma_threshold = trial.suggest_int("gamma_threshold", 0, 10)
-    # phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
-    # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
-
-    admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 3000, step=100)
-    cube_position_weight = trial.suggest_int("cube_position_weight", 1000, 10000, step=200)
-    tracking_N = trial.suggest_int("tracking_N", 3, 6)
-    quat_weight = trial.suggest_int("quat_weight", 20, 1000, step=20)
-
-    # finger_config = trial.suggest_int("finger_config", 1, 3)
-    cube_model = trial.suggest_int("cube_model", 1, 3)
     w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
-    x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
-    u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
-    # x_change_weight = 1
-    # u_change_weight = 1
+    u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) # -100 = lambda/eta = 0.1 
+    u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) # -100 = lambda/eta = 0.1
 
+    # lambda_threshold = trial.suggest_int("lambda_threshold", 0, 60)
+    # eta_threshold = trial.suggest_int("eta_threshold", 0, 10)
+    lambda_threshold = 0
+    eta_threshold = 0
 
-    finger_config = 1
+    admm_iter = trial.suggest_int("admm_iter", 3, 6)
+    tracking_N = trial.suggest_int("tracking_N", 3, 6)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 200, 10000, step=200)
+    cube_position_weight = trial.suggest_int("cube_position_weight", 200, 10000, step=200)
+    quat_weight = trial.suggest_int("quat_weight", 5000, 500000, step=5000)
+
+    finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
+    # finger_config = 1
+
+    cube_model = trial.suggest_int("cube_model", 1, 10)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
         
-    n_contacts = 7
-
-    c3_options["c3_options"]["penalize_input_change"] = True
-    c3_options["c3_options"]["penalize_x_change"] = True
-    c3_options["c3_options"]["input_change_weight"] = (u_change_weight-1) / 100.0
-    c3_options["c3_options"]["x_change_weight"] = (x_change_weight-1) / 100.0
+    n_contacts = 11
 
     c3_options["c3_options"]["w_G"] = w_G / 100.0
     c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4*n_contacts)
-    c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
-
-    c3_options["c3_options"]["g_gamma"] = [] 
-    c3_options["c3_options"]["g_lambda_n"] = []
-    c3_options["c3_options"]["g_lambda_t"] = []
     c3_options["c3_options"]["g_eta_slack"] = []
     c3_options["c3_options"]["g_eta_n"] = []
     c3_options["c3_options"]["g_eta_t"] = []
+    c3_options["c3_options"]["g_eta"] = [g_eta] * (4*n_contacts)
 
     c3_options["c3_options"]["w_G_final"] = w_G_final
 
@@ -132,43 +100,41 @@ def objective(trial):
     c3_options["c3_options"]["u_lambda"] = [u_lambda_finger] * (4*3) + [u_lambda_cube] * (4*(n_contacts-3))
     c3_options["c3_options"]["u_eta"] = [u_eta_finger] * (4*3) + [u_eta_cube] * (4*(n_contacts-3))
 
-    c3_options["c3_options"]["u_gamma"] = []
-    c3_options["c3_options"]["u_lambda_n"] = []
-    c3_options["c3_options"]["u_lambda_t"] = []
     c3_options["c3_options"]["u_eta_slack"] = []
-    c3_options["c3_options"]["u_eta_n"] = []
+    c3_options["c3_options"]["u_eta_n"] = [] 
     c3_options["c3_options"]["u_eta_t"] = []
 
-    # multiplying by 50 is for dividing by dt=0.02 to get in signed distance units
     c3_options["c3_options"]["lambda_threshold"] = [(lambda_threshold / 100.0)] * (4 * 3) + [0] * (4 * (n_contacts - 3))
     c3_options["c3_options"]["eta_threshold"] = [(eta_threshold / 10.0)] * (4 * 3) + [0] * (4 * (n_contacts - 3))
 
-    # c3_options["c3_options"]["gamma_threshold"] = [gamma_threshold / 100.0] * (n_contacts)
-    # c3_options["c3_options"]["phi_threshold"] = [phi_threshold / 100.0] * (n_contacts)
-    # c3_options["c3_options"]["add_phi_buffer"] = True if add_phi_buffer == 1 else False
+    c3_options["c3_options"]["admm_iter"] = admm_iter
 
-    c3_options["c3_options"]["phi_threshold"] = []
-    c3_options["c3_options"]["gamma_threshold"] = []
-    c3_options["c3_options"]["epsilon"] = []
-    c3_options["c3_options"]["add_phi_buffer"] = False
+    c3_options["Q_quaternion_weight"] = quat_weight
+
 
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers
+        c3_options["c3_options"]["u_x"][i] = 1
 
     c3_options["c3_options"]["g_u"] = [g_u] * 9
-
-    c3_options["c3_options"]["u_x"] = [1] * 31
     c3_options["c3_options"]["u_u"] = [1] * 9
 
     for i in range(7):
         c3_options["c3_options"]["g_x"][9+i] = g_x_cube
+        c3_options["c3_options"]["u_x"][9+i] = 1
 
-    c3_options["c3_options"]["admm_iter"] = admm_iter
+    c3_options["c3_options"]["q_vector"][13] = cube_position_weight
+    c3_options["c3_options"]["q_vector"][14] = cube_position_weight
+    c3_options["c3_options"]["q_vector"][15] = cube_position_weight
 
-    c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3]
+    for i in range(9): 
+        c3_options["c3_options"]["q_vector"][i] = finger_position_weight
+
+
+    c3_options["lcs_factory_options"]["num_contacts"] = 11
+    c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
     c3_options["lcs_factory_options"]["N"] = tracking_N
-    c3_options["lcs_factory_options"]["dt"] = 0.02
-    c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
+    c3_options["lcs_factory_options"]["dt"] = 0.01
 
     if (finger_config == 1):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
@@ -181,11 +147,11 @@ def objective(trial):
                                 0, 0, 0,     # finger 3 velo
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
-
+        
         c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
                                 0.07, -0.055, 0.05,   # finger 2
                                 -0.07, -0.055, 0.05,   # finger 3
-                                0, 0, 0, 1, # cube orientation
+                                0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
                                 0, 0, 0,     # finger 2 velo
@@ -203,11 +169,11 @@ def objective(trial):
                                 0, 0, 0,     # finger 3 velo
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
-
+        
         c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
                                 0.06, -0.06, 0.05,   # finger 2
                                 -0.06, -0.06, 0.05,   # finger 3
-                                0, 0, 0, 1, # cube orientation
+                                0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
                                 0, 0, 0,     # finger 2 velo
@@ -225,11 +191,11 @@ def objective(trial):
                                 0, 0, 0,     # finger 3 velo
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
-
+        
         c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
                                 0.05, -0.07, 0.05,   # finger 2
                                 -0.05, -0.07, 0.05,   # finger 3
-                                0, 0, 0, 1, # cube orientation
+                                0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
                                 0, 0, 0,     # finger 2 velo
@@ -237,19 +203,15 @@ def objective(trial):
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
         
-        
-    for i in range(9): 
-        c3_options["c3_options"]["q_vector"][i] = finger_position_weight
-
-    c3_options["Q_quaternion_weight"] = quat_weight
-
-    c3_options["c3_options"]["q_vector"][13] = cube_position_weight
-    c3_options["c3_options"]["q_vector"][14] = cube_position_weight
-
-    c3_options["c3_options"]["scale_lcs"] = True
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_R"] = 100
     c3_options["c3_options"]["w_U"] = 1
+    c3_options["c3_options"]["scale_lcs"] = True
+
+    c3_options["c3_options"]["add_phi_buffer"] = False  
+    c3_options["c3_options"]["epsilon"] = []
+    c3_options["c3_options"]["phi_threshold"] = []
+    c3_options["c3_options"]["gamma_threshold"] = []
 
     with open(CONTORLLER_PARAMS, "w") as f:
         yaml.dump(c3_options, f, default_flow_style=True)
@@ -257,32 +219,30 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 40, 60])
-    # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
+    # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     num_warmup_iters = 0
-    warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    warm_start_alpha = 0 
 
-    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
+    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 15, 20, 30, 40, 50, 60])
+
+    num_iters = trial.suggest_int("num_iters", 5, 15)
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
-
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
-    value_function_scaling = 100
+    use_value_function = trial.suggest_categorical("use_value_function", [True, False])
 
-    # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
-    accel_cost = 5
+    value_function_scaling = 100 if use_value_function else 0
 
-    # use_pd = trial.suggest_categorical("use_pd", [True, False])
-    use_pd = False
+    accel_cost = 20
+
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
-    use_rollout_lambdas = False
-
-    traj_N = trial.suggest_categorical("traj_N", [600, 720, 840])
+    use_rollout_lambdas = True
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
-    ic3_options["N"] = traj_N
+    ic3_options["N"] = 1200
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -294,27 +254,27 @@ def objective(trial):
 
     alpha_ee_real = alpha_ee / 100.0
     ic3_options["alpha_ee"] = alpha_ee_real
-    ic3_options["alpha_ee_step"] = (1 - alpha_ee_real) / (num_iters - 1)
+    # ic3_options["alpha_ee_step"] = (1 - alpha_ee_real) / (num_iters - 1)
+    ic3_options["alpha_ee_step"] = 0
 
-    alpha_object_real = alpha_object / 100.0
-    ic3_options["alpha_object"] = alpha_object_real
-    ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
+    alpha_obj_real = alpha_object / 100.0
+    ic3_options["alpha_object"] = alpha_obj_real
+    # ic3_options["alpha_object_step"] = (1 - alpha_obj_real) / (num_iters - 1)
+    ic3_options["alpha_object_step"] = 0
 
     ic3_options["acceleration_cost_weight"] = accel_cost
-
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 
-    kp = 200 if use_pd else 0
-    kd = 20 if use_pd else 0
-
-    ic3_options["rollout_Kp"] = [kp] * 9
-    ic3_options["rollout_Kd"] = [kd] * 9
+    ic3_options["rollout_Kp"] = [0] * 9
+    ic3_options["rollout_Kd"] = [0] * 9
     ic3_options["rollout_dt_scaling"] = 10
-    
+
     ic3_options["print_costs"] = False
 
     ic3_options["use_drake_sim"] = True
     ic3_options["drake_sim_dt"] = 0.0001
+
+    ic3_options["num_threads"] = 32
 
     ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
 
@@ -330,7 +290,7 @@ def objective(trial):
     cmd = [
         "./bazel-bin/examples/lcs_factory_system_example", 
         f"--optuna_instance={worker_id}", 
-        "--experiment_type=MSiC3_point_hand_180_optuna",
+        "--experiment_type=MSiC3_point_hand_optuna_parallel",
         f"--ee_config={finger_config}",
         f"--cube_model={cube_model}"
     ]
@@ -369,7 +329,7 @@ def objective(trial):
                 current_iteration_cost = 0.0  # Reset the sum for the new iteration
                 
             # 3. Extract the target (anchor) quaternion
-            elif "x anchor cube" in line:
+            elif "x_anchor cube" in line:
                 raw_numbers = line.split("cube")[1].split()
                 current_anchor_q = [float(val) for val in raw_numbers[0:4]]
                 
@@ -386,12 +346,12 @@ def objective(trial):
             # 5. End of iteration: REPORT AND PRUNE
             elif "Iteration runtime:" in line and current_iteration is not None:
                 # Prune if angle sum is too small
-                if current_iteration_cost < 0.35 and current_iteration != num_iters: # ~20 degrees
+                if current_iteration_cost < 0.15 and current_iteration != num_iters: 
                     print()
                     raise optuna.TrialPruned(f"Pruned at iC3 iteration {current_iteration} (Summed Angle Error: {current_iteration_cost:.4f})")
 
             # 6. Extract Final Metric
-            final_match = re.search(r"FINAL_METRIC:\s*([0-9.]+)", line)
+            final_match = re.search(r"FINAL_METRIC:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)", line)
             if final_match:
                 final_score = float(final_match.group(1))
 
@@ -421,18 +381,18 @@ def log_best_callback(study, trial):
     """
     Runs automatically after every trial.
     Logs the absolute best trial configuration AND appends any successful
-    trials that achieved a metric score under 15.
+    trials that achieved a metric score under 30.
     """
     if trial.value is None:
         return
 
-    # 1. LOG EVERY TRIAL WITH METRIC < 15
+    # 1. LOG EVERY TRIAL WITH METRIC < 30
     # Ensure the trial wasn't pruned, has a return value, and meets your condition
-    if trial.value < 15:
-        print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
+    if trial.value < 30:
+        print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_wG_final.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/sub_30_trials_pivot_parallel.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -443,7 +403,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_wG_final.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/best_params_pivot_parallel.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -456,28 +416,26 @@ def log_best_callback(study, trial):
 
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml
 # sed -i 's/\t/  /g' examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml
-# python3 examples/resources/multifinger_hand/optuna_point_hand_180_anitescu_pruning.py
+# python3 examples/resources/multifinger_hand/optuna_point_hand_pivot_pruning_parallel.py
 if __name__ == "__main__":
 
+    print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_wG_final.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_parallel.db"
     else:
-        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final.db"
-    
-    # module = optunahub.load_module(package="samplers/catcmawm")
-    # sampler = module.CatCmawmSampler()
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/optuna_results_pivot_parallel.db"
+        
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  
         heartbeat_interval=60            
     )
-
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_wG_final",
+        study_name="MSiC3_point_hand_pivot_parallel",
         storage=storage,
-        load_if_exists=True, 
-        sampler=sampler, 
+        load_if_exists=True,  
+        sampler=sampler,
         direction="minimize")
     study.optimize(objective, n_trials=5000, callbacks=[log_best_callback])
 

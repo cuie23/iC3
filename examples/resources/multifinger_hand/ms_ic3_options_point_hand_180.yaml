@@ -1,8 +1,8 @@
-num_iters: 3
+num_iters: 10
 num_warmup_iters: 0
 
 N: 840
-num_segments: 60
+num_segments: 30
 
 
 add_position_constraints: true
@@ -22,14 +22,16 @@ acceleration_cost_weight: 5
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
 
+num_threads: 30
+
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.6
+alpha_ee: 0.2
 alpha_ee_step: 0.2
 
-alpha_object: 0.72
-alpha_object_step: 0.14
+alpha_object: 0.2
+alpha_object_step: 0.2
 
 warm_start_alpha: 0.85
 use_rollout_lambdas: false

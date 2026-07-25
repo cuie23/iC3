@@ -501,8 +501,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
     UpdateQuaternionCosts(x_hat, xd); // Note: this overrides R, G, U as well
 
+    std::cout << "before compute lqr value fun" << std::endl;
     // Backwards Pass - Compute Value Function
     auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
+    std::cout << "after compute lqr value fun" << std::endl;
 
     // Don't store warmup iters
     if (!is_warmup) {
@@ -1362,25 +1364,28 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
 }
 
 std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
-  MSiC3::ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, 
+  MSiC3::ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat,
         LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects) {
   
   vector<MatrixXd> A = lcs.A();
   vector<MatrixXd> B = lcs.B();
   vector<MatrixXd> D = lcs.D();
-  vector<VectorXd> d = lcs.d();
+  vector<MatrixXd> E = lcs.E();
+  vector<MatrixXd> F = lcs.F();
+  vector<MatrixXd> H = lcs.H();
+
   vector<MatrixXd> Q = Q_;
   vector<MatrixXd> R = R_;
 
-  vector<VectorXd> c; // Bias term from contact forces
-  for (int t = 0; t < N_; t++) {
-    c.push_back(D[t] * lambda_hat.col(t) + d[t]);
-    // if (t % 10 == 0) {
-      // std::cout << "D lambda " << t << " " << (D[t] * lambda_hat.col(t)).transpose() << std::endl;
-      // std::cout << "lambda " << lambda_hat.col(t).transpose() << std::endl;
-    // }
+  // vector<VectorXd> c; // Bias term from contact forces
+  // for (int t = 0; t < N_; t++) {
+  //   c.push_back(D[t] * lambda_hat.col(t) + d[t]);
+  //   // if (t % 10 == 0) {
+  //     // std::cout << "D lambda " << t << " " << (D[t] * lambda_hat.col(t)).transpose() << std::endl;
+  //     // std::cout << "lambda " << lambda_hat.col(t).transpose() << std::endl;
+  //   // }
 
-  }
+  // }
 
   double x_reg_weight = (controller_options_.c3_options.penalize_x_change) 
                           ? controller_options_.c3_options.x_change_weight : 0;
@@ -1388,36 +1393,49 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
                           ? controller_options_.c3_options.input_change_weight : 0;
 
   // Solve time-varying affine LQR about nominal trajectory
-  vector<MatrixXd> H(N_+1, MatrixXd::Zero(n_x_, n_x_));
+  vector<MatrixXd> H_vf(N_+1, MatrixXd::Zero(n_x_, n_x_));
   vector<VectorXd> g(N_+1, VectorXd::Zero(n_x_));
   vector<MatrixXd> K(N_, MatrixXd::Zero(n_u_, n_x_));
   vector<VectorXd> k_ff(N_, VectorXd::Zero(n_u_));    
 
-  H[N_] = (1 + x_reg_weight) * Q[N_]; // terminal condition
+  H_vf[N_] = (1 + x_reg_weight) * Q[N_]; // terminal condition
 
   for (int t = N_-1; t >= 0; t--) {
     int k = t / L_;
 
     VectorXd x_t = x_hat.col(t);
     VectorXd u_t = u_hat.col(t);
-          
-    MatrixXd Q_xx = (1 + x_reg_weight) * Q[t] + A[t].transpose()*(H[t+1])*A[t];
-    MatrixXd Q_uu = (1 + u_reg_weight) * R[t] + B[t].transpose()*(H[t+1])*B[t];
-    MatrixXd Q_ux = B[t].transpose()*(H[t+1])*A[t];
 
-    VectorXd Q_x = Q[t]*(x_t - xd) + A[t].transpose()*g[t+1] + 
-                    A[t].transpose()*(H[t+1])*(c[t]+defects.col(k+1));
+    // Zero out columns where lambda = 0
+    MatrixXd D_t = D[t];
+    MatrixXd F_t = F[t];
+    for (int j = 0; j < n_lambda_; j++) {
+      if (lambda_hat.col(t)(j) == 0) {
+        D_t.col(j) = VectorXd::Zero(n_x_);
+        F_t.col(j) = VectorXd::Zero(n_lambda_);
+      }
+    }
+    MatrixXd F_inv = F_t.completeOrthogonalDecomposition().pseudoInverse();
 
-    VectorXd Q_u = R[t]*(u_t - ud) + B[t].transpose()*g[t+1] + 
-                    B[t].transpose()*(H[t+1])*(c[t]+defects.col(k+1));
+    MatrixXd f_x = A[t] - D_t * F_inv * E[t];
+    MatrixXd f_u = B[t] - D_t * F_inv * H[t];
 
+    MatrixXd Q_xx = (1 + x_reg_weight) * Q[t] + f_x.transpose()*(H_vf[t+1])*f_x;
+    MatrixXd Q_uu = (1 + u_reg_weight) * R[t] + f_u.transpose()*(H_vf[t+1])*f_u;
+    MatrixXd Q_ux = f_u.transpose()*(H_vf[t+1])*f_x;
+
+    VectorXd Q_x = Q[t]*(x_t - xd) + f_x.transpose()*g[t+1] + 
+                    f_x.transpose()*(H_vf[t+1])*defects.col(k+1);
+
+    VectorXd Q_u = R[t]*(u_t - ud) + f_u.transpose()*g[t+1] + 
+                    f_u.transpose()*(H_vf[t+1])*defects.col(k+1);
+ 
     Eigen::LDLT<MatrixXd> solver(Q_uu);
     K[t] = -solver.solve(Q_ux);
     k_ff[t] = -solver.solve(Q_u);
 
     double reg = 1e-5;
-
-    H[t] = Q_xx - Q_ux.transpose() * solver.solve(Q_ux) + reg * MatrixXd::Identity(n_x_, n_x_);
+    H_vf[t] = Q_xx - Q_ux.transpose() * solver.solve(Q_ux) + reg * MatrixXd::Identity(n_x_, n_x_);
     g[t] = Q_x  - Q_ux.transpose() * solver.solve(Q_u);     
 
 
@@ -1426,7 +1444,7 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
 
   }
 
-  return std::make_tuple(H, g, K, k_ff);
+  return std::make_tuple(H_vf, g, K, k_ff);
 }
 
 

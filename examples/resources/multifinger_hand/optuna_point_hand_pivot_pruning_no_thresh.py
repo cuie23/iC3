@@ -33,7 +33,7 @@ MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_pivot/opt
 
 def objective(trial):
     # C3 parameters
-    w_G = trial.suggest_int("w_G", 1, 100)
+    w_G = trial.suggest_int("w_G", 5, 5000, step=5)
     g_x_fingers = trial.suggest_int("g_x_fingers", 10, 100, step=10)
     g_x_cube = trial.suggest_int("g_x_cube", 10, 100, step=10)
     g_u = trial.suggest_int("g_u", 10, 100, step=10)
@@ -54,12 +54,12 @@ def objective(trial):
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
     finger_position_weight = trial.suggest_int("finger_position_weight", 50, 2000, step=50)
     cube_position_weight = trial.suggest_int("cube_position_weight", 50, 10000, step=50)
-    quat_weight = trial.suggest_int("quat_weight", 500, 50000, step=500)
+    quat_weight = trial.suggest_int("quat_weight", 500, 500000, step=500)
 
-    # finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
-    finger_config = 1
+    finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
+    # finger_config = 1
 
-    cube_model = trial.suggest_int("cube_model", 1, 5)
+    cube_model = trial.suggest_int("cube_model", 1, 10)
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -133,9 +133,9 @@ def objective(trial):
     c3_options["lcs_factory_options"]["dt"] = 0.01
 
     if (finger_config == 1):
-        c3_options["x_init"] = [0.0, 0.065, 0.05,  # finger 1 
-                                0.065, -0.05, 0.05,   # finger 2
-                                -0.065, -0.05, 0.05,   # finger 3
+        c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
+                                0.07, -0.055, 0.05,   # finger 2
+                                -0.07, -0.055, 0.05,   # finger 3
                                 1, 0, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -144,9 +144,9 @@ def objective(trial):
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
         
-        c3_options["x_des"] = [0.0, 0.065, 0.05,  # finger 1 
-                                0.065, -0.05, 0.05,   # finger 2
-                                -0.065, -0.05, 0.05,   # finger 3
+        c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
+                                0.07, -0.055, 0.05,   # finger 2
+                                -0.07, -0.055, 0.05,   # finger 3
                                 0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -200,7 +200,7 @@ def objective(trial):
                                 0, 0, 0]   	# cube velo
         
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_R"] = 50
     c3_options["c3_options"]["w_U"] = 1
     c3_options["c3_options"]["scale_lcs"] = True
 
@@ -218,7 +218,7 @@ def objective(trial):
     # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     num_warmup_iters = 0
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 30, 40, 60])
+    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 15, 20, 30, 40, 50, 60])
 
     num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
@@ -234,7 +234,7 @@ def objective(trial):
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
-    ic3_options["N"] = 960
+    ic3_options["N"] = 1200
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -380,7 +380,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_wG_final_no_thresh.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_new_vf_no_thresh.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -391,7 +391,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_wG_final_no_thresh.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_new_vf_no_thresh.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -409,9 +409,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_wG_final_no_thresh.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_new_vf_no_thresh.db"
     else:
-        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_wG_final_no_thresh.db"
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_new_vf_no_thresh.db"
         
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
@@ -420,7 +420,7 @@ if __name__ == "__main__":
     )
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_wG_final_no_thresh",
+        study_name="MSiC3_point_hand_pivot_new_vf_no_thresh",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

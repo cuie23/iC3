@@ -33,6 +33,7 @@ struct MSiC3Options {
   double defect_quaternion_weight;
   double defect_quaternion_regularizer_fraction;
 
+  int num_threads;
 
   VectorXd rollout_Kp;
   VectorXd rollout_Kd;
@@ -64,6 +65,7 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(drake_sim_dt));
     a->Visit(DRAKE_NVP(defect_quaternion_weight));
     a->Visit(DRAKE_NVP(defect_quaternion_regularizer_fraction));
+    a->Visit(DRAKE_NVP(num_threads));
     a->Visit(DRAKE_NVP(rollout_Kp));
     a->Visit(DRAKE_NVP(rollout_Kd));
     a->Visit(DRAKE_NVP(use_rollout_lambdas));

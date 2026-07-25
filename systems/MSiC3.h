@@ -111,7 +111,7 @@ private:
   //
   // Returns H, g, K, k_ff (gains for debugging)
   std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
-    ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, 
+    ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat,
                             LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects);
 
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory);

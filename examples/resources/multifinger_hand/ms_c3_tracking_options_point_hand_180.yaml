@@ -6,7 +6,7 @@ publish_frequency: 1000
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 80
+Q_quaternion_weight: 2000
 
 quaternion_regularizer_fraction: 0.0
 
@@ -28,10 +28,10 @@ lcs_factory_options:
 
 c3_options:
   penalize_input_change: true  # Currently combines u-u_prev and u-u_des
-  input_change_weight: 0.02 # ratio of u-u_prev weight to u-u_des weight
+  input_change_weight: 0 # ratio of u-u_prev weight to u-u_des weight
 
   penalize_x_change: true  # Currently combines x-x_prev and x-x_des
-  x_change_weight: 1.13 # ratio of x-x_prev weight to x-x_des weight
+  x_change_weight: 5  # ratio of x-x_prev weight to x-x_des weight
 
   # EXPERIMENTAL
   # penalize_snap: false
@@ -50,13 +50,13 @@ c3_options:
   gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
-  w_R: 500 #Penalty on all decision variables, assuming scalar
-  w_G: 0.63 #Penalty on all decision variables, assuming scalar
+  w_R: 50 #Penalty on all decision variables, assuming scalar
+  w_G: 0.5 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  w_G_final: 42
+  w_G_final: 10
 
-  q_vector: [700, 700, 700, 700, 700, 700, 700, 700, 700, 1, 1, 1, 1, 9200, 9200, 80000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  q_vector: [10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 1, 1, 1, 1, 10000, 10000, 800, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
   r_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1] # finger 3 actuation
 
@@ -81,8 +81,8 @@ c3_options:
   u_eta_t: []
   u_lambda: [3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 3.3, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
   u_eta: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5]
-  lambda_threshold: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  eta_threshold: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  lambda_threshold: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  eta_threshold: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   add_phi_buffer: false
 
   gamma_threshold: []
