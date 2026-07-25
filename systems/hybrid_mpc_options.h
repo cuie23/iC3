@@ -3,6 +3,9 @@
 
 struct HybridMpcOptions {
 
+  int N;
+  double dt;
+
   double w_Q;
   double w_R;
   double w_S;
@@ -30,8 +33,8 @@ struct HybridMpcOptions {
 
   template <typename Archive>
   void Serialize(Archive* a) {
-    a->Visit(DRAKE_NVP(osqp_settings));
-    a->Visit(DRAKE_NVP(object_model));
+    a->Visit(DRAKE_NVP(N));
+    a->Visit(DRAKE_NVP(dt));
     a->Visit(DRAKE_NVP(w_Q));
     a->Visit(DRAKE_NVP(w_R));
     a->Visit(DRAKE_NVP(w_S));

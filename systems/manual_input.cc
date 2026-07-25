@@ -4,7 +4,7 @@ namespace c3 {
 namespace systems {
 
 
-HybridMPC::HybridMPC(const MultibodyPlant<double>& plant, int N, double dt) :
+ManualInput::ManualInput(const MultibodyPlant<double>& plant, int N, double dt) :
   plant_(plant),
   N_(N),
   dt_(dt) {
@@ -12,13 +12,13 @@ HybridMPC::HybridMPC(const MultibodyPlant<double>& plant, int N, double dt) :
   // Declare output port for inputs.
   // Hardcoded to u=5 for plate-cube example
   output_port_index_ =
-      this->DeclareVectorOutputPort("u", 5, &HybridMPC::ComputeHybridMPC)
+      this->DeclareVectorOutputPort("u", 5, &ManualInput::ComputeManualInput)
           .get_index();
 
 }
 
 
-void HybridMPC::ComputeHybridMPC(const drake::systems::Context<double>& context,
+void ManualInput::ComputeManualInput(const drake::systems::Context<double>& context,
               drake::systems::BasicVector<double>* output) const {
   double t = context.get_time();
   

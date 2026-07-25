@@ -17,13 +17,10 @@
 #include <chrono>
 #include <omp.h>
 
-using drake::multibody::ModelInstanceIndex;
 using drake::systems::BasicVector;
 using drake::systems::Context;
 using drake::systems::BasicVector;
 using drake::multibody::MultibodyPlant;
-using drake::systems::DiscreteValues;
-using drake::systems::DiagramBuilder;
 using drake::math::RigidTransform;
 using drake::multibody::Parser;
 using Eigen::MatrixXd;
@@ -1378,14 +1375,14 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
 LCS MSiC3Parallel::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory) {
   DRAKE_DEMAND(x_hat.cols() >= u_hat.cols());
 
-  vector<Eigen::MatrixXd> A;
-  vector<Eigen::MatrixXd> B;
-  vector<Eigen::MatrixXd> D;
-  vector<Eigen::VectorXd> d;
-  vector<Eigen::MatrixXd> E;
-  vector<Eigen::MatrixXd> F;
-  vector<Eigen::MatrixXd> H;
-  vector<Eigen::VectorXd> c;
+  vector<MatrixXd> A;
+  vector<MatrixXd> B;
+  vector<MatrixXd> D;
+  vector<VectorXd> d;
+  vector<MatrixXd> E;
+  vector<MatrixXd> F;
+  vector<MatrixXd> H;
+  vector<VectorXd> c;
 
   int N = u_hat.cols();
 

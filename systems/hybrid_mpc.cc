@@ -1,15 +1,21 @@
 #include "systems/hybrid_mpc.h"
+#include "common/quaternion_error_hessian.h"
 
 namespace c3 {
 namespace systems {
 
 using drake::systems::Context;
 using drake::multibody::ContactResults;
+using drake::math::RotationMatrix;
+using Eigen::Vector3d;
+using Eigen::RowVectorXd;
+using Eigen::Quaterniond;
 
-HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, drake::systems::Diagram<double>& rollout_diagram, 
+HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, LCSFactory lcs_factory,
+  drake::systems::Diagram<double>& rollout_diagram, 
   std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context, 
-  const vector<SortedPair<GeometryId>>& contact_geoms_rollout, HybridMPCOptions mpc_options,
-  MSiC3Options ms_ic3_options, int example_idx,
+  const vector<SortedPair<GeometryId>>& contact_geoms_rollout, HybridMpcOptions mpc_options,
+  MSiC3Options ms_ic3_options, int example_idx, vector<double> mu_vector,
   MatrixXd A_x, VectorXd lb_x, VectorXd ub_x, MatrixXd A_u, VectorXd lb_u, VectorXd ub_u) 
   : plant_rollout_(plant_rollout),
     lcs_factory_(lcs_factory),
@@ -19,6 +25,9 @@ HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, drake::systems
     mpc_options_(mpc_options),
     ms_ic3_options_(ms_ic3_options),
     example_idx_(example_idx),
+    mu_vector_(mu_vector),
+    lambda_threshold_(mpc_options.lambda_threshold),
+    eta_threshold_(mpc_options.eta_threshold),
     N_(mpc_options.N),
     dt_(mpc_options.dt),
     Q_(mpc_options.Q),
@@ -129,7 +138,7 @@ HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, drake::systems
 
 
     // Add linear constraints
-    if (ic3_options_.add_position_constraints) {
+    if (ms_ic3_options_.add_position_constraints) {
       for (int i = 1; i < N_ + 1; i++) { // Don't put constraint on x0
         prog_.AddLinearConstraint(A_x_, lb_x_, ub_x_, x_.at(i)); 
       }
@@ -137,7 +146,7 @@ HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, drake::systems
       std::cout << "lb_x " << lb_x_.transpose() << std::endl;
       std::cout << "ub_x " << ub_x_.transpose() << std::endl;
     }
-    if (ic3_options_.add_input_constraints) {
+    if (ms_ic3_options_.add_input_constraints) {
       for (int i = 0; i < N_; i++) {
         prog_.AddLinearConstraint(A_u_, lb_u_, ub_u_, u_.at(i));
       }
@@ -198,10 +207,10 @@ std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
       }
     }
 
-    LCS lcs = MakeLCS();
+    LCS lcs = MakeLCS(x_curr, u_hat.col(i));
     UpdateQP(x_curr, lcs, x_noms, u_noms, lambda_noms);
 
-    drake::solvers::MathematicalProgramResult result = osqp_.Solve(prog_, std::nullopt, solver_options_);
+    drake::solvers::MathematicalProgramResult result = osqp_.Solve(prog_);
     if (!result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
       std::cout << "Hybrid MPC QP failed" << std::endl;
@@ -212,24 +221,65 @@ std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
     }
 
     VectorXd u_mpc = result.GetSolution(u_[0]);
+    u_out.col(i) = u_mpc;
 
     // Simulate
     Context<double>& root_context = simulator_->get_mutable_context();
     Context<double>& plant_context =
         rollout_diagram_.GetMutableSubsystemContext(plant_rollout_, &root_context);
-      
-    for (int j = 0; j < ms_ic3_options_.rollout_dt_scaling; j++) {
-      
-    }
-    
+    root_context.SetTime(0.0);
+    simulator_->Initialize();  
 
+    for (int j = 0; j < ms_ic3_options_.rollout_dt_scaling; j++) {
+      plant_rollout_.SetPositionsAndVelocities(&plant_context, x_curr);
+
+      // Threshold u
+      VectorXd u_tracking = u_mpc;
+      for (int k = 0; k < A_u_.rows(); k++) {
+        if (A_u_(k, k) == 1) {
+          u_tracking(k) = std::clamp(u_tracking(k), lb_u_(k), ub_u_(k));
+        }
+      }
+      plant_rollout_.get_actuation_input_port().FixValue(&plant_context, u_tracking);
+
+      double target_time = root_context.get_time() + dt_ / ms_ic3_options_.rollout_dt_scaling;
+      simulator_->AdvanceTo(target_time);
+
+      VectorXd x_next = plant_rollout_.GetPositionsAndVelocities(plant_context);
+      // Ensure consistent quaternions
+      for (int k = 0; k < mpc_options_.quaternion_indices.size(); k++) {
+        int idx = mpc_options_.quaternion_indices[k];
+        if (x_curr.segment(idx, 4).dot(x_next.segment(idx, 4)) < 0) {
+          x_next.segment(idx, 4) *= -1;
+        }
+      }
+
+      // Clamp velocities
+      if (example_idx_ == 1 || example_idx_ == 2) {
+        for (int k = n_q_; k < A_x_.rows(); k++) {
+          if (A_x_(k, k) == 1) { // Assumes diagonal
+            x_next(k) = std::clamp(x_next(k), lb_x_(k), ub_x_(k));
+          }
+        }
+      }
+      x_curr = x_next;
+
+      // Get lambdas
+      auto abstract_contact_results = drake::AbstractValue::Make<drake::multibody::ContactResults<double>>({});
+      plant_rollout_.get_contact_results_output_port().Calc(plant_context, abstract_contact_results.get());
+      const auto& contact_results = abstract_contact_results->get_value<drake::multibody::ContactResults<double>>();
+      VectorXd lambda = 
+          ConstructLambdasFromContactResults(contact_results, "anitescu"); // HARDCODED ANITESCU
+      lambda_out.col(i) = lambda;
+    }
+    x_out.col(i+1) = x_curr;
 
   }
 
-
+  return {x_out, u_out, lambda_out};
 }
 
-void UpdateXDelta(VectorXd x_curr, VectorXd x_nom) {
+void HybridMPC::UpdateXDelta(VectorXd x_curr, VectorXd x_nom) {
   if (example_idx_ == 0) {
     // Don't do anything for plate example
   } else if (example_idx_ == 1 || example_idx_ == 2) {
@@ -247,7 +297,7 @@ void UpdateXDelta(VectorXd x_curr, VectorXd x_nom) {
   }
 }
 
-void UpdateQP(VectorXd x_curr, LCS lcs, vector<VectorXd> x_noms, vector<VectorXd> u_noms, vector<VectorXd> lambda_noms) {
+void HybridMPC::UpdateQP(VectorXd x_curr, LCS lcs, vector<VectorXd> x_noms, vector<VectorXd> u_noms, vector<VectorXd> lambda_noms) {
 
   DRAKE_DEMAND(lcs.N() == N_);
   DRAKE_DEMAND(x_noms.size() == N_+1);
@@ -346,38 +396,33 @@ void UpdateQP(VectorXd x_curr, LCS lcs, vector<VectorXd> x_noms, vector<VectorXd
 
   // Update tracking costs
   for (int i = 0; i < N_+1; i++) {
-    x_nom.segment(mpc_options_.quaternion_indices[0], 4) = 
-        quat_norms[i] * x_nom.segment(mpc_options_.quaternion_indices[0], 4);
     target_costs_[i]->UpdateCoefficients(2 * Q_, -2 * Q_ * x_noms[i]);
 
     if (i == N_) break;
 
     input_costs_[i]->UpdateCoefficients(2 * R_, -2 * R_ * u_noms[i]);
-
-    VectorXd lambda_des = force_data_.col(idx);
     force_costs_[i]->UpdateCoefficients(2 * S_, -2 * S_ * lambda_noms[i]);
   }
 }
 
-LCS MakeLCS(VectorXd x_curr, VectorXd u_curr) {
+LCS HybridMPC::MakeLCS(VectorXd x_curr, VectorXd u_curr) {
   lcs_factory_.SetNewDt(dt_);
   lcs_factory_.UpdateStateAndInput(x_curr, u_curr);
   LCS lcs = lcs_factory_.GenerateLCS();
 
-  vector<Eigen::MatrixXd> A(lcs.A()[0], N_);
-  vector<Eigen::MatrixXd> B(lcs.B()[0], N_);
-  vector<Eigen::MatrixXd> D(lcs.D()[0], N_);
-  vector<Eigen::VectorXd> d(lcs.d()[0], N_);
-  vector<Eigen::MatrixXd> E(lcs.E()[0], N_);
-  vector<Eigen::MatrixXd> F(lcs.F()[0], N_);
-  vector<Eigen::MatrixXd> H(lcs.H()[0], N_);
-  vector<Eigen::VectorXd> c(lcs.c()[0], N_);
+  vector<MatrixXd> A(N_, lcs.A()[0]);
+  vector<MatrixXd> B(N_, lcs.B()[0]);
+  vector<MatrixXd> D(N_, lcs.D()[0]);
+  vector<VectorXd> d(N_, lcs.d()[0]);
+  vector<MatrixXd> E(N_, lcs.E()[0]);
+  vector<MatrixXd> F(N_, lcs.F()[0]);
+  vector<MatrixXd> H(N_, lcs.H()[0]);
+  vector<VectorXd> c(N_, lcs.c()[0]);
 
-  return LCS(A, B, D, d, E, F, H, c);
+  return LCS(A, B, D, d, E, F, H, c, dt_);
 }
 
-void HybridMPC::UpdateQuaternionCosts(
-    const Eigen::VectorXd& x_curr, const Eigen::VectorXd& x_des) const {
+void HybridMPC::UpdateQuaternionCosts(VectorXd x_curr, VectorXd x_des) {
     
   // Early return if no quaternions or cost parameters not set
   if (mpc_options_.quaternion_indices.size() == 0) {
@@ -389,7 +434,7 @@ void HybridMPC::UpdateQuaternionCosts(
     Eigen::VectorXd quat_des_i = x_des.segment(index, 4);
 
     Eigen::MatrixXd quat_hessian_i =
-        c3::systems::common::hessian_of_squared_quaternion_angle_difference(
+        common::hessian_of_squared_quaternion_angle_difference(
                   quat_curr_i, quat_des_i);
 
     // Regularize hessian so Q is always PSD
@@ -418,6 +463,85 @@ void HybridMPC::UpdateQuaternionCosts(
 }
 
 
+
+VectorXd HybridMPC::ConstructLambdasFromContactResults(ContactResults<double> contact_results, std::string contact_model) {
+
+  // Assumes 2 friction directions
+  VectorXd lambda(VectorXd::Zero(n_lambda_));
+
+  int n_contacts = contact_geoms_rollout_.size();
+
+  for (int i = 0; i < n_contacts; i++) {
+    GeometryId geom_A = contact_geoms_rollout_[i].first();
+    GeometryId geom_B = contact_geoms_rollout_[i].second();
+
+    for (int j = 0; j < contact_results.num_point_pair_contacts(); j++) {
+      const auto& info = contact_results.point_pair_contact_info(j);
+      const auto& pair = info.point_pair();
+
+      GeometryId id_A = pair.id_A;
+      GeometryId id_B = pair.id_B;
+
+      // Search for matching contact result
+      if ((geom_A == id_A && geom_B == id_B) || (geom_A == id_B && geom_B == id_A)) {
+        bool is_swapped = (geom_A == id_B && geom_B == id_A);
+
+        Vector3d n_W;
+        Vector3d f_W;
+
+        if (is_swapped) {
+           n_W = -pair.nhat_BA_W;
+           f_W = info.contact_force(); 
+        } else {
+           n_W = pair.nhat_BA_W;
+           f_W = -info.contact_force(); 
+        }
+
+        // Get tangent basis
+        auto R_WC = RotationMatrix<double>::MakeFromOneVector(n_W, 0);
+        Eigen::Vector3d t1_W = R_WC.col(1);
+        Eigen::Vector3d t2_W = R_WC.col(2);
+
+        double f_n = std::max(0.0, f_W.dot(n_W));
+        double f_t1 = f_W.dot(t1_W);
+        double f_t2 = f_W.dot(t2_W);
+
+        // TODO: CHECK THIS
+        if (contact_model == "anitescu") {
+          double mu = mu_vector_[i];
+
+          double l1_base = std::max(0.0, f_t1 / mu);
+          double l2_base = std::max(0.0, -f_t1 / mu);
+          double l3_base = std::max(0.0, f_t2 / mu);
+          double l4_base = std::max(0.0, -f_t2 / mu);
+
+          double base_normal_sum = l1_base + l2_base + l3_base + l4_base;
+          double deficit = std::max(0.0, f_n - base_normal_sum);
+          double offset = deficit / 4.0;
+
+          lambda(4*i) = l1_base + offset;
+          lambda(4*i + 1) = l2_base + offset;
+          lambda(4*i + 2) = l3_base + offset;
+          lambda(4*i + 3) = l4_base + offset;
+
+        } else if (contact_model == "stewart_and_trinkle") {
+
+          lambda(i) = info.slip_speed(); // gamma
+          lambda(n_contacts + i) = f_n; // lambda_n
+          lambda(2 * n_contacts + 4*i) = std::max(0.0,  f_t1);      
+          lambda(2 * n_contacts + 4*i + 1) = std::max(0.0, -f_t1);
+          lambda(2 * n_contacts + 4*i + 2) = std::max(0.0,  f_t2); 
+          lambda(2 * n_contacts + 4*i + 3) = std::max(0.0, -f_t2); 
+
+        } else {
+          std::cerr << "UNKNOWN CONTACT MODEL" << std::endl;
+        }
+      }
+    }
+  }
+  // std::cout << "lambda " << lambda.transpose() << std::endl;
+  return lambda;
+}
 
 } // namespace systems
 } // namespace c3

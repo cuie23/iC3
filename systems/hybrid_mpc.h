@@ -1,4 +1,6 @@
 #include "drake/multibody/plant/multibody_plant.h"
+#include "drake/multibody/plant/contact_results.h"
+#include "drake/systems/analysis/simulator.h"
 
 #include <Eigen/Dense>
 #include <cmath>
@@ -17,11 +19,14 @@ using drake::multibody::MultibodyPlant;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using std::vector;
-using multibody::LCSFactory;
 using drake::geometry::GeometryId;
 using drake::SortedPair;
+using drake::math::RigidTransform;
 
 namespace c3 {
+
+using multibody::LCSFactory;
+
 namespace systems {
 
 // Outputs a manually generated set of inputs
@@ -30,9 +35,9 @@ class HybridMPC {
   explicit HybridMPC(const MultibodyPlant<double>& plant_rollout, LCSFactory lcs_factory,
     drake::systems::Diagram<double>& rollout_diagram, 
     std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context, 
-    const vector<SortedPair<GeometryId>>& contact_geoms_rollout, HybridMPCOptions mpc_options,
-    MSiC3Options ms_ic3_options, int example_idx,
-    MatrixXd A_x, VectorXd lb_x, VectorXd ub_x, MatrixXd A_u, VectorXd lb_u, VectorXd ub_u);
+    const vector<SortedPair<GeometryId>>& contact_geoms_rollout, HybridMpcOptions mpc_options,
+    MSiC3Options ms_ic3_options, int example_idx, vector<double> mu_vector,
+    MatrixXd A_x, VectorXd lb_x, VectorXd ub_x, MatrixXd A_u, VectorXd lb_u, VectorXd ub_u) ;
 
 private:
   
@@ -49,12 +54,13 @@ private:
 
   const MultibodyPlant<double>& plant_rollout_;
   c3::multibody::LCSFactory lcs_factory_;
+  const vector<SortedPair<GeometryId>>& contact_geoms_rollout_;
 
   std::unique_ptr<drake::systems::Simulator<double>> simulator_;
   drake::systems::Diagram<double>& rollout_diagram_;
   std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context_;
   
-  HybridMPCOptions mpc_options_;
+  HybridMpcOptions mpc_options_;
   MSiC3Options ms_ic3_options_;
 
   double dt_; 
@@ -62,8 +68,18 @@ private:
 
   int example_idx_;
 
+  vector<double> mu_vector_;
+  VectorXd lambda_threshold_;
+  VectorXd eta_threshold_;
+
   drake::math::RigidTransform<double> X_delta_;
 
+  MatrixXd A_x_;
+  VectorXd lb_x_;
+  VectorXd ub_x_;
+  MatrixXd A_u_;
+  VectorXd lb_u_;
+  VectorXd ub_u_;
   
   drake::solvers::MathematicalProgram prog_;
   drake::solvers::OsqpSolver osqp_;
@@ -89,7 +105,10 @@ private:
 
   void UpdateXDelta(VectorXd x_curr, VectorXd x_nom);
   LCS MakeLCS(VectorXd x_curr, VectorXd u_curr);
-  void UpdateQP(VectorXd x_curr, VectorXd x_nom, VectorXd u_nom, VectorXd lambda_nom);
+  void UpdateQP(VectorXd x_curr, LCS lcs, vector<VectorXd> x_nom, vector<VectorXd> u_nom, vector<VectorXd> lambda_nom);
+  void UpdateQuaternionCosts(VectorXd x_curr, VectorXd x_des);
+  VectorXd ConstructLambdasFromContactResults(
+    drake::multibody::ContactResults<double> contact_results, std::string contact_model);
 
 };
 
