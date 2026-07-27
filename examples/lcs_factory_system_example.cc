@@ -1597,6 +1597,8 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
       "examples/resources/plate/ms_c3_tracking_options.yaml");
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(
       "examples/resources/plate/ms_ic3_options.yaml");
+  HybridMpcOptions hybrid_mpc_options = drake::yaml::LoadYamlFile<HybridMpcOptions>(
+      "examples/resources/plate/hybrid_mpc_options_plate.yaml");
 
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
@@ -1695,8 +1697,9 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
   auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
 
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
-     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_autodiff, plant_rollout, *plant_autodiff_rollout, 
-        *plant_diagram_rollout, std::move(plant_diagram_context_rollout), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
+     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_autodiff, plant_rollout, 
+        *plant_autodiff_rollout, *plant_diagram_rollout, std::move(plant_diagram_context_rollout), 
+        contact_pairs, contact_pairs, options, ms_ic3_options, hybrid_mpc_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
@@ -1795,6 +1798,8 @@ int OptunaPlateTestMSiC3Parallel(int optuna_instance) {
 
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(c3_controller_options_file);
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
+  HybridMpcOptions hybrid_mpc_options = drake::yaml::LoadYamlFile<HybridMpcOptions>(
+      "examples/resources/plate/hybrid_mpc_options_plate.yaml");
 
   std::cout << "after read yamls" << std::endl;
 
@@ -1895,8 +1900,9 @@ int OptunaPlateTestMSiC3Parallel(int optuna_instance) {
   auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
 
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
-     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_autodiff, plant_rollout, *plant_autodiff_rollout, 
-        *plant_diagram_rollout, std::move(plant_diagram_context_rollout), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
+     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_autodiff, plant_rollout, 
+      *plant_autodiff_rollout, *plant_diagram_rollout, std::move(plant_diagram_context_rollout), 
+      contact_pairs, contact_pairs, options, ms_ic3_options, hybrid_mpc_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
@@ -3130,6 +3136,7 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
   // Load controller options and cost matrices.
   std::string ms_c3_options_file;
   std::string ms_ic3_options_file;
+  std::string hybrid_mpc_options_file;
 
   std::string hand_config = "";
   if (FLAGS_ee_config >= 0) {
@@ -3144,13 +3151,16 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
   if (example == 0) {
     ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml";
     ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml";
+    hybrid_mpc_options_file = "examples/resources/multifinger_hand/hybrid_mpc_options_pivot.yaml";
   } else if (example == 1) {
     ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml";
     ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml";
+    hybrid_mpc_options_file = "examples/resources/multifinger_hand/hybrid_mpc_options_180.yaml";
   }
 
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
+  HybridMpcOptions hybrid_mpc_options = drake::yaml::LoadYamlFile<HybridMpcOptions>(hybrid_mpc_options_file);
 
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
@@ -3441,7 +3451,7 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
      std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
-        options, ms_ic3_options, example_idx);
+        options, ms_ic3_options, hybrid_mpc_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
@@ -3570,32 +3580,37 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
 
 int OptunaPointHandTestMSiC3Parallel(int example, int instance) {
   // Load controller options and cost matrices.
+  
+  // Load controller options and cost matrices.
   std::string ms_c3_options_file;
   std::string ms_ic3_options_file;
-
-  if (example == 0) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_c3_tracking_options_pivot_" 
-                            + std::to_string(instance) + ".yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_yamls/optuna_ms_ic3_options_pivot_"
-                            + std::to_string(instance) + ".yaml";
-  } else if (example == 1) {
-    ms_c3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_" 
-                            + std::to_string(instance) + ".yaml";
-    ms_ic3_options_file = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_" 
-                            + std::to_string(instance) + ".yaml";
-  }
+  std::string hybrid_mpc_options_file;
 
   std::string hand_config = "";
   if (FLAGS_ee_config >= 0) {
     hand_config = "_config_" + std::to_string(FLAGS_ee_config);
   }
+
   std::string cube_model = "";
   if (FLAGS_cube_model >= 0) {
     cube_model = "_" + std::to_string(FLAGS_cube_model);
   }
 
+  if (example == 0) {
+    ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml";
+    hybrid_mpc_options_file = "examples/resources/multifinger_hand/hybrid_mpc_options_pivot.yaml";
+  } else if (example == 1) {
+    ms_c3_options_file = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml";
+    ms_ic3_options_file = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml";
+    hybrid_mpc_options_file = "examples/resources/multifinger_hand/hybrid_mpc_options_180.yaml";
+  }
+
   C3ControllerOptions options = c3::systems::LoadC3ControllerOptions(ms_c3_options_file);
   MSiC3Options ms_ic3_options = drake::yaml::LoadYamlFile<MSiC3Options>(ms_ic3_options_file);
+  HybridMpcOptions hybrid_mpc_options = drake::yaml::LoadYamlFile<HybridMpcOptions>(hybrid_mpc_options_file);
+
+
   // Build the plant and scene graph for the pivoting system.
   DiagramBuilder<double> plant_builder;
   auto [plant_for_lcs, scene_graph_for_lcs] =
@@ -3874,7 +3889,7 @@ int OptunaPointHandTestMSiC3Parallel(int example, int instance) {
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
      std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
-        options, ms_ic3_options, example_idx);
+        options, ms_ic3_options, hybrid_mpc_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
@@ -3913,34 +3928,34 @@ int OptunaPointHandTestMSiC3Parallel(int example, int instance) {
 
   // Penalize state jumps at segment boundaries
   double segment_jump_cost = 0;
-  int L = ms_ic3_options.N / ms_ic3_options.num_segments;
-  for (int i = 0; i < ms_ic3_options.num_segments; i++) {
-    VectorXd x_L = x_hat_final.col((i+1)*L - 1);
-    VectorXd x_anchor = x_hat_final.col((i+1)*L);
+  // int L = ms_ic3_options.N / ms_ic3_options.num_segments;
+  // for (int i = 0; i < ms_ic3_options.num_segments; i++) {
+  //   VectorXd x_L = x_hat_final.col((i+1)*L - 1);
+  //   VectorXd x_anchor = x_hat_final.col((i+1)*L);
     
-    int quat_idx = options.quaternion_indices[0];
+  //   int quat_idx = options.quaternion_indices[0];
 
-    Eigen::Quaterniond q1(x_L(quat_idx), x_L(quat_idx+1), x_L(quat_idx+2), x_L(quat_idx+3));
-    Eigen::Quaterniond q2(x_anchor(quat_idx), x_anchor(quat_idx+1), x_anchor(quat_idx+2), x_anchor(quat_idx+3));
+  //   Eigen::Quaterniond q1(x_L(quat_idx), x_L(quat_idx+1), x_L(quat_idx+2), x_L(quat_idx+3));
+  //   Eigen::Quaterniond q2(x_anchor(quat_idx), x_anchor(quat_idx+1), x_anchor(quat_idx+2), x_anchor(quat_idx+3));
 
-    double pos_weight_multiplier_finger = (example == 0) ? 30000 : 30000;
-    double pos_weight_multiplier_cube = (example == 0) ? 3000 : 3000;
+  //   double pos_weight_multiplier_finger = (example == 0) ? 30000 : 30000;
+  //   double pos_weight_multiplier_cube = (example == 0) ? 3000 : 3000;
 
-    double angle_diff = q1.angularDistance(q2) * 180 / M_PI;
+  //   double angle_diff = q1.angularDistance(q2) * 180 / M_PI;
 
-    VectorXd x_diff = x_L - x_anchor;
-    double position_weight_finger = pos_weight_multiplier_finger * x_diff.segment(0, 9).squaredNorm();
-    double position_weight_cube = pos_weight_multiplier_cube * x_diff.segment(13, 2).squaredNorm();
+  //   VectorXd x_diff = x_L - x_anchor;
+  //   double position_weight_finger = pos_weight_multiplier_finger * x_diff.segment(0, 9).squaredNorm();
+  //   double position_weight_cube = pos_weight_multiplier_cube * x_diff.segment(13, 2).squaredNorm();
 
-    std::cout << "Segment " << i << " angle diff: " << angle_diff << " pos cube: " << position_weight_cube << " pos finger: " << position_weight_finger << std::endl;
+  //   std::cout << "Segment " << i << " angle diff: " << angle_diff << " pos cube: " << position_weight_cube << " pos finger: " << position_weight_finger << std::endl;
  
-    segment_jump_cost += (angle_diff + position_weight_finger + position_weight_cube);
-  }
+  //   segment_jump_cost += (angle_diff + position_weight_finger + position_weight_cube);
+  // }
 
 
   std::cout << "Angle diff: " << angle_diff << std::endl;
   std::cout << "Position weight " << position_weight << std::endl;
-  std::cout << "Segment jump cost " << segment_jump_cost << std::endl;
+  // std::cout << "Segment jump cost " << segment_jump_cost << std::endl;
   std::cout << "FINAL_METRIC: " << (angle_diff + position_weight + segment_jump_cost + penalty) << std::endl;
   return 0;
 

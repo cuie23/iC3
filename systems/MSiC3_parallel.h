@@ -14,6 +14,7 @@
 #include "systems/framework/c3_output.h"
 #include "systems/framework/timestamped_vector.h"
 #include "systems/PdInputSource.h"
+#include "systems/hybrid_mpc_options.h"
 
 #include "drake/systems/analysis/simulator.h"
 #include "drake/multibody/plant/multibody_plant.h"
@@ -50,6 +51,7 @@ public:
     const vector<SortedPair<GeometryId>>& contact_geoms,
     const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
+    HybridMpcOptions mpc_options,
     int example_idx);
 
   // Outputs
@@ -152,7 +154,8 @@ private:
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
   MSiC3Options ms_ic3_options_;
-
+  HybridMpcOptions mpc_options_;
+  
   // Convenience variables for dimensions.
   int n_q_;       // Number of generalized positions.
   int n_v_;       // Number of generalized velocities.

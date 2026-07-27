@@ -1,5 +1,6 @@
 #include "systems/hybrid_mpc.h"
 #include "common/quaternion_error_hessian.h"
+#include "solver_options_io.h"
 
 namespace c3 {
 namespace systems {
@@ -57,6 +58,12 @@ HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, LCSFactory lcs
       n_lambda_ = 11 * 4;
     }
     
+
+   solver_options_ =
+      drake::yaml::LoadYamlFile<c3::SolverOptionsFromYaml>(
+          "systems/mpc_solver_options.yaml")
+          .GetAsSolverOptions(drake::solvers::OsqpSolver::id());
+
     // Add decision variables
     for (int i = 0; i < N_+1; i++) {
       x_.push_back(prog_.NewContinuousVariables(n_x_, "x_" + std::to_string(i)));
@@ -178,10 +185,12 @@ std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
     vector<VectorXd> x_noms;
     vector<VectorXd> u_noms;
     vector<VectorXd> lambda_noms;
-    for (int t = 0; t < N_; t++) {
+    for (int t = 0; t < N_+1; t++) {
       int x_idx = std::min(i + t, ms_ic3_options_.N);
-      int u_idx = std::min(i + t, ms_ic3_options_.N-1);
       x_noms.push_back(x_hat.col(x_idx));
+
+      if (t == N_) break;
+      int u_idx = std::min(i + t, ms_ic3_options_.N-1);
       u_noms.push_back(u_hat.col(u_idx));
       lambda_noms.push_back(lambda_hat.col(u_idx));
     }
@@ -194,23 +203,41 @@ std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
       // Get end effector transform
       UpdateXDelta(x_curr, x_hat.col(i));
 
-      for (int t = 0; t < N_; t++) {
+      for (int t = 0; t < N_+1; t++) {
         VectorXd ee_nom = x_noms[t].segment(0, 9);
-        VectorXd u_nom = u_noms[t];
-
         for (int f = 0; f < 3; f++) {
           ee_nom.segment(3*f, 3) = X_delta_ * ee_nom.segment(3*f, 3);
-          u_nom.segment(3*f, 3) = X_delta_.rotation() * u_nom.segment(3*f, 3);
         }
         x_noms[t].segment(0, 9) = ee_nom;
+
+        if (t == N_) break;
+        VectorXd u_nom = u_noms[t];
+        for (int f = 0; f < 3; f++) {
+          u_nom.segment(3*f, 3) = X_delta_.rotation() * u_nom.segment(3*f, 3);
+        }
         u_noms[t] = u_nom;
       }
     }
 
     LCS lcs = MakeLCS(x_curr, u_hat.col(i));
+
+
+    // Get quaternion norms and update x_noms
+    VectorXd x_curr_quat = x_curr;
+    for (int t = 0; t < N_; t++) {
+      VectorXd u_nominal = u_noms[t];
+
+      x_curr_quat = lcs.SimulateAtTimestep(x_curr, u_nominal, true, t);
+
+      for (auto quat_idx : mpc_options_.quaternion_indices) {
+        x_noms[t+1].segment(quat_idx, 4) *= x_curr_quat.segment(quat_idx, 4).norm();
+      }
+    }
+    
+
     UpdateQP(x_curr, lcs, x_noms, u_noms, lambda_noms);
 
-    drake::solvers::MathematicalProgramResult result = osqp_.Solve(prog_);
+    drake::solvers::MathematicalProgramResult result = osqp_.Solve(prog_, std::nullopt, solver_options_);
     if (!result.is_success()) {
       const auto& details = result.get_solver_details<drake::solvers::OsqpSolver>();
       std::cout << "Hybrid MPC QP failed" << std::endl;
@@ -218,6 +245,7 @@ std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
       std::cout << "Iterations: " << details.iter << std::endl;
       std::cout << "Primal Res: " << details.primal_res << std::endl;
       std::cout << "Dual Res: " << details.dual_res << std::endl;
+      std::cout << "x0 " << x_curr.segment(0, n_q_).transpose() << std::endl;
     }
 
     VectorXd u_mpc = result.GetSolution(u_[0]);

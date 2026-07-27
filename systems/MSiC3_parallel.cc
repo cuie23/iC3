@@ -11,6 +11,7 @@
 #include "multibody/lcs_factory.h"
 #include "multibody/geom_geom_collider.h"
 #include "common/quaternion_error_hessian.h"
+#include "systems/hybrid_mpc.h"
 
 #include "drake/common/text_logging.h"
 #include <drake/multibody/parsing/parser.h>
@@ -41,7 +42,7 @@ MSiC3Parallel::MSiC3Parallel(MultibodyPlant<double>& plant, MultibodyPlant<drake
   MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
   drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,    
   const vector<SortedPair<GeometryId>>& contact_geoms, const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
-  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx)
+  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, HybridMpcOptions mpc_options, int example_idx)
     : plant_(plant),
       plant_ad_(plant_ad),
       plant_rollout_(plant_rollout),
@@ -53,6 +54,7 @@ MSiC3Parallel::MSiC3Parallel(MultibodyPlant<double>& plant, MultibodyPlant<drake
       use_drake_sim_(ms_ic3_options.use_drake_sim),
       controller_options_(controller_options),
       ms_ic3_options_(ms_ic3_options),
+      mpc_options_(mpc_options),
       N_(ms_ic3_options.N),
       example_idx_(example_idx) {
 
@@ -288,6 +290,12 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   std::cout << "plant lcs dt " << plant_.time_step() << std::endl;
   std::cout << "plant rollout dt " << plant_rollout_.time_step() << std::endl;
+
+
+  HybridMPC hybrid_mpc_controller(plant_rollout_, lcs_factory, rollout_diagram_, std::move(rollout_diagram_context_), 
+            contact_geoms_rollout_, mpc_options_, ms_ic3_options_, example_idx_, controller_options_.lcs_factory_options.mu, 
+            A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u);
+
 
   // Set initial guess to something kinda reasonable
   // Set initial guess for x - linear interpolation (including in quaternion space)
@@ -679,7 +687,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     }
 
     // Linearize about new nominal trajectory
-    // lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
+    lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
 
     // Don't store if warmup
     all_x_hats.push_back(x_hat);
@@ -691,9 +699,6 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     all_z_sols.push_back(z_sol_iter_);
     all_gammas.push_back(gamma);
     all_in_contacts.push_back(in_contact);
-    
-
-
     
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
@@ -709,6 +714,44 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   gs.push_back(g);
   Ks.push_back(K);
   k_ffs.push_back(k_ff);
+
+  std::cout << std::endl;
+
+  auto start_mpc = std::chrono::high_resolution_clock::now();
+  // Run hybrid mpc over final trajectory to ensure feasibility
+  auto [x_hat_out, u_hat_out, lambda_hat_out] = 
+    hybrid_mpc_controller.SimulateHybridMPC(x0, x_hat, u_hat, lambda_hat, *contexts_rollout[0]);
+  auto end_mpc = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration_mpc = end_mpc - start_mpc;
+  std::cout << "MPC runtime: " << duration_mpc.count() << " seconds " << std::endl;
+
+  if (example_idx_ == 0) {
+    std::cout << "x pancake final " << x_hat_out.col(x_hat_out.cols()-1).segment(5, 7).transpose() << std::endl;
+  } else if (example_idx_ == 1 || example_idx_ == 2) {
+    std::cout << "x cube final " << x_hat_out.col(x_hat_out.cols()-1).segment(9, 7).transpose() << std::endl;
+  }
+  std::cout << std::endl;
+
+  all_x_hats.push_back(x_hat_out);
+  all_u_hats.push_back(u_hat_out);
+  all_lambda_hats.push_back(lambda_hat_out);
+
+  // Get value function over hybrid mpc trajectory
+  UpdateQuaternionCosts(x_hat_out, xd);
+  lcs = MakeTimeVaryingLCS(x_hat_out, u_hat_out, lcs_factory);
+
+  MatrixXd x_anchors_final(n_x_, N_ / L_);
+  MatrixXd defects_final(MatrixXd::Zero(n_x_, N_ / L_)); // fully feasible so defects are 0
+  for (int i = 0; i < N_; i+= L_) {
+    x_anchors_final.col(i / L_) = x_hat_out.col(i);
+  }
+
+  auto [H_final, g_final, K_final, k_ff_final] = ComputeLQRValueFunction(x_hat_out, u_hat_out, lambda_hat_out, lcs, x_anchors_final, u_nominal[0], defects_final);
+  Hs.push_back(H_final);
+  gs.push_back(g_final);
+  Ks.push_back(K_final);
+  k_ffs.push_back(k_ff_final);
+  std::cout << std::endl;
 
   auto end_total = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = end_total - start_total;
@@ -1300,15 +1343,6 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
   vector<MatrixXd> Q = Q_;
   vector<MatrixXd> R = R_;
 
-  // vector<VectorXd> c; // Bias term from contact forces
-  // for (int t = 0; t < N_; t++) {
-  //   c.push_back(D[t] * lambda_hat.col(t) + d[t]);
-  //   // if (t % 10 == 0) {
-  //     // std::cout << "D lambda " << t << " " << (D[t] * lambda_hat.col(t)).transpose() << std::endl;
-  //     // std::cout << "lambda " << lambda_hat.col(t).transpose() << std::endl;
-  //   // }
-
-  // }
 
   double x_reg_weight = (controller_options_.c3_options.penalize_x_change) 
                           ? controller_options_.c3_options.x_change_weight : 0;
@@ -1323,6 +1357,10 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
 
   H_vf[N_] = (1 + x_reg_weight) * Q[N_]; // terminal condition
 
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver_HN(H_vf[N_]);
+  std::cout << "min eigenvalue H_vf[" << N_ << "] " << solver_HN.eigenvalues().minCoeff() << std::endl;
+
+
   for (int t = N_-1; t >= 0; t--) {
     int k = t / L_;
 
@@ -1332,13 +1370,20 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
     // Zero out columns where lambda = 0
     MatrixXd D_t = D[t];
     MatrixXd F_t = F[t];
+
     for (int j = 0; j < n_lambda_; j++) {
       if (lambda_hat.col(t)(j) == 0) {
         D_t.col(j) = VectorXd::Zero(n_x_);
         F_t.col(j) = VectorXd::Zero(n_lambda_);
       }
     }
-    MatrixXd F_inv = F_t.completeOrthogonalDecomposition().pseudoInverse();
+
+    // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver_F(F_t);
+    // std::cout << "min eigenvalue F_t: " << solver_F.eigenvalues().minCoeff() << std::endl;
+
+    Eigen::CompleteOrthogonalDecomposition<MatrixXd> cod(F_t);
+    cod.setThreshold(1e-4); // Ignore singular values smaller than this
+    MatrixXd F_inv = cod.pseudoInverse();
 
     MatrixXd f_x = A[t] - D_t * F_inv * E[t];
     MatrixXd f_u = B[t] - D_t * F_inv * H[t];
@@ -1346,6 +1391,12 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
     MatrixXd Q_xx = (1 + x_reg_weight) * Q[t] + f_x.transpose()*(H_vf[t+1])*f_x;
     MatrixXd Q_uu = (1 + u_reg_weight) * R[t] + f_u.transpose()*(H_vf[t+1])*f_u;
     MatrixXd Q_ux = f_u.transpose()*(H_vf[t+1])*f_x;
+
+    // if (t % 10 == 0) {
+    //   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver_Q_uu(Q_uu);
+    //   std::cout << "min eigenvalue Q_uu: " << solver_Q_uu.eigenvalues().minCoeff() << std::endl;
+    // }
+
 
     VectorXd Q_x = Q[t]*(x_t - x_anchors.col(k+1)) + f_x.transpose()*g[t+1] + 
                     f_x.transpose()*(H_vf[t+1])*defects.col(k+1);
@@ -1361,10 +1412,12 @@ std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd
     H_vf[t] = Q_xx - Q_ux.transpose() * solver.solve(Q_ux) + reg * MatrixXd::Identity(n_x_, n_x_);
     g[t] = Q_x  - Q_ux.transpose() * solver.solve(Q_u);     
 
-
-    // Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver_H(H[k]);
-    // std::cout << "min eigenvalue: " << solver_H.eigenvalues().minCoeff() << std::endl;
-
+    // if (t % 10 == 0) {
+    //   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver_H(H_vf[t]);
+    //   std::cout << "min eigenvalue H_vf[" << t << "] " << solver_H.eigenvalues().minCoeff() << std::endl;
+    //   std::cout << "H sym diff norm " << (H_vf[t] - H_vf[t].transpose()).norm() << std::endl;
+    // }
+    
   }
 
   return std::make_tuple(H_vf, g, K, k_ff);

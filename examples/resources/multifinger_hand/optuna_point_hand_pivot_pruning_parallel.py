@@ -62,6 +62,9 @@ def objective(trial):
 
     finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
     # finger_config = 1
+    
+    x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
+    u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
 
     cube_model = trial.suggest_int("cube_model", 1, 10)
 
@@ -111,6 +114,10 @@ def objective(trial):
 
     c3_options["Q_quaternion_weight"] = quat_weight
 
+    c3_options["c3_options"]["penalize_input_change"] = True
+    c3_options["c3_options"]["penalize_x_change"] = True
+    c3_options["c3_options"]["input_change_weight"] = (u_change_weight-1) / 100.0
+    c3_options["c3_options"]["x_change_weight"] = (x_change_weight-1) / 100.0
 
     for i in range(9):
         c3_options["c3_options"]["g_x"][i] = g_x_fingers

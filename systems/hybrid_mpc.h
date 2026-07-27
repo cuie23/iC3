@@ -39,6 +39,9 @@ class HybridMPC {
     MSiC3Options ms_ic3_options, int example_idx, vector<double> mu_vector,
     MatrixXd A_x, VectorXd lb_x, VectorXd ub_x, MatrixXd A_u, VectorXd lb_u, VectorXd ub_u) ;
 
+  std::tuple<MatrixXd, MatrixXd, MatrixXd> SimulateHybridMPC(
+      VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, drake::systems::Context<double>& context_rollout);
+
 private:
   
   int n_q_;
@@ -62,7 +65,8 @@ private:
   
   HybridMpcOptions mpc_options_;
   MSiC3Options ms_ic3_options_;
-
+  drake::solvers::SolverOptions solver_options_;
+  
   double dt_; 
   int N_;
 
@@ -98,15 +102,14 @@ private:
   std::vector<drake::solvers::LinearConstraint*> lambda_constraints_;
   std::vector<drake::solvers::LinearConstraint*> eta_constraints_;
 
-
-
-  std::tuple<MatrixXd, MatrixXd, MatrixXd> SimulateHybridMPC(
-      VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, drake::systems::Context<double>& context_rollout);
-
   void UpdateXDelta(VectorXd x_curr, VectorXd x_nom);
+
   LCS MakeLCS(VectorXd x_curr, VectorXd u_curr);
+
   void UpdateQP(VectorXd x_curr, LCS lcs, vector<VectorXd> x_nom, vector<VectorXd> u_nom, vector<VectorXd> lambda_nom);
+
   void UpdateQuaternionCosts(VectorXd x_curr, VectorXd x_des);
+
   VectorXd ConstructLambdasFromContactResults(
     drake::multibody::ContactResults<double> contact_results, std::string contact_model);
 

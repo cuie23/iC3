@@ -129,6 +129,8 @@ cc_library( name = "MSiC3_parallel",
         "//systems:PdInputSource",
         "//multibody:lcs_factory",
         "//systems:quaternion_error_hessian",
+        "//systems:hybrid_mpc",
+        "//systems:hybrid_mpc_options",
         "@drake//:drake_shared_library",
     ],
     copts = [
