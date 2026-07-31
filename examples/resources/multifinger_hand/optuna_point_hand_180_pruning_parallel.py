@@ -265,12 +265,15 @@ def objective(trial):
     num_warmup_iters = 0
     # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
-    num_iters = trial.suggest_int("num_iters", 5, 15)
+    num_iters = trial.suggest_int("num_iters", 2, 12)
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
-    
+    alpha_ee_step = trial.suggest_int("alpha_ee_step", 0, 100)
+    alpha_object_step = trial.suggest_int("alpha_object_step", 0, 100)
+
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
-    use_value_function = trial.suggest_categorical("use_value_function", [True, False])
+    # use_value_function = trial.suggest_categorical("use_value_function", [True, False])
+    use_value_function = True
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
     accel_cost = 20
@@ -298,12 +301,12 @@ def objective(trial):
     alpha_ee_real = alpha_ee / 100.0
     ic3_options["alpha_ee"] = alpha_ee_real
     # ic3_options["alpha_ee_step"] = (1 - alpha_ee_real) / (num_iters - 1)
-    ic3_options["alpha_ee_step"] = 0
+    ic3_options["alpha_ee_step"] = alpha_ee_step
 
     alpha_object_real = alpha_object / 100.0
     ic3_options["alpha_object"] = alpha_object_real
     # ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
-    ic3_options["alpha_object_step"] = 0
+    ic3_options["alpha_object_step"] = alpha_object_step
 
     ic3_options["acceleration_cost_weight"] = accel_cost
 
@@ -440,7 +443,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/sub_15_trials_180_parallel.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/sub_15_trials_180_c3_final_rollout.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -451,7 +454,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/best_params_180_parallel.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/best_params_180_c3_final_rollout.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -469,9 +472,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_parallel.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_c3_final_rollout.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180_parallel/optuna_results_180_parallel.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180_parallel/optuna_results_180_c3_final_rollout.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -483,7 +486,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_parallel",
+        study_name="MSiC3_point_hand_180_c3_final_rollout",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

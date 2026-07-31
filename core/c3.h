@@ -229,6 +229,17 @@ class C3 {
   
   double GetAnDn() { return AnDn_; }
 
+
+  void SetXHat(std::vector<Eigen::VectorXd> x_hat_new) {
+    x_hat_ = std::vector<Eigen::VectorXd>(x_hat_new);
+  }
+  void SetUHat(std::vector<Eigen::VectorXd> u_hat_new) {
+    u_hat_ = std::vector<Eigen::VectorXd>(u_hat_new);
+  }
+
+  void AddRegularizationCostsState(std::vector<Eigen::MatrixXd> Q_reg);
+  void AddRegularizationCostsInput(std::vector<Eigen::MatrixXd> R_reg);
+
  protected:
   /// @param lcs      Parameters defining the LCS.
   /// @param costs    Cost matrices used in the optimization.
@@ -382,6 +393,9 @@ class C3 {
   std::unique_ptr<std::vector<Eigen::VectorXd>> u_sol_;
 
   Eigen::VectorXd x_sol_final_;
+
+  std::vector<Eigen::VectorXd> x_hat_;
+  std::vector<Eigen::VectorXd> u_hat_;
 
   std::unique_ptr<std::vector<Eigen::VectorXd>> z_sol_;
   std::unique_ptr<std::vector<Eigen::VectorXd>>

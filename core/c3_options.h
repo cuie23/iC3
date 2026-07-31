@@ -15,12 +15,11 @@ struct C3Options {
       true;  // Use results of current admm iteration as warm start for next
   bool penalize_input_change =
       false;  // Penalize change in input between iterations
-  double input_change_weight = 1;
+  double input_change_weight = 0;
 
   bool penalize_x_change =
       false;  // Penalize change in input between iterations
-  double x_change_weight = 1;
-
+  double x_change_weight = 0;
 
   // bool penalize_snap;  // Penalize change in input between adjacent u's
   // double snap_scaling;

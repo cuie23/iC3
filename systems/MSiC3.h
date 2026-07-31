@@ -14,6 +14,8 @@
 #include "systems/framework/c3_output.h"
 #include "systems/framework/timestamped_vector.h"
 #include "systems/PdInputSource.h"
+#include "systems/hybrid_mpc_options.h"
+#include "systems/hybrid_mpc.h"
 
 #include "drake/systems/analysis/simulator.h"
 #include "drake/multibody/plant/multibody_plant.h"
@@ -74,6 +76,14 @@ public:
     drake::systems::Context<double>& context_rollout,
     drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout);
 
+  // 1. x_hat for each x0
+  // 2. u_hat for each x0
+  // 3. lambda_hat for each x0
+  tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>> DoHybridMPCTracking(
+    vector<VectorXd> x0s, MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, 
+      HybridMpcOptions mpc_options, drake::systems::Context<double>& context,
+      drake::systems::Context<drake::AutoDiffXd>& context_ad, drake::systems::Context<double>& context_rollout);
+
 private:
   
   VectorXd ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
@@ -127,11 +137,8 @@ private:
   void UpdateQuaternionCosts(
     MatrixXd x_hat, VectorXd x_des);
 
-  void UpdateQuaternionCostAtIdx(
-    VectorXd x_curr, VectorXd x_des, int idx);
-    
-  C3::CostMatrices UpdateQuaternionCosts(
-    VectorXd x_curr, vector<VectorXd> x_des, C3::CostMatrices costs);
+  vector<MatrixXd> UpdateQuaternionCosts(
+    VectorXd x_curr, vector<VectorXd> x_des, vector<MatrixXd> Q);
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;
@@ -178,6 +185,8 @@ private:
   std::vector<std::vector<Eigen::VectorXd>> z_sol_iter_;
 
 };
+
+
 
 } // namespace systems
 } // namespace c3

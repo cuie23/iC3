@@ -1,0 +1,133 @@
+=========================================
+      PARETO OPTIMAL HYPERPARAMETERS     
+=========================================
+Trial #16
+  Nominal Metric: 144.593
+  Sensitivity:    1.873
+
+  Parameters:
+    w_G: 12
+    g_lambda: 100
+    g_eta: 40
+    u_ratio_finger: -214
+    u_ratio_cube: 441
+    admm_iter: 5
+    finger_position_weight: 2200
+    cube_position_weight: 6400
+    tracking_N: 3
+    quat_weight: 10000
+    w_G_final: 55
+    x_change_weight: 971
+    u_change_weight: 3
+    num_segments: 15
+    warm_start_alpha: 40
+    num_iters: 6
+    alpha_ee: 74
+    alpha_object: 27
+    vf_trust_region_weight: 15
+    traj_N: 720
+-----------------------------------------
+Trial #25
+  Nominal Metric: 217.313
+  Sensitivity:    0.131
+
+  Parameters:
+    w_G: 54
+    g_lambda: 44
+    g_eta: 88
+    u_ratio_finger: -288
+    u_ratio_cube: -10
+    admm_iter: 4
+    finger_position_weight: 2600
+    cube_position_weight: 5800
+    tracking_N: 6
+    quat_weight: 500
+    w_G_final: 48
+    x_change_weight: 1
+    u_change_weight: 7
+    num_segments: 5
+    warm_start_alpha: 81
+    num_iters: 6
+    alpha_ee: 91
+    alpha_object: 51
+    vf_trust_region_weight: 34
+    traj_N: 600
+-----------------------------------------
+Trial #32
+  Nominal Metric: 124.525
+  Sensitivity:    6.854
+
+  Parameters:
+    w_G: 52
+    g_lambda: 64
+    g_eta: 54
+    u_ratio_finger: -78
+    u_ratio_cube: -36
+    admm_iter: 3
+    finger_position_weight: 1300
+    cube_position_weight: 5600
+    tracking_N: 4
+    quat_weight: 5000
+    w_G_final: 93
+    x_change_weight: 11
+    u_change_weight: 3
+    num_segments: 10
+    warm_start_alpha: 76
+    num_iters: 5
+    alpha_ee: 30
+    alpha_object: 81
+    vf_trust_region_weight: 30
+    traj_N: 720
+-----------------------------------------
+Trial #56
+  Nominal Metric: 166.594
+  Sensitivity:    1.252
+
+  Parameters:
+    w_G: 14
+    g_lambda: 98
+    g_eta: 42
+    u_ratio_finger: -390
+    u_ratio_cube: 336
+    admm_iter: 6
+    finger_position_weight: 2400
+    cube_position_weight: 6800
+    tracking_N: 3
+    quat_weight: 8000
+    w_G_final: 24
+    x_change_weight: 645
+    u_change_weight: 3
+    num_segments: 15
+    warm_start_alpha: 34
+    num_iters: 6
+    alpha_ee: 95
+    alpha_object: 18
+    vf_trust_region_weight: 3
+    traj_N: 720
+-----------------------------------------
+Trial #59
+  Nominal Metric: 178.747
+  Sensitivity:    0.463
+
+  Parameters:
+    w_G: 36
+    g_lambda: 86
+    g_eta: 4
+    u_ratio_finger: -218
+    u_ratio_cube: 245
+    admm_iter: 5
+    finger_position_weight: 2200
+    cube_position_weight: 4800
+    tracking_N: 3
+    quat_weight: 9000
+    w_G_final: 68
+    x_change_weight: 646
+    u_change_weight: 18
+    num_segments: 15
+    warm_start_alpha: 64
+    num_iters: 6
+    alpha_ee: 59
+    alpha_object: 20
+    vf_trust_region_weight: 14
+    traj_N: 720
+-----------------------------------------

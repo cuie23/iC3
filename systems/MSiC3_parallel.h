@@ -51,8 +51,7 @@ public:
     const vector<SortedPair<GeometryId>>& contact_geoms,
     const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
-    HybridMpcOptions mpc_options,
-    int example_idx);
+    HybridMpcOptions mpc_options, int example_idx);
 
   // Outputs
   // Note: doesn't store stuff from warmup iterations
@@ -134,12 +133,10 @@ private:
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(
     MatrixXd x_hat, VectorXd x_des);
-
-  void UpdateQuaternionCostAtIdx(
-    VectorXd x_curr, VectorXd x_des, int idx);
     
-  C3::CostMatrices UpdateQuaternionCosts(
-    VectorXd x_curr, vector<VectorXd> x_des, C3::CostMatrices costs);
+  vector<MatrixXd> UpdateQuaternionCosts(
+    VectorXd x_curr, vector<VectorXd> x_des, vector<MatrixXd> Q);
+
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;

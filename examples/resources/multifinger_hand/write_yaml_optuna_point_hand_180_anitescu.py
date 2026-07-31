@@ -1,6 +1,7 @@
 import optuna
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedSeq
+import math
 
 yaml = YAML()
 yaml.preserve_quotes = True
@@ -12,13 +13,16 @@ def flow_seq(vals):
     return seq
 
 # Define paths to your parameter files
-CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
-MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
+# CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
+# MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final.db"
-STUDY_NAME = "MSiC3_point_hand_180_wG_final"
+CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_0.yaml"
+MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_0.yaml"
 
-TRIAL_NUMBER = 2495
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_mpc_hybrid_mpc_final_robust.db"
+STUDY_NAME = "MSiC3_point_hand_180_mpc_hybrid_mpc_final_robust"
+
+TRIAL_NUMBER = 560
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -33,7 +37,8 @@ if trial is None:
 w_G = trial.params["w_G"]
 # g_x_fingers = trial.params["g_x_fingers"]
 g_x_fingers = 50
-g_x_cube = trial.params["g_x_cube"]
+# g_x_cube = trial.params["g_x_cube"]
+g_x_cube = 50
 # g_u = trial.params["g_u"]
 g_u = 50
 
@@ -168,16 +173,18 @@ c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
-c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                        0.07, -0.055, 0.05,   # finger 2
-                        -0.07, -0.055, 0.05,   # finger 3
-                        1, 0, 0, 0, # cube orientation
-                        0, 0, 0.052,  # cube position
-                        0, 0, 0,     # finger 1 velo
-                        0, 0, 0,     # finger 2 velo
-                        0, 0, 0,     # finger 3 velo
-                        0, 0, 0,     # cube ang velo
-                        0, 0, 0])   	# cube velo
+x_init = [0.0, 0.07, 0.05,  # finger 1 
+        0.07, -0.055, 0.05,   # finger 2
+        -0.07, -0.055, 0.05,   # finger 3
+        1, 0, 0, 0, # cube orientation
+        0, 0, 0.052,  # cube position
+        0, 0, 0,     # finger 1 velo
+        0, 0, 0,     # finger 2 velo
+        0, 0, 0,     # finger 3 velo
+        0, 0, 0,     # cube ang velo
+        0, 0, 0]
+
+c3_options["x_init"] = flow_seq(x_init)   	# cube velo
 
 c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
                         0.07, -0.055, 0.05,   # finger 2
@@ -206,7 +213,7 @@ c3_options["Q_quaternion_weight"] = quat_weight
 c3_options["c3_options"]["scale_lcs"] = True
 
 c3_options["c3_options"]["w_Q"] = 5
-c3_options["c3_options"]["w_R"] = 500
+c3_options["c3_options"]["w_R"] = 50
 c3_options["c3_options"]["w_U"] = 1
 
 with open(CONTORLLER_PARAMS, "w") as f:
@@ -230,6 +237,11 @@ try:
 except KeyError:
     value_function_scaling = 100   
 
+try:
+    vf_trust_region_weight = trial.params["vf_trust_region_weight"]
+except KeyError:
+    vf_trust_region_weight = 0
+
 # accel_cost = trial.params["accel_cost"]
 
 # oops 
@@ -247,7 +259,7 @@ use_pd = False
 try:
     use_rollout_lambdas = trial.params["use_rollout_lambdas"]
 except KeyError:
-    use_rollout_lambdas = False
+    use_rollout_lambdas = True
 
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
@@ -288,6 +300,9 @@ ic3_options["drake_sim_dt"] = 0.0001
 
 ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
 ic3_options["value_function_scaling"] = value_function_scaling / 100.0
+ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
+
+ic3_options["num_threads"] = 32
 
 if "p_vector" in ic3_options:
     del ic3_options["p_vector"]

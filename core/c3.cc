@@ -944,6 +944,29 @@ void C3::AddHuberCost(MatrixXd L, double weight, double delta, CostVariable vari
   }
 }
 
+void C3::AddRegularizationCostsState(std::vector<Eigen::MatrixXd> Q_reg) {
+  if (!options_.penalize_x_change) return;
+
+  DRAKE_DEMAND(x_hat_.size() == N_+1);
+  DRAKE_DEMAND(Q_reg.size() == N_+1);
+
+  for (int i = 0; i < N_+1; i++) {
+    prog_.AddQuadraticCost(2 * options_.x_change_weight * Q_reg.at(i), 
+        -2 * options_.x_change_weight * Q_reg.at(i) * x_hat_.at(i), x_.at(i));
+  }
+}
+  
+void C3::AddRegularizationCostsInput(std::vector<Eigen::MatrixXd> R_reg) {
+  if (!options_.penalize_input_change) return;
+
+  DRAKE_DEMAND(u_hat_.size() == N_);
+  DRAKE_DEMAND(R_reg.size() == N_);
+
+  for (int i = 0; i < N_; i++) {
+    prog_.AddQuadraticCost(2 * options_.input_change_weight * R_reg.at(i), 
+        -2 * options_.input_change_weight * R_reg.at(i) * u_hat_.at(i), u_.at(i));
+  }
+}
 
 const std::vector<LinearConstraintBinding>& C3::GetLinearConstraints() {
   return user_constraints_;

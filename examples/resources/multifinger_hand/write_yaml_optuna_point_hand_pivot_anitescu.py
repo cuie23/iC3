@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_smaller_dt_thresh.db"
-STUDY_NAME = "MSiC3_point_hand_pivot_smaller_dt_thresh"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_choose_dt_direction.db"
+STUDY_NAME = "MSiC3_point_hand_pivot_choose_dt_direction"
 
-TRIAL_NUMBER = 2013
+TRIAL_NUMBER = 207
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -31,9 +31,15 @@ if trial is None:
     raise ValueError(f"Could not find trial number {TRIAL_NUMBER}")
 
 w_G = trial.params["w_G"]
-g_x_fingers = trial.params["g_x_fingers"]
-g_x_cube = trial.params["g_x_cube"]
-g_u = trial.params["g_u"]
+
+try:
+    g_x_fingers = trial.params["g_x_fingers"]
+    g_x_cube = trial.params["g_x_cube"]
+    g_u = trial.params["g_u"]
+except KeyError:
+    g_x_fingers = 50
+    g_x_cube = 50
+    g_u = 50
 
 try:
     w_G_final = trial.params["w_G_final"]
@@ -42,6 +48,16 @@ except KeyError:
 
 g_lambda = trial.params["g_lambda"]
 g_eta = trial.params["g_eta"]
+
+try:
+    large_dt = trial.params["large_dt"]
+except KeyError:
+    large_dt = False
+
+try:
+    towards_2_fingers = trial.params["towards_2_fingers"]
+except KeyError:
+    towards_2_fingers = False
 
 # g_gamma = trial.params["g_gamma"]
 # g_lambda_n = trial.params["g_lambda_n"]
@@ -60,8 +76,6 @@ u_ratio_cube = trial.params["u_ratio_cube"]
 # u_eta_n = trial.params["u_eta_n"]
 # u_eta_t = trial.params["u_eta_t"]
 
-lambda_threshold = trial.params["lambda_threshold"]
-eta_threshold = trial.params["eta_threshold"]
 # gamma_threshold = trial.params["gamma_threshold"]
 # phi_threshold = trial.params["phi_threshold"]
 # add_phi_buffer = trial.params["add_phi_buffer"]
@@ -166,79 +180,84 @@ c3_options["c3_options"]["u_u"] = flow_seq([1] * 9)
 
 c3_options["c3_options"]["admm_iter"] = admm_iter
 
-c3_options["lcs_factory_options"]["mu"] = flow_seq([0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
+c3_options["lcs_factory_options"]["mu"] = flow_seq([0.646, 0.646, 0.646, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48])
 c3_options["lcs_factory_options"]["num_contacts"] = 11
 c3_options["lcs_factory_options"]["N"] = tracking_N
-c3_options["lcs_factory_options"]["dt"] = 0.01
+c3_options["lcs_factory_options"]["dt"] = 0.04 if large_dt else 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
 if (finger_config == 1):
-    c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                            0.07, -0.055, 0.05,   # finger 2
-                            -0.07, -0.055, 0.05,   # finger 3
-                            1, 0, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
-                            0, 0, 0,     # finger 1 velo
-                            0, 0, 0,     # finger 2 velo
-                            0, 0, 0,     # finger 3 velo
-                            0, 0, 0,     # cube ang velo
-                            0, 0, 0])   	# cube velo
+    x_init = flow_seq([0.0, 0.07, 0.05,  # finger 1 
+                        0.07, -0.055, 0.05,   # finger 2
+                        -0.07, -0.055, 0.05,   # finger 3
+                        1, 0, 0, 0, # cube orientation
+                        0, 0, 0.052,  # cube position
+                        0, 0, 0,     # finger 1 velo
+                        0, 0, 0,     # finger 2 velo
+                        0, 0, 0,     # finger 3 velo
+                        0, 0, 0,     # cube ang velo
+                        0, 0, 0])   	# cube velo
 
-    c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                            0.07, -0.055, 0.05,   # finger 2
-                            -0.07, -0.055, 0.05,   # finger 3
-                            0, 1, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
-                            0, 0, 0,     # finger 1 velo
-                            0, 0, 0,     # finger 2 velo
-                            0, 0, 0,     # finger 3 velo
-                            0, 0, 0,     # cube ang velo
-                            0, 0, 0])   	# cube velo
-elif (finger_config == 2):
-    c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                            0.06, -0.06, 0.05,   # finger 2
-                            -0.06, -0.06, 0.05,   # finger 3
-                            1, 0, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
-                            0, 0, 0,     # finger 1 velo
-                            0, 0, 0,     # finger 2 velo
-                            0, 0, 0,     # finger 3 velo
-                            0, 0, 0,     # cube ang velo
-                            0, 0, 0])   	# cube velo
-
-    c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                            0.06, -0.06, 0.05,   # finger 2
-                            -0.06, -0.06, 0.05,   # finger 3
-                            0, 1, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
-                            0, 0, 0,     # finger 1 velo
-                            0, 0, 0,     # finger 2 velo
-                            0, 0, 0,     # finger 3 velo
-                            0, 0, 0,     # cube ang velo
-                            0, 0, 0])   	# cube velo
-elif (finger_config == 3):
-    c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                            0.05, -0.07, 0.05,   # finger 2
-                            -0.05, -0.07, 0.05,   # finger 3
-                            1, 0, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
-                            0, 0, 0,     # finger 1 velo
-                            0, 0, 0,     # finger 2 velo
-                            0, 0, 0,     # finger 3 velo
-                            0, 0, 0,     # cube ang velo
-                            0, 0, 0])   	# cube velo
-
-    c3_options["x_des"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
-                            0.05, -0.07, 0.05,   # finger 2
-                            -0.05, -0.07, 0.05,   # finger 3
-                            0, 1, 0, 0, # cube orientation
-                            0, 0, 0.052,  # cube position
-                            0, 0, 0,     # finger 1 velo
-                            0, 0, 0,     # finger 2 velo
-                            0, 0, 0,     # finger 3 velo
-                            0, 0, 0,     # cube ang velo
-                            0, 0, 0])   	# cube velo
+    x_des = flow_seq([0.0, 0.07, 0.05,  # finger 1 
+                        0.07, -0.055, 0.05,   # finger 2
+                        -0.07, -0.055, 0.05,   # finger 3
+                        0, 1, 0, 0, # cube orientation
+                        0, 0, 0.052,  # cube position
+                        0, 0, 0,     # finger 1 velo
+                        0, 0, 0,     # finger 2 velo
+                        0, 0, 0,     # finger 3 velo
+                        0, 0, 0,     # cube ang velo
+                        0, 0, 0])   	# cube velo
     
+elif (finger_config == 2):
+    x_init = flow_seq([0.0, 0.07, 0.05,  # finger 1 
+                        0.06, -0.06, 0.05,   # finger 2
+                        -0.06, -0.06, 0.05,   # finger 3
+                        1, 0, 0, 0, # cube orientation
+                        0, 0, 0.052,  # cube position
+                        0, 0, 0,     # finger 1 velo
+                        0, 0, 0,     # finger 2 velo
+                        0, 0, 0,     # finger 3 velo
+                        0, 0, 0,     # cube ang velo
+                        0, 0, 0])   	# cube velo
+
+    x_des = flow_seq([0.0, 0.07, 0.05,  # finger 1 
+                        0.06, -0.06, 0.05,   # finger 2
+                        -0.06, -0.06, 0.05,   # finger 3
+                        0, 1, 0, 0, # cube orientation
+                        0, 0, 0.052,  # cube position
+                        0, 0, 0,     # finger 1 velo
+                        0, 0, 0,     # finger 2 velo
+                        0, 0, 0,     # finger 3 velo
+                        0, 0, 0,     # cube ang velo
+                        0, 0, 0])   	# cube velo
+elif (finger_config == 3):
+    x_init = flow_seq([0.0, 0.07, 0.05,  # finger 1 
+                        0.07, -0.03, 0.05,   # finger 2
+                        -0.07, -0.03, 0.05,   # finger 3
+                        1, 0, 0, 0, # cube orientation
+                        0, 0, 0.052,  # cube position
+                        0, 0, 0,     # finger 1 velo
+                        0, 0, 0,     # finger 2 velo
+                        0, 0, 0,     # finger 3 velo
+                        0, 0, 0,     # cube ang velo
+                        0, 0, 0])   	# cube velo
+
+    x_des = flow_seq([0.0, 0.07, 0.05,  # finger 1 
+                        0.07, -0.03, 0.05,   # finger 2
+                        -0.07, -0.03, 0.05,   # finger 3
+                        0, 1, 0, 0, # cube orientation
+                        0, 0, 0.052,  # cube position
+                        0, 0, 0,     # finger 1 velo
+                        0, 0, 0,     # finger 2 velo
+                        0, 0, 0,     # finger 3 velo
+                        0, 0, 0,     # cube ang velo
+                        0, 0, 0])   	# cube velo
+    
+if not towards_2_fingers:
+    x_des[10] = -1
+c3_options["x_init"] = x_init
+c3_options["x_des"] = x_des
 
 q_vector = list(c3_options["c3_options"]["q_vector"])
 
@@ -246,7 +265,7 @@ for i in range(9):
     q_vector[i] = finger_position_weight
 q_vector[13] = cube_position_weight
 q_vector[14] = cube_position_weight
-q_vector[15] = cube_position_weight
+q_vector[15] = 100
 
 c3_options["c3_options"]["q_vector"] = flow_seq(q_vector)
 
@@ -267,14 +286,17 @@ num_segments = trial.params["num_segments"]
 # num_warmup_iters = trial.params["num_warmup_iters"]
 num_warmup_iters = 0
 
-warm_start_alpha = trial.params["warm_start_alpha"]
+try:
+    warm_start_alpha = trial.params["warm_start_alpha"]
+except KeyError:
+    warm_start_alpha = 0
 
 num_iters = trial.params["num_iters"]
 alpha_ee = trial.params["alpha_ee"]
 alpha_object = trial.params["alpha_object"]
 
 # accel_cost = trial.params["accel_cost"]
-accel_cost = 25
+accel_cost = 5
 
 try:
     value_function_scaling = trial.params["value_function_scaling"]
@@ -282,15 +304,20 @@ except KeyError:
     value_function_scaling = 100   
 
 try:
+    vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
+except:
+    vf_trust_region_weight = 0
+
+try:
     use_rollout_lambdas = trial.params["use_rollout_lambdas"]
 except KeyError:
-    use_rollout_lambdas = False
+    use_rollout_lambdas = True
 
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
 
            
-ic3_options["N"] = 1200
+ic3_options["N"] = 300 if large_dt else 600
 ic3_options["num_segments"] = num_segments
 
 ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -310,6 +337,7 @@ ic3_options["alpha_object_step"] = (1 - alpha_object_real) / (num_iters - 1)
 
 ic3_options["acceleration_cost_weight"] = accel_cost
 ic3_options["value_function_scaling"] = value_function_scaling / 100.0
+ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
 # kp = 200 if use_pd == 1 else 0
 # kd = 20 if use_pd == 1 else 0
@@ -326,6 +354,7 @@ ic3_options["use_drake_sim"] = True
 ic3_options["drake_sim_dt"] = 0.0001
 
 ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+ic3_options["num_threads"] = 32
 
 if "p_vector" in ic3_options:
     del ic3_options["p_vector"]

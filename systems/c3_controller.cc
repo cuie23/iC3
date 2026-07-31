@@ -316,8 +316,8 @@ void C3Controller::UpdateQuaternionCosts(
   Q_.push_back(discount_factor * controller_options_.c3_options.Q); 
 
   for (int index : controller_options_.quaternion_indices) {
-    Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4);
-    Eigen::VectorXd quat_des_i = x_des.segment(index, 4);
+    Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4).normalized();
+    Eigen::VectorXd quat_des_i = x_des.segment(index, 4).normalized();
 
     Eigen::MatrixXd quat_hessian_i = common::hessian_of_squared_quaternion_angle_difference(quat_curr_i, quat_des_i);
 

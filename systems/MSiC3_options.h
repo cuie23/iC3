@@ -48,6 +48,8 @@ struct MSiC3Options {
 
   double value_function_scaling;
 
+  double vf_trust_region_weight;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(num_iters));
@@ -75,6 +77,7 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(alpha_ee_step));
     a->Visit(DRAKE_NVP(alpha_object_step));
     a->Visit(DRAKE_NVP(warm_start_alpha));
+    a->Visit(DRAKE_NVP(vf_trust_region_weight));
 
   }
 };

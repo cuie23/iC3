@@ -35,8 +35,8 @@
             </sphere>
           </geometry>
           <drake:proximity_properties>
-            <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:mu_static>0.7</drake:mu_static>
+            <drake:mu_dynamic>0.7</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
@@ -114,7 +114,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.03 </lower>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
         </axis>
@@ -149,8 +149,8 @@
             </sphere>
           </geometry>
           <drake:proximity_properties>
-            <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:mu_static>0.7</drake:mu_static>
+            <drake:mu_dynamic>0.7</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
@@ -191,8 +191,8 @@
         <axis>
             <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.01 </lower>
-            <upper> 0.13 </upper>
+            <lower> 0.03 </lower>
+            <upper> 0.09 </upper>
           </limit>
         </axis>
       </joint>
@@ -228,7 +228,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.03 </lower>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
         </axis>
@@ -263,8 +263,8 @@
             </sphere>
           </geometry>
           <drake:proximity_properties>
-            <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:mu_static>0.7</drake:mu_static>
+            <drake:mu_dynamic>0.7</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
@@ -305,8 +305,8 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.13 </lower>
-            <upper> 0.01 </upper>
+            <lower> -0.09 </lower>
+            <upper> -0.03 </upper>
           </limit>
         </axis>
       </joint>
@@ -342,7 +342,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.03 </lower>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
         </axis>

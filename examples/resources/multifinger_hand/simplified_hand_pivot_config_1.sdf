@@ -35,8 +35,8 @@
             </sphere>
           </geometry>
           <drake:proximity_properties>
-            <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:mu_static>0.7</drake:mu_static>
+            <drake:mu_dynamic>0.7</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
@@ -77,9 +77,13 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
+            <velocity> 0.1 </velocity>
             <lower> -0.07 </lower>
             <upper> 0.07 </upper>
           </limit>  
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -102,9 +106,13 @@
         <axis>
           <xyz>0 1 0</xyz>
            <limit>
+            <velocity> 0.1 </velocity>
             <lower> -0.00 </lower>
             <upper> 0.14 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -114,9 +122,13 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.03 </lower>
+            <velocity> 0.1 </velocity>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -149,8 +161,8 @@
             </sphere>
           </geometry>
           <drake:proximity_properties>
-            <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:mu_static>0.7</drake:mu_static>
+            <drake:mu_dynamic>0.7</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
@@ -191,10 +203,15 @@
         <axis>
             <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.00 </lower>
-            <upper> 0.14 </upper>
+            <velocity>0.1</velocity>
+            <lower> 0.04 </lower>
+            <upper> 0.1 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
+
       </joint>
 
       <link name="link_y_2">
@@ -216,9 +233,13 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
+            <velocity> 0.1 </velocity>
             <lower> -0.125 </lower>
             <upper> 0.015 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -228,9 +249,13 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.03 </lower>
+            <velocity> 0.1 </velocity>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -263,8 +288,8 @@
             </sphere>
           </geometry>
           <drake:proximity_properties>
-            <drake:mu_static>0.5</drake:mu_static>
-            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:mu_static>0.7</drake:mu_static>
+            <drake:mu_dynamic>0.7</drake:mu_dynamic>
             <drake:compliant_hydroelastic/>
             <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
             <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
@@ -305,9 +330,13 @@
         <axis>
           <xyz>1 0 0</xyz>
           <limit>
-            <lower> -0.14 </lower>
-            <upper> 0.00 </upper>
+            <velocity> 0.1 </velocity>
+            <lower> -0.1 </lower>
+            <upper> -0.04 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -330,9 +359,13 @@
         <axis>
           <xyz>0 1 0</xyz>
           <limit>
+            <velocity> 0.1 </velocity>
             <lower> -0.125 </lower>
             <upper> 0.015 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 
@@ -342,9 +375,13 @@
         <axis>
           <xyz>0 0 1</xyz>
           <limit>
-            <lower> 0.03 </lower>
+            <velocity> 0.1 </velocity>
+            <lower> 0.04 </lower>
             <upper> 0.12 </upper>
           </limit>
+          <!-- <dynamics>
+            <damping>10</damping>
+          </dynamics> -->
         </axis>
       </joint>
 

@@ -40,7 +40,8 @@ def objective(trial):
     w_G = trial.suggest_int("w_G", 1, 100)
     # g_x_fingers = trial.suggest_int("g_x_fingers", 2, 100, step=2)
     g_x_fingers = 50
-    g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
+    # g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
+    g_x_cube = 50
     # g_u = trial.suggest_int("g_u", 2, 100, step=2)
     g_u = 50
 
@@ -80,7 +81,8 @@ def objective(trial):
     quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
-    cube_model = trial.suggest_int("cube_model", 1, 3)
+    # cube_model = trial.suggest_int("cube_model", 1, 3)
+    cube_model = 1
     w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
@@ -248,7 +250,7 @@ def objective(trial):
 
     c3_options["c3_options"]["scale_lcs"] = True
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 500
+    c3_options["c3_options"]["w_R"] = 50
     c3_options["c3_options"]["w_U"] = 1
 
     with open(CONTORLLER_PARAMS, "w") as f:
@@ -268,6 +270,8 @@ def objective(trial):
     
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
+
+    vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
     accel_cost = 5
@@ -303,6 +307,7 @@ def objective(trial):
     ic3_options["acceleration_cost_weight"] = accel_cost
     
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
+    ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
     kp = 200 if use_pd else 0
     kd = 20 if use_pd else 0
@@ -317,6 +322,7 @@ def objective(trial):
     ic3_options["drake_sim_dt"] = 0.0001
 
     ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+    ic3_options["num_threads"] = 32
 
     if "p_vector" in ic3_options:
         del ic3_options["p_vector"]
@@ -432,7 +438,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_new_vf_no_thresh.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_vf_trust_no_thresh.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -443,7 +449,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_new_vf_no_thresh.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_vf_trust_no_thresh.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -461,9 +467,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_new_vf_no_thresh.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_vf_trust_no_thresh.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_new_vf_no_thresh.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_vf_trust_no_thresh.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -475,7 +481,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_new_vf_no_thresh",
+        study_name="MSiC3_point_hand_180_vf_trust_no_thresh",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 
