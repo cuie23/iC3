@@ -39,8 +39,8 @@ using drake::SortedPair;
 namespace c3 {
 namespace systems {
 
-MSiC3::MSiC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
-  MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
+MSiC3::MSiC3(const MultibodyPlant<double>& plant, const MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
+  const MultibodyPlant<double>& plant_rollout, const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
   drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,    
   const vector<SortedPair<GeometryId>>& contact_geoms, const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
   C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx)
@@ -125,14 +125,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     lower_bound_x(0) = -0.1;
     lower_bound_x(1) = -0.1;
     lower_bound_x(2) = -0.15; 
-    lower_bound_x(3) = -0.6;
-    lower_bound_x(4) = -0.6;
+    lower_bound_x(3) = -0.5;
+    lower_bound_x(4) = -0.5;
 
     upper_bound_x(0) = 0.1;
     upper_bound_x(1) = 0.1;
     upper_bound_x(2) = 0.15;
-    upper_bound_x(3) = 0.6;
-    upper_bound_x(4) = 0.6;
+    upper_bound_x(3) = 0.5;
+    upper_bound_x(4) = 0.5;
 
     // Actuation limits
     A_u(0, 0) = 1;
@@ -144,14 +144,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     lower_bound_u(0) = -2;
     lower_bound_u(1) = -2;
     lower_bound_u(2) = 0;
-    lower_bound_u(3) = -0.7;
-    lower_bound_u(4) = -0.7;
+    lower_bound_u(3) = -0.6;
+    lower_bound_u(4) = -0.6;
 
     upper_bound_u(0) = 2;
     upper_bound_u(1) = 2;
     upper_bound_u(2) = 25;
-    upper_bound_u(3) = 0.7;
-    upper_bound_u(4) = 0.7;
+    upper_bound_u(3) = 0.6;
+    upper_bound_u(4) = 0.6;
 
   } else if (example_idx_ == 1) { // trifinger 180
 
@@ -171,16 +171,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.08;
-      lower_bound_x(16 + 3*i+1) = -0.08;
+      lower_bound_x(16 + 3*i) = -0.1;
+      lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
       upper_bound_x(3*i) = xd(3*i) + 0.06;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.08;
-      upper_bound_x(16 + 3*i+1) = 0.08;
+      upper_bound_x(16 + 3*i) = 0.1;
+      upper_bound_x(16 + 3*i+1) = 0.1;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;
@@ -196,16 +196,17 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       upper_bound_u(3*i+2) = 0.25;
     }
 
-    A_x(13, 13) = 1;
-    A_x(14, 14) = 1;
+    // A_x(13, 13) = 1;
+    // A_x(14, 14) = 1;
 
-    lower_bound_x(13) = -0.03;
-    lower_bound_x(14) = -0.03;
+    // lower_bound_x(13) = -0.03;
+    // lower_bound_x(14) = -0.03;
 
-    upper_bound_x(13) = 0.03;
-    upper_bound_x(14) = 0.03;
+    // upper_bound_x(13) = 0.03;
+    // upper_bound_x(14) = 0.03;
 
   } else if (example_idx_ == 2) { // trifinger pivot
+
 
     for (int i = 0; i < 3; i++) {
       // Position constraints
@@ -218,18 +219,21 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_x(16 + 3*i + 1, 16 + 3*i + 1) = 1;
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
+      double xy_bound = (i == 0) ? 0.07 : 0.05;
+      double z_bound = (i == 0) ? 0.07 : 0.04;
+
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.07;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.07;
+      lower_bound_x(3*i) = xd(3*i) - xy_bound;
+      lower_bound_x(3*i+1) = xd(3*i+1) - xy_bound;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
       lower_bound_x(16 + 3*i) = -0.1;
       lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.1;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.07;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.07;
-      upper_bound_x(3*i+2) = xd(3*i+2) + 0.07;
+      upper_bound_x(3*i) = xd(3*i) + xy_bound;
+      upper_bound_x(3*i+1) = xd(3*i+1) + xy_bound;
+      upper_bound_x(3*i+2) = xd(3*i+2) + z_bound;
 
       upper_bound_x(16 + 3*i) = 0.1;
       upper_bound_x(16 + 3*i+1) = 0.1;
@@ -239,13 +243,15 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -4;
-      lower_bound_u(3*i+1) = -4;
-      lower_bound_u(3*i+2) = -2;
+      double u_bound_xy = (i == 0) ? 3 : 2;
+
+      lower_bound_u(3*i) = -u_bound_xy;
+      lower_bound_u(3*i+1) = -u_bound_xy;
+      lower_bound_u(3*i+2) = -0.6;
       
-      upper_bound_u(3*i) = 4;
-      upper_bound_u(3*i+1) = 4;
-      upper_bound_u(3*i+2) = 2;
+      upper_bound_u(3*i) = u_bound_xy;
+      upper_bound_u(3*i+1) = u_bound_xy;
+      upper_bound_u(3*i+2) = 1;
     }
   }
 
@@ -484,7 +490,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   all_defects.push_back(defects);
   all_x_anchors.push_back(x_anchors);
 
-  LCS lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
+  LCS lcs = MakeTimeVaryingLCS(x_hat, u_hat, lambda_hat, lcs_factory);
 
   int num_iters = ms_ic3_options_.num_iters;
   int num_warmup_iters = ms_ic3_options_.num_warmup_iters;
@@ -535,7 +541,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       std::cout << "segment " << i << std::endl;
 
       auto [x_hat_out, u_hat_out, lambda_hat_out, gamma_out, in_contact_out] = 
-         DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), gravity,
+         DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), lambda_hat, gravity,
                       lcs_factory, lcs_factory_rollout, H, g, i*L_,
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u,
                       context, context_rollout);
@@ -663,7 +669,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     x_anchors = new_x_anchors;
 
     // Linearize about new nominal trajectory
-    lcs = MakeTimeVaryingLCS(x_hat, u_hat, lcs_factory);
+    lcs = MakeTimeVaryingLCS(x_hat, u_hat, lambda_hat, lcs_factory);
 
     // Don't store if warmup
     if (!is_warmup) {
@@ -775,16 +781,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>> MSiC3::DoHybridMPCTr
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.15;
-      lower_bound_x(16 + 3*i+1) = -0.15;
+      lower_bound_x(16 + 3*i) = -0.2;
+      lower_bound_x(16 + 3*i+1) = -0.2;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
       upper_bound_x(3*i) = xd(3*i) + 0.06;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.15;
-      upper_bound_x(16 + 3*i+1) = 0.15;
+      upper_bound_x(16 + 3*i) = 0.2;
+      upper_bound_x(16 + 3*i+1) = 0.2;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;
@@ -814,19 +820,17 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>> MSiC3::DoHybridMPCTr
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       // Offset from initial position
-      double x_bound = (i == 0) ? 0.07 : 0.03;
-
-      lower_bound_x(3*i) = xd(3*i) - x_bound;
+      lower_bound_x(3*i) = xd(3*i) - 0.07;
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.07;
-      lower_bound_x(3*i+2) = xd(3*i+2) - 0.03;
+      lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
       lower_bound_x(16 + 3*i) = -0.1;
       lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.1;
 
-      upper_bound_x(3*i) = xd(3*i) + x_bound;
+      upper_bound_x(3*i) = xd(3*i) + 0.07;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.07;
-      upper_bound_x(3*i+2) = xd(3*i+2) + 0.07;
+      upper_bound_x(3*i+2) = xd(3*i+2) + 0.1;
 
       upper_bound_x(16 + 3*i) = 0.1;
       upper_bound_x(16 + 3*i+1) = 0.1;
@@ -1011,7 +1015,7 @@ tuple<LCS, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoLCSRollout(VectorXd x0, Matrix
   }
   x_hat_downsampled.col(N) = x_hat.col(N * factor);
 
-  LCS output_lcs = MakeTimeVaryingLCS(x_hat_downsampled, u_hat_fb_downsampled, factory);
+  LCS output_lcs = MakeTimeVaryingLCS(x_hat_downsampled, u_hat_fb_downsampled, lambda_hat_downsampled, factory);
 
   if ((x_hat_downsampled.array().isNaN()).any()) {
     std::cout << "XHAT NOT FINITE" << std::endl;
@@ -1020,7 +1024,8 @@ tuple<LCS, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoLCSRollout(VectorXd x0, Matrix
 
 }
 
-tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, VectorXd ud, 
+tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
+                                              MatrixXd lambda_hat, VectorXd ud, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -1038,7 +1043,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
   int factor = ms_ic3_options_.rollout_dt_scaling;
 
   MatrixXd x_hat_output(n_x_, num_steps * factor + 1);
-  MatrixXd lambda_hat(n_lambda_, num_steps * factor);
+  MatrixXd lambda_hat_out(n_lambda_, num_steps * factor);
   MatrixXd u_hat_fb(n_u_, num_steps * factor);
 
   MatrixXd gamma_matrix(MatrixXd::Zero(n_lambda_ / 4, num_steps * factor));
@@ -1048,9 +1053,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
   VectorXd x_curr = x0;
   VectorXd x_next;
 
-  // std::cout << "x anchor fingers " << x0.segment(0,9).transpose() << std::endl;
-  factory.UpdateStateAndInput(x0, u_hat.col(0));
-  LCS lcs_test = factory.GenerateLCS();
   // std::cout << "x anchor fingers " << x0.segment(0, 9).transpose() << std::endl;
   if (example_idx_ == 0) {
     std::cout << "x anchor ee " << x0.segment(0, 5).transpose() << std::endl;
@@ -1084,6 +1086,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
     vector<VectorXd> u_reg_targets;
     MatrixXd x_hat_for_lcs(MatrixXd::Zero(n_x_, tracking_N+1));
     MatrixXd u_hat_for_lcs(MatrixXd::Zero(n_u_, tracking_N));
+    MatrixXd lambda_hat_for_lcs(MatrixXd::Zero(n_lambda_, tracking_N));
 
 
     double discount_factor = 1;
@@ -1103,6 +1106,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
         u_hat_for_lcs.col(i) = u_hat.col(u_idx);
         R.push_back(discount_factor * R_[R_idx]);
 
+        lambda_hat_for_lcs.col(i) = lambda_hat.col(R_idx);
         G.push_back(discount_factor * G_[R_idx]);      
         U.push_back(discount_factor * U_[R_idx]);
       }
@@ -1116,7 +1120,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
     vector<MatrixXd> R_reg = R;
 
     // HARDCODED ee start idx
-    LCS lcs = MakeTimeVaryingLCSWithEE(x_hat_for_lcs, u_hat_for_lcs, factory, x_curr.segment(0, n_u_), 0);
+    LCS lcs = MakeTimeVaryingLCSWithEE(x_hat_for_lcs, u_hat_for_lcs, lambda_hat_for_lcs, factory, x_curr.segment(0, n_u_), 0);
 
     vector<double> norms;
     norms.push_back(1.0);
@@ -1275,7 +1279,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
 
         auto [lambda, gamma, in_contact] = 
             ConstructLambdasFromContactResults(contact_results, controller_options_.lcs_factory_options.contact_model); 
-        lambda_hat.col(factor * t + i) = lambda;
+        lambda_hat_out.col(factor * t + i) = lambda;
         gamma_matrix.col(factor * t + i) = gamma;
         in_contact_matrix.col(factor * t + i) = in_contact;
 
@@ -1350,7 +1354,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
           // x_next(8) = 0.05; 
         }
         x_hat_output.col(factor * t + i + 1) = x_next;
-        lambda_hat.col(factor * t + i) = pair.second;
+        lambda_hat_out.col(factor * t + i) = pair.second;
         u_hat_fb.col(factor * t + i) = u_tracking;
 
         x_curr = x_next;
@@ -1374,7 +1378,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
   for (int i = 0; i < num_steps; i++) {
     x_hat_downsampled.col(i) = x_hat_output.col(i * factor);
     u_hat_downsampled.col(i) = u_hat_fb.col(i * factor);
-    lambda_hat_downsampled.col(i) = lambda_hat.col(i * factor);
+    lambda_hat_downsampled.col(i) = lambda_hat_out.col(i * factor);
     gamma_downsampled.col(i) = gamma_matrix.col(i * factor);
     in_contact_downsampled.col(i) = in_contact_matrix.col(i * factor);
 
@@ -1482,7 +1486,7 @@ MSiC3::ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_h
 }
 
 
-LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory) {
+LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory) {
   DRAKE_DEMAND(x_hat.cols() >= u_hat.cols());
 
   vector<Eigen::MatrixXd> A;
@@ -1504,7 +1508,7 @@ LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory
 
     // Linearize about kth xhat, uhat
     factory.UpdateStateAndInput(x_hat.col(k), u_hat.col(k));
-    LCS lcs = factory.GenerateLCS();
+    LCS lcs = factory.GenerateLCS(lambda_hat.col(k));
     A.push_back(lcs.A()[0]);
     B.push_back(lcs.B()[0]);
     D.push_back(lcs.D()[0]);
@@ -1563,12 +1567,13 @@ LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory
   return LCS(A, B, D, d, E, F, H, c, dt_);
 }
 
-LCS MSiC3::MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, VectorXd ee_pose, int ee_idx) {
+LCS MSiC3::MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, 
+                                  LCSFactory factory, VectorXd ee_pose, int ee_idx) {
   MatrixXd x_hat_copy = x_hat;
   for (int i = 0; i < x_hat_copy.cols(); i++) {
     x_hat_copy.col(i).segment(ee_idx, ee_pose.size()) = ee_pose;
   }
-  return MakeTimeVaryingLCS(x_hat_copy, u_hat, factory);
+  return MakeTimeVaryingLCS(x_hat_copy, u_hat, lambda_hat, factory);
 }
 
 LCS MSiC3::GetLCSSegment(LCS lcs, int start_idx, int length) {

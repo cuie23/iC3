@@ -1,6 +1,9 @@
 #pragma once
 
 #include "drake/common/sorted_pair.h"
+#include "drake/geometry/query_results/signed_distance_pair.h"
+#include "drake/geometry/query_results/signed_distance_to_point.h"
+#include "drake/geometry/scene_graph_inspector.h"
 #include "drake/multibody/plant/multibody_plant.h"
 
 namespace c3 {
@@ -98,9 +101,8 @@ class GeomGeomCollider {
    *         closest point on geometry A, and the second element is the
    *         closest point on geometry B.
    */
-  std::pair<drake::VectorX<double>, drake::VectorX<double>> CalcWitnessPoints(
-      const drake::systems::Context<double>& context);
-
+    std::pair<drake::VectorX<T>, drake::VectorX<T>> CalcWitnessPoints(
+        const drake::systems::Context<T>& context);
  private:
   /**
    * @brief A struct to hold the results of a geometry query.

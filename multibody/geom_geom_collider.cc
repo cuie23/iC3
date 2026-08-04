@@ -1,7 +1,12 @@
 #include "multibody/geom_geom_collider.h"
 
 #include <iostream>
+#include <type_traits> // Required for std::is_same_v
 
+#include "drake/math/autodiff_gradient.h" // Required for ExtractValue
+#include "drake/geometry/query_results/signed_distance_pair.h"
+#include "drake/geometry/query_results/signed_distance_to_point.h"
+#include "drake/geometry/scene_graph_inspector.h"
 #include "drake/math/rotation_matrix.h"
 
 using drake::EigenPtr;
@@ -21,6 +26,15 @@ using Eigen::Vector3d;
 
 namespace c3 {
 namespace multibody {
+
+template <typename Derived>
+auto ToDoubleOrValue(const Eigen::MatrixBase<Derived>& value) {
+  if constexpr (std::is_same_v<typename Derived::Scalar, double>) {
+    return value.derived();
+  } else {
+    return drake::math::ExtractValue(value);
+  }
+}
 
 template <typename T>
 GeomGeomCollider<T>::GeomGeomCollider(
@@ -71,30 +85,32 @@ void GeomGeomCollider<T>::ComputeSphereMeshDistance(const Context<T>& context,
   auto X_WS = plant_.EvalBodyPoseInWorld(
       context, *plant_.GetBodyFromFrameId(frame_S_id));
   auto X_WS_sphere = X_WS * X_FS;
-  Vector3d sphere_center = X_WS_sphere.translation();
 
   // Compute signed distance from sphere center to mesh.
   GeometrySet mesh_set;
   mesh_set.Add(mesh_id);
   const auto sd_set = query_object.ComputeSignedDistanceGeometryToPoint(
-      sphere_center, mesh_set);
+      X_WS_sphere.translation(), mesh_set);
   DRAKE_DEMAND(sd_set.size() == 1);
   SignedDistanceToPoint<T> sd_to_point = sd_set[0];
 
   // Compute contact distance and normal.
   distance = sd_to_point.distance - sphere_radius;
-  nhat_BA_W = sd_to_point.grad_W.normalized();
+  // Safely extract double from AutoDiffXd for struct assignments
+  nhat_BA_W = ToDoubleOrValue(sd_to_point.grad_W.normalized());
 
   // Compute contact points in local frames.
   if (geometry_A_is_mesh) {
     nhat_BA_W = -nhat_BA_W;
-    p_ACa = inspector.GetPoseInFrame(geometry_id_A_).template cast<T>() *
-            sd_to_point.p_GN;
-    p_BCb = X_FS.template cast<T>() * (-1 * sphere_radius * nhat_BA_W);
+    p_ACa = ToDoubleOrValue(inspector.GetPoseInFrame(geometry_id_A_).template cast<T>() *
+                            sd_to_point.p_GN);
+    p_BCb = ToDoubleOrValue(X_FS.template cast<T>() *
+                            (-1 * sphere_radius * nhat_BA_W.cast<T>()));
   } else {
-    p_BCb = inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
-            sd_to_point.p_GN;
-    p_ACa = X_FS.template cast<T>() * (-1 * sphere_radius * nhat_BA_W);
+    p_BCb = ToDoubleOrValue(inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
+                            sd_to_point.p_GN);
+    p_ACa = ToDoubleOrValue(X_FS.template cast<T>() *
+                            (-1 * sphere_radius * nhat_BA_W.cast<T>()));
   }
 }
 
@@ -115,11 +131,12 @@ void GeomGeomCollider<T>::ComputeGeneralGeometryDistance(
                                                           geometry_id_B_);
 
   distance = signed_distance_pair.distance;
-  nhat_BA_W = signed_distance_pair.nhat_BA_W;
-  p_ACa = inspector.GetPoseInFrame(geometry_id_A_).template cast<T>() *
-          signed_distance_pair.p_ACa;
-  p_BCb = inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
-          signed_distance_pair.p_BCb;
+  // Safely extract double from AutoDiffXd for struct assignments
+    nhat_BA_W = ToDoubleOrValue(signed_distance_pair.nhat_BA_W);
+    p_ACa = ToDoubleOrValue(inspector.GetPoseInFrame(geometry_id_A_).template cast<T>() *
+          signed_distance_pair.p_ACa);
+    p_BCb = ToDoubleOrValue(inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
+          signed_distance_pair.p_BCb);
 
   // Fallback for full penetration, necessary for MSiC3 since the initial guess can have penetration
   if (nhat_BA_W.hasNaN()) {
@@ -167,19 +184,22 @@ std::pair<T, MatrixX<T>> GeomGeomCollider<T>::DoEval(
   // Determine Jacobian dimensions
   const int n_cols = (wrt == JacobianWrtVariable::kV) ? plant_.num_velocities()
                                                       : plant_.num_positions();
-  Matrix<double, 3, Eigen::Dynamic> Jv_WCa(3, n_cols);
-  Matrix<double, 3, Eigen::Dynamic> Jv_WCb(3, n_cols);
+                                                      
+  // Changed from double to T to properly capture AutoDiff gradients from the plant
+  Matrix<T, 3, Eigen::Dynamic> Jv_WCa(3, n_cols);
+  Matrix<T, 3, Eigen::Dynamic> Jv_WCb(3, n_cols);
 
   // Compute Jacobians for both contact points
   plant_.CalcJacobianTranslationalVelocity(
-      context, wrt, query_result.frameA, query_result.p_ACa,
+      context, wrt, query_result.frameA, query_result.p_ACa.template cast<T>(),
       plant_.world_frame(), plant_.world_frame(), &Jv_WCa);
   plant_.CalcJacobianTranslationalVelocity(
-      context, wrt, query_result.frameB, query_result.p_BCb,
+      context, wrt, query_result.frameB, query_result.p_BCb.template cast<T>(),
       plant_.world_frame(), plant_.world_frame(), &Jv_WCb);
 
   // Compute final Jacobian: J = force_basis * R_WC^T * (Jv_WCa - Jv_WCb)
-  auto J = force_basis * R_WC.matrix().transpose() * (Jv_WCa - Jv_WCb);
+  // Explicitly cast force_basis from double to T before multiplication
+  auto J = force_basis.cast<T>() * R_WC.matrix().transpose() * (Jv_WCa - Jv_WCb);
 
   return std::pair<T, MatrixX<T>>(query_result.distance, J);
 }
@@ -203,7 +223,7 @@ std::pair<T, MatrixX<T>> GeomGeomCollider<T>::EvalPolytope(
 
   // Create rotation matrix from contact normal
   auto R_WC = drake::math::RotationMatrix<T>::MakeFromOneVector(
-      query_result.nhat_BA_W, 0);
+      query_result.nhat_BA_W.template cast<T>(), 0);
 
   return DoEval(context, query_result, polytope_force_bases, wrt, R_WC);
 }
@@ -233,8 +253,8 @@ std::pair<T, MatrixX<T>> GeomGeomCollider<T>::EvalPlanar(
   const auto query_result = GetGeometryQueryResult(context);
 
   // Compute the planar force basis using the contact normal and planar normal
-  auto planar_force_basis =
-      ComputePlanarForceBasis(query_result.nhat_BA_W, planar_normal);
+    auto planar_force_basis = ComputePlanarForceBasis(
+      ToDoubleOrValue(query_result.nhat_BA_W), planar_normal);
 
   // For planar case, use identity rotation since force basis is already in
   // world frame
@@ -261,24 +281,26 @@ Eigen::Matrix3d GeomGeomCollider<T>::ComputePlanarForceBasis(
 
   return force_basis;
 }
-
 template <typename T>
-std::pair<VectorX<double>, VectorX<double>>
-GeomGeomCollider<T>::CalcWitnessPoints(const Context<double>& context) {
+std::pair<VectorX<T>, VectorX<T>>
+GeomGeomCollider<T>::CalcWitnessPoints(const Context<T>& context) {
   // Get common geometry query results
   const auto query_result = GetGeometryQueryResult(context);
 
-  // Calculate world positions of contact points
-  Vector3d p_WCa = Vector3d::Zero();
-  Vector3d p_WCb = Vector3d::Zero();
-  plant_.CalcPointsPositions(context, query_result.frameA, query_result.p_ACa,
+  // Calculate world positions of contact points using T
+  MatrixX<T> p_WCa = MatrixX<T>::Zero(3, 1);
+  MatrixX<T> p_WCb = MatrixX<T>::Zero(3, 1);
+  
+  plant_.CalcPointsPositions(context, query_result.frameA, query_result.p_ACa.template cast<T>(),
                              plant_.world_frame(), &p_WCa);
-  plant_.CalcPointsPositions(context, query_result.frameB, query_result.p_BCb,
+  plant_.CalcPointsPositions(context, query_result.frameB, query_result.p_BCb.template cast<T>(),
                              plant_.world_frame(), &p_WCb);
-  return std::pair<VectorX<double>, VectorX<double>>(p_WCa, p_WCb);
+                             
+  return std::pair<VectorX<T>, VectorX<T>>(p_WCa, p_WCb);
 }
 
 }  // namespace multibody
 }  // namespace c3
 
 template class c3::multibody::GeomGeomCollider<double>;
+template class c3::multibody::GeomGeomCollider<drake::AutoDiffXd>;

@@ -26,12 +26,12 @@ def objective(trial):
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
     quat_weight = trial.suggest_int("quat_weight", 500, 50000, step=500)
 
-    u_ratio = trial.suggest_int("u_ratio", -100, 99)
+    u_ratio = trial.suggest_int("u_ratio", -200, 199)
 
     # init_x_offset = trial.suggest_int("init_x_offset", 13, 15)
     init_x_offset = 13
 
-    ratio = abs(u_ratio) / 10.0
+    ratio = abs(u_ratio)
     if (u_ratio < 0):
         u_lambda = 1.0
         u_eta = ratio
@@ -113,6 +113,8 @@ def objective(trial):
     ic3_options["rollout_Kp"] = [Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot]
     ic3_options["rollout_Kd"] = [Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot]
 
+    ic3_options["vf_trust_region_weight"] = 0
+    ic3_options["num_threads"] = 32
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
@@ -196,7 +198,7 @@ def log_best_callback(study, trial):
           print(f"--> New best metric found: {study.best_value}. Saving to file...")
           
           # Open in "w" (write) mode to overwrite the file with the fresh best data
-          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_pd3.txt", "w") as f:
+          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_pd.txt", "w") as f:
               f.write("=========================================\n")
               f.write("       BEST HYPERPARAMETERS SO FAR       \n")
               f.write("=========================================\n")
@@ -216,7 +218,7 @@ def log_best_callback(study, trial):
 if __name__ == "__main__":
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
 
-    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_pd3.db"
+    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_pd.db"
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  
         heartbeat_interval=60            
@@ -224,7 +226,7 @@ if __name__ == "__main__":
 
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     study = optuna.create_study(
-        study_name="MSiC3_plate_pd3",
+        study_name="MSiC3_plate_pd",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

@@ -1,0 +1,22 @@
+Trial #3740 | Metric Score: 2.20034
+Parameters:
+  w_G: 435
+  g_lambda: 76
+  g_eta: 2
+  w_G_final: 33
+  u_ratio_finger: 179
+  u_ratio_cube: -173
+  admm_iter: 4
+  tracking_N: 5
+  finger_position_weight: 7000
+  cube_position_weight: 5700
+  quat_weight: 215000
+  cube_model: 1
+  large_dt: False
+  mu_finger_cube: 87
+  num_segments: 60
+  num_iters: 2
+  alpha_ee: 0
+  alpha_object: 34
+  vf_trust_region_weight: 15
+----------------------------------------

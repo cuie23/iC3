@@ -13,16 +13,16 @@ def flow_seq(vals):
     return seq
 
 # Define paths to your parameter files
-# CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
-# MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
+CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand_180.yaml"
+MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_180.yaml"
 
-CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_0.yaml"
-MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_0.yaml"
+# CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_31.yaml"
+# MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_31.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_mpc_hybrid_mpc_final_robust.db"
-STUDY_NAME = "MSiC3_point_hand_180_mpc_hybrid_mpc_final_robust"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_choose_mu_fc.db"
+STUDY_NAME = "MSiC3_point_hand_180_choose_mu_fc"
 
-TRIAL_NUMBER = 560
+TRIAL_NUMBER = 4063
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -74,14 +74,19 @@ except KeyError:
 try:
     x_change_weight = trial.params["x_change_weight"]
     u_change_weight = trial.params["u_change_weight"]
-except:
+except KeyError:
     x_change_weight = 1
     u_change_weight = 1
 
 try:
     w_G_final = trial.params["w_G_final"]
-except:
+except KeyError:
     w_G_final = 1
+
+try:
+    mu_fc = trial.params["mu_finger_cube"] / 100.0
+except KeyError:
+    mu_fc = 0.33
 
 # gamma_threshold = trial.params["gamma_threshold"]
 # phi_threshold = trial.params["phi_threshold"]
@@ -116,7 +121,7 @@ c3_options["c3_options"]["g_eta_t"] = flow_seq([])
 
 c3_options["c3_options"]["w_G_final"] = w_G_final
 
-finger_ratio = abs(u_ratio_finger) / 10.0
+finger_ratio = abs(u_ratio_finger) 
 if (u_ratio_finger < 0):
     u_lambda_finger = 1.0
     u_eta_finger = finger_ratio
@@ -125,7 +130,7 @@ else:
     u_lambda_finger = finger_ratio
     u_eta_finger = 1.0
 
-cube_ratio = abs(u_ratio_cube) / 10.0
+cube_ratio = abs(u_ratio_cube) 
 if (u_ratio_cube < 0):
     u_lambda_cube = 1.0
     u_eta_cube = cube_ratio
@@ -168,9 +173,9 @@ c3_options["c3_options"]["u_u"] = flow_seq([1] * 9)
 
 c3_options["c3_options"]["admm_iter"] = admm_iter
 
-c3_options["lcs_factory_options"]["mu"] = flow_seq([0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3])
+c3_options["lcs_factory_options"]["mu"] = flow_seq([mu_fc, mu_fc, mu_fc, 0.3, 0.3, 0.3, 0.3])
 c3_options["lcs_factory_options"]["N"] = tracking_N
-c3_options["lcs_factory_options"]["dt"] = 0.02
+c3_options["lcs_factory_options"]["dt"] = 0.03
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
 x_init = [0.0, 0.07, 0.05,  # finger 1 
@@ -203,6 +208,7 @@ for i in range(9):
     q_vector[i] = finger_position_weight 
 q_vector[13] = cube_position_weight 
 q_vector[14] = cube_position_weight 
+q_vector[15] = 1000
 
 for i in range(15):
     q_vector[16+i] = 1
@@ -244,12 +250,7 @@ except KeyError:
 
 # accel_cost = trial.params["accel_cost"]
 
-# oops 
-if (STORAGE_PATH == 
-    "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final_no_thresh.db"):
-    accel_cost = 25
-else:
-    accel_cost = 5
+accel_cost = 10
     
 traj_N = trial.params["traj_N"]
 

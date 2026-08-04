@@ -31,6 +31,7 @@
 #include <drake/common/find_resource.h>
 #include <drake/math/rotation_matrix.h>
 #include <drake/math/roll_pitch_yaw.h>
+#include <drake/systems/framework/diagram.h>
 
 #include <gflags/gflags.h>
 
@@ -65,15 +66,13 @@
 #include <drake/systems/primitives/saturation.h>
 #include <drake/systems/framework/leaf_system.h>
 
-
-
 DEFINE_string(experiment_type, "cube_pivoting",
               "The type of experiment to test the LCSFactorySystem with. "
               "Options: 'cartpole_softwalls [Frictionless Spring System]', "
               "'cube_pivoting [Stewart and Trinkle System]'");
 DEFINE_int32(optuna_instance, 0, "Parallelization instance for optuna");
-DEFINE_int32(ee_config, -1, "End effector configuration index, -1 = default");
-DEFINE_int32(cube_model, -1, "Cube model index, -1 = default");
+DEFINE_int32(ee_config, 1, "End effector configuration index, 1 = default");
+DEFINE_int32(cube_model, 1, "Cube model index, 1 = default");
 DEFINE_string(lcm_url, "udpm://239.255.76.67:7667?ttl=0",
               "LCM URL with IP, port, and TTL settings");
 DEFINE_string(diagram_path, "",
@@ -108,7 +107,6 @@ using drake::math::RigidTransform;
 using drake::math::RotationMatrix;
 using drake::math::RollPitchYaw;
 
-#include <drake/systems/framework/leaf_system.h>
 
 class VelocityLimitFilter : public drake::systems::LeafSystem<double> {
  public:
@@ -2637,30 +2635,46 @@ int RunPointHandTestMSiC3(drake::lcm::DrakeLcm& lcm, int example) {
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_lcs_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_lcs_context_autodiff = plant_lcs_autodiff->CreateDefaultContext(); 
 
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  const auto& plant_lcs_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+  auto& plant_lcs_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_lcs_autodiff, plant_diagram_ad_context.get());
+          
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_rollout_context = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_rollout_context.get());
-  auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
+
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_rollout_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  const auto& plant_rollout_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_rollout_ad->GetSubsystemByName(plant_rollout.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_rollout_ad_context = plant_diagram_rollout_ad->CreateDefaultContext();
+  auto& plant_rollout_context_autodiff =
+      plant_diagram_rollout_ad->GetMutableSubsystemContext(
+          plant_rollout_autodiff, plant_diagram_rollout_ad_context.get());
 
   int example_idx = (example == 0) ? 2 : 1;
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+     std::make_unique<systems::MSiC3>(plant_for_lcs, plant_lcs_autodiff, plant_rollout, plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_context, *plant_rollout_context_autodiff);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_lcs_context_autodiff, 
+      plant_rollout_context, plant_rollout_context_autodiff);
   std::cout << "computed traj" << std::endl;
 
   if (example_idx == 1) {
@@ -3063,33 +3077,50 @@ int OptunaPointHandTestMSiC3(int example, int instance) {
 
   plant.Finalize();
 
+  
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_lcs_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_lcs_context_autodiff = plant_lcs_autodiff->CreateDefaultContext(); 
 
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  const auto& plant_lcs_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+  auto& plant_lcs_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_lcs_autodiff, plant_diagram_ad_context.get());
+          
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_rollout_context = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_rollout_context.get());
-  auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
+
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_rollout_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  const auto& plant_rollout_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_rollout_ad->GetSubsystemByName(plant_rollout.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_rollout_ad_context = plant_diagram_rollout_ad->CreateDefaultContext();
+  auto& plant_rollout_context_autodiff =
+      plant_diagram_rollout_ad->GetMutableSubsystemContext(
+          plant_rollout_autodiff, plant_diagram_rollout_ad_context.get());
 
   int example_idx = (example == 0) ? 2 : 1;
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+     std::make_unique<systems::MSiC3>(plant_for_lcs, plant_lcs_autodiff, plant_rollout, plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_context, *plant_rollout_context_autodiff);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_lcs_context_autodiff, 
+      plant_rollout_context, plant_rollout_context_autodiff);
 
   MatrixXd x_hat_final = x_traj.at(x_traj.size() - 1);
   VectorXd x_last = x_hat_final.col(x_hat_final.cols() - 1);
@@ -3646,7 +3677,7 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
 	std::string cube_file_rollout;
   if (ms_ic3_options.use_drake_sim == true) {
     if (example == 0) {
-      cube_file_rollout = "examples/resources/multifinger_hand/cube_high_friction.sdf";
+      cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
     } else {
       cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
     }
@@ -3799,7 +3830,7 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
   std::string cube_file;
   if (ms_ic3_options.use_drake_sim == true) {
     if (example == 0) {
-      cube_file = "examples/resources/multifinger_hand/cube_high_friction.sdf";
+      cube_file = "examples/resources/multifinger_hand/cube.sdf";
     } else {
       cube_file = "examples/resources/multifinger_hand/cube.sdf";
     }
@@ -4101,7 +4132,7 @@ int OptunaPointHandTestMSiC3Parallel(int example, int instance) {
 	std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
   if (ms_ic3_options.use_drake_sim == true) {
     if (example == 0) {
-      cube_file_rollout = "examples/resources/multifinger_hand/cube_high_friction.sdf";
+      cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
     } else {
       cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
     }
@@ -4256,7 +4287,7 @@ int OptunaPointHandTestMSiC3Parallel(int example, int instance) {
 	std::string cube_file;
   if (ms_ic3_options.use_drake_sim == true) {
     if (example == 0) {
-      cube_file = "examples/resources/multifinger_hand/cube_high_friction.sdf";
+      cube_file = "examples/resources/multifinger_hand/cube.sdf";
     } else {
       cube_file = "examples/resources/multifinger_hand/cube.sdf";
     }
@@ -4496,7 +4527,7 @@ int RunPointHandMPC() {
   Parser parser(&plant, &scene_graph);
 
   const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot_config_3_mpc.sdf";
-	const std::string cube_file = "examples/resources/multifinger_hand/cube_high_friction.sdf";
+	const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
   parser.AddModels(hand_file);

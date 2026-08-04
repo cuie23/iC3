@@ -37,7 +37,7 @@ MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_180/optun
 
 def objective(trial):
     # C3 parameters
-    w_G = trial.suggest_int("w_G", 1, 100)
+    w_G = trial.suggest_int("w_G", 1, 500)
     # g_x_fingers = trial.suggest_int("g_x_fingers", 2, 100, step=2)
     g_x_fingers = 50
     # g_x_cube = trial.suggest_int("g_x_cube", 2, 100, step=2)
@@ -74,19 +74,24 @@ def objective(trial):
     # phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
     # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
 
-    admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 3000, step=100)
+    admm_iter = trial.suggest_int("admm_iter", 2, 6)
+    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 10000, step=100)
     cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
-    tracking_N = trial.suggest_int("tracking_N", 3, 6)
+    tracking_N = trial.suggest_int("tracking_N", 2, 6)
     quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
     # cube_model = trial.suggest_int("cube_model", 1, 3)
-    cube_model = 1
+    cube_model = 2
     w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
-    x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
-    u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
+    # x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
+    # u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
+    x_change_weight = 1
+    u_change_weight = 1
+
+    # mu_finger_cube = trial.suggest_int("mu_finger_cube", 1, 100)
+    mu_finger_cube = 33
 
     finger_config = 1
 
@@ -113,7 +118,7 @@ def objective(trial):
 
     c3_options["c3_options"]["w_G_final"] = w_G_final
 
-    finger_ratio = abs(u_ratio_finger) / 10.0
+    finger_ratio = abs(u_ratio_finger)
     if (u_ratio_finger < 0):
         u_lambda_finger = 1.0
         u_eta_finger = finger_ratio
@@ -122,7 +127,7 @@ def objective(trial):
         u_lambda_finger = finger_ratio
         u_eta_finger = 1.0
 
-    cube_ratio = abs(u_ratio_cube) / 10.0
+    cube_ratio = abs(u_ratio_cube)
     if (u_ratio_cube < 0):
         u_lambda_cube = 1.0
         u_eta_cube = cube_ratio
@@ -167,9 +172,10 @@ def objective(trial):
 
     c3_options["c3_options"]["admm_iter"] = admm_iter
 
-    c3_options["lcs_factory_options"]["mu"] = [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3]
+    mu_fc = mu_finger_cube / 100.0
+    c3_options["lcs_factory_options"]["mu"] = [mu_fc, mu_fc, mu_fc, 0.3, 0.3, 0.3, 0.3]
     c3_options["lcs_factory_options"]["N"] = tracking_N
-    c3_options["lcs_factory_options"]["dt"] = 0.02
+    c3_options["lcs_factory_options"]["dt"] = 0.03
     c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
     if (finger_config == 1):
@@ -247,6 +253,7 @@ def objective(trial):
 
     c3_options["c3_options"]["q_vector"][13] = cube_position_weight
     c3_options["c3_options"]["q_vector"][14] = cube_position_weight
+    c3_options["c3_options"]["q_vector"][15] = 1000
 
     c3_options["c3_options"]["scale_lcs"] = True
     c3_options["c3_options"]["w_Q"] = 5
@@ -259,9 +266,9 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 40, 60])
-    # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
-    num_warmup_iters = 0
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30])
+    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
+    # num_warmup_iters = 0
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
     num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
@@ -272,16 +279,17 @@ def objective(trial):
     value_function_scaling = 100
 
     vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
+    # vf_trust_region_weight = 0
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
-    accel_cost = 5
+    accel_cost = 10
 
     # use_pd = trial.suggest_categorical("use_pd", [True, False])
     use_pd = False
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
     use_rollout_lambdas = True
 
-    traj_N = trial.suggest_categorical("traj_N", [600, 720, 840])
+    traj_N = trial.suggest_categorical("traj_N", [360, 420])
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -438,7 +446,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_vf_trust_no_thresh.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_warmup_no_reg.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -449,7 +457,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_vf_trust_no_thresh.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_warmup_no_reg.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -467,9 +475,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_vf_trust_no_thresh.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_warmup_no_reg.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_vf_trust_no_thresh.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_warmup_no_reg.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -481,7 +489,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_vf_trust_no_thresh",
+        study_name="MSiC3_point_hand_180_warmup_no_reg",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

@@ -171,26 +171,33 @@ HybridMPC::HybridMPC(const MultibodyPlant<double>& plant_rollout, LCSFactory lcs
 
 std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
   VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, drake::systems::Context<double>& context_rollout) {
-  
-  MatrixXd x_out(n_x_, ms_ic3_options_.N+1);
-  MatrixXd u_out(n_u_, ms_ic3_options_.N);
-  MatrixXd lambda_out(n_lambda_, ms_ic3_options_.N);
+
+  int traj_N = u_hat.cols();
+
+  MatrixXd x_out(n_x_, traj_N+1);
+  MatrixXd u_out(n_u_, traj_N);
+  MatrixXd lambda_out(n_lambda_, traj_N);
 
   x_out.col(0) = x0;
 
   VectorXd x_curr = x0;
-  for (int i = 0; i < ms_ic3_options_.N; i++) {
+  for (int i = 0; i < traj_N; i++) {
+
+    // std::cout << "x " << x_hat.col(i).segment(0, n_q_).transpose() << std::endl;
+    // std::cout << "u " << u_hat.col(i).transpose() << std::endl;
+    // std::cout << "lambda " << lambda_hat.col(i).transpose() << std::endl << std::endl;
+    std::cout << "i " << i << std::endl;
 
     // Get targets
     vector<VectorXd> x_noms;
     vector<VectorXd> u_noms;
     vector<VectorXd> lambda_noms;
     for (int t = 0; t < N_+1; t++) {
-      int x_idx = std::min(i + t, ms_ic3_options_.N);
+      int x_idx = std::min(i + t, traj_N);
       x_noms.push_back(x_hat.col(x_idx));
 
       if (t == N_) break;
-      int u_idx = std::min(i + t, ms_ic3_options_.N-1);
+      int u_idx = std::min(i + t, traj_N-1);
       u_noms.push_back(u_hat.col(u_idx));
       lambda_noms.push_back(lambda_hat.col(u_idx));
     }
@@ -246,6 +253,12 @@ std::tuple<MatrixXd, MatrixXd, MatrixXd> HybridMPC::SimulateHybridMPC(
       std::cout << "Primal Res: " << details.primal_res << std::endl;
       std::cout << "Dual Res: " << details.dual_res << std::endl;
       std::cout << "x0 " << x_curr.segment(0, n_q_).transpose() << std::endl;
+
+      if (details.status_val != -2 && details.status_val != -6) {
+        std::cout << "stopped " << std::endl;
+        while (true) {
+        }
+      }
     }
 
     VectorXd u_mpc = result.GetSolution(u_[0]);

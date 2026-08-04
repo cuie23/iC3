@@ -49,8 +49,8 @@ def objective(trial):
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    u_ratio_finger = trial.suggest_int("u_ratio_finger", -500, 499) 
-    u_ratio_cube = trial.suggest_int("u_ratio_cube", -500, 499) 
+    u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) 
+    u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) 
 
     lambda_threshold, eta_threshold = 0, 0
 
@@ -70,8 +70,9 @@ def objective(trial):
 
     num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 40, 60])
     num_warmup_iters = 0
-    warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
-
+    # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    warm_start_alph = 0
+    
     num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
@@ -133,7 +134,7 @@ def objective(trial):
     # ======================================================================
     n_contacts = 7
     scores = {}
-    
+
     # Setup C3 parameters
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -154,13 +155,13 @@ def objective(trial):
     c3_options["c3_options"]["g_eta_t"] = []
     c3_options["c3_options"]["w_G_final"] = w_G_final
 
-    finger_ratio = abs(u_ratio_finger) / 10.0
+    finger_ratio = abs(u_ratio_finger) 
     if u_ratio_finger < 0:
         u_lambda_finger, u_eta_finger = 1.0, finger_ratio
     else:
         u_lambda_finger, u_eta_finger = finger_ratio + 1, 1.0
 
-    cube_ratio = abs(u_ratio_cube) / 10.0
+    cube_ratio = abs(u_ratio_cube)
     if u_ratio_cube < 0:
         u_lambda_cube, u_eta_cube = 1.0, cube_ratio
     else:

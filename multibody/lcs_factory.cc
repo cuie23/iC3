@@ -1,7 +1,5 @@
 #include "multibody/lcs_factory.h"
-
-#include <iostream>
-
+#include <iostream> 
 #include "multibody/geom_geom_collider.h"
 #include "multibody/multibody_utils.h"
 
@@ -65,7 +63,7 @@ void LCSFactory::ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn,
   double phi_i;
   MatrixX<double> J_i;
   for (int i = 0; i < n_contacts_; i++) {
-    multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
+    multibody::GeomGeomCollider<double> collider(plant_, contact_pairs_[i]);
     if (frictionless_ || n_friction_directions_ == 1)
       std::tie(phi_i, J_i) = collider.EvalPlanar(context_, planar_normal);
     else
@@ -86,13 +84,42 @@ void LCSFactory::ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn,
   }
 }
 
+void LCSFactory::ComputeContactJacobianAD(VectorX<AutoDiffXd>& phi,
+                                          MatrixX<AutoDiffXd>& Jn,
+                                          MatrixX<AutoDiffXd>& Jt) {
+  phi.resize(n_contacts_);
+  Jn.resize(n_contacts_, n_v_);
+  Jt.resize(2 * n_contacts_ * n_friction_directions_, n_v_);
+
+  Eigen::Vector3d planar_normal = {0, 1, 0};
+  AutoDiffXd phi_i;
+  MatrixX<AutoDiffXd> J_i;
+  for (int i = 0; i < n_contacts_; i++) {
+    multibody::GeomGeomCollider<drake::AutoDiffXd> collider(plant_ad_,
+                                                            contact_pairs_[i]);
+    if (frictionless_ || n_friction_directions_ == 1) {
+      std::tie(phi_i, J_i) = collider.EvalPlanar(context_ad_, planar_normal);
+    } else {
+      std::tie(phi_i, J_i) =
+          collider.EvalPolytope(context_ad_, n_friction_directions_);
+    }
+
+    phi(i) = phi_i;
+    Jn.row(i) = J_i.row(0);
+    if (frictionless_)
+      continue;
+    Jt.block(2 * i * n_friction_directions_, 0, 2 * n_friction_directions_,
+             n_v_) = J_i.block(1, 0, 2 * n_friction_directions_, n_v_);
+  }
+}
+
 std::pair<std::vector<VectorXd>, std::vector<VectorXd>>
 LCSFactory::FindWitnessPoints() {
   std::vector<VectorXd> WCa;
   std::vector<VectorXd> WCb;
 
   for (int i = 0; i < n_contacts_; i++) {
-    multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
+    multibody::GeomGeomCollider<double> collider(plant_, contact_pairs_[i]);
     auto [p_WCa, p_WCb] = collider.CalcWitnessPoints(context_);
     WCa.push_back(p_WCa);
     WCb.push_back(p_WCb);
@@ -101,24 +128,49 @@ LCSFactory::FindWitnessPoints() {
   return std::make_pair(WCa, WCb);
 }
 
+// Sets the nominal operating point (q, v, u) in the double context. This is the
+// single source of truth for the linearization point's state and input; the
+// AutoDiff context and all gradient bookkeeping are (re)initialized once inside
+// GenerateLCS, which is the only place they are actually consumed.
 void LCSFactory::UpdateStateAndInput(
     const Eigen::Ref<const drake::VectorX<double>>& state,
     const Eigen::Ref<const drake::VectorX<double>>& input) {
   SetContext<double>(plant_, state, input, &context_);
-  drake::VectorX<double> q_v_u(n_x_ + n_u_);
-  q_v_u << state, input;
-  drake::AutoDiffVecXd q_v_u_ad = drake::math::InitializeAutoDiff(q_v_u);
-  SetPositionsAndVelocitiesIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.head(n_x_),
-                                             &context_ad_);
-  SetInputsIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.tail(n_u_), &context_ad_);
 }
-// Linearizes the dynamics of a multibody plant_ into a Linear Complementarity
-// System (LCS)
+
+
 LCS LCSFactory::GenerateLCS() {
+  return GenerateLCS(VectorXd::Zero(n_lambda_));
+}
+
+// Linearizes the dynamics of a multibody plant_ into a Linear Complementarity
+// System (LCS) around a nominal state, input, and force
+LCS LCSFactory::GenerateLCS(
+    const Eigen::Ref<const drake::VectorX<double>>& lambda_nominal) {
   if (!frictionless_) DRAKE_DEMAND(mu_.size() == (size_t)n_contacts_);
 
   VectorXd muXd =
       Eigen::Map<const VectorXd, Eigen::Unaligned>(mu_.data(), mu_.size());
+
+  // 1. Build the full nominal vector from the (q, v, u) operating point stored
+  //    in the double context plus the lambda passed in, then initialize the AD
+  //    variables in a SINGLE call so gradients are consistently laid out as
+  //    [dq | dv | du | dlambda].
+  VectorXd qvu_lambda_nominal(n_x_ + n_u_ + n_lambda_);
+  qvu_lambda_nominal << plant_.GetPositions(context_),
+      plant_.GetVelocities(context_),
+      plant_.get_actuation_input_port().Eval(context_), lambda_nominal;
+
+  AutoDiffVecXd q_v_u_lambda_ad =
+      drake::math::InitializeAutoDiff(qvu_lambda_nominal);
+
+  // 2. Update AD context with AD independent variables
+  SetPositionsAndVelocitiesIfNew<AutoDiffXd>(
+      plant_ad_, q_v_u_lambda_ad.head(n_x_), &context_ad_);
+  SetInputsIfNew<AutoDiffXd>(plant_ad_, q_v_u_lambda_ad.segment(n_x_, n_u_),
+                             &context_ad_);
+
+  AutoDiffVecXd lambda_ad = q_v_u_lambda_ad.tail(n_lambda_);
 
   /*============== Formulate A, B and d Matrices ==================*/
   // Calculate mass matrix M(q)
@@ -141,27 +193,71 @@ LCS LCSFactory::GenerateLCS() {
   MultibodyForces<AutoDiffXd> f_app(plant_ad_);
   plant_ad_.CalcForceElementsContribution(context_ad_, &f_app);
 
-  // f(q, v, u) =  M(q)⁻¹(τ(u) + τ₍g₎ + fₐₚₚ(q, v, u) - C(q, v))
-  AutoDiffVecXd f_qvu =
-      M.ldlt().solve(tau_g + tau_u + f_app.generalized_forces() - C);
+  // Calculate contact generalized forces using AutoDiff Jacobians
+  VectorX<AutoDiffXd> phi_ad;
+  MatrixX<AutoDiffXd> Jn_ad;
+  MatrixX<AutoDiffXd> Jt_ad;
 
-  // f(q*, v*, u*)
-  VectorXd f_qvu_norminal = ExtractValue(f_qvu);
-  // Jacobian of f(q, v, u) w.r.t. q, v, u
-  MatrixXd Jf = ExtractGradient(f_qvu);
-  if (Jf.cols() != n_x_ + n_u_) {
-    throw std::runtime_error(fmt::format(
-        "Jacobian of f(q, v, u) has unexpected number of columns: {}. "
-        "Expected: {} + {} = {}",
-        Jf.cols(), n_x_, n_u_, n_x_ + n_u_));
+  ComputeContactJacobianAD(phi_ad, Jn_ad, Jt_ad);
+
+  AutoDiffVecXd tau_contact = AutoDiffVecXd::Zero(n_v_);
+  if (contact_model_ == ContactModel::kStewartAndTrinkle) {
+    tau_contact =
+        Jn_ad.transpose() * lambda_ad.segment(n_contacts_, n_contacts_) +
+        Jt_ad.transpose() * lambda_ad.segment(
+                                2 * n_contacts_,
+                                2 * n_contacts_ * n_friction_directions_);
+  } else if (contact_model_ == ContactModel::kAnitescu) {
+    MatrixXd E_t =
+        MatrixXd::Zero(n_contacts_, 2 * n_contacts_ * n_friction_directions_);
+    for (int i = 0; i < n_contacts_; i++) {
+      E_t.block(i, i * (2 * n_friction_directions_), 1,
+                2 * n_friction_directions_) =
+          MatrixXd::Ones(1, 2 * n_friction_directions_);
+    }
+    VectorXd anitescu_mu_vec = VectorXd::Zero(n_lambda_);
+
+    for (int i = 0; i < static_cast<int>(mu_.size()); i++) {
+      anitescu_mu_vec.segment((2 * n_friction_directions_) * i,
+                              2 * n_friction_directions_) =
+          muXd(i) * VectorXd::Ones(2 * n_friction_directions_);
+    }
+    MatrixXd anitescu_mu_matrix = anitescu_mu_vec.asDiagonal();
+
+    // Explicitly cast the double matrices to AutoDiffXd.
+    MatrixX<AutoDiffXd> J_c_ad = E_t.cast<AutoDiffXd>().transpose() * Jn_ad +
+                                 anitescu_mu_matrix.cast<AutoDiffXd>() * Jt_ad;
+
+    tau_contact = J_c_ad.transpose() * lambda_ad;
+  } else if (contact_model_ == ContactModel::kFrictionlessSpring) {
+    tau_contact = Jn_ad.transpose() * lambda_ad;
+  } else {
+    throw std::out_of_range("Unsupported contact model.");
   }
 
-  VectorXd qvu_nominal(n_q_ + n_v_ + n_u_);
-  qvu_nominal << plant_.GetPositions(context_), plant_.GetVelocities(context_),
-      plant_.get_actuation_input_port().Eval(context_);
-  VectorXd Jf_qvu_nominal = Jf * qvu_nominal;
-  // dᵥ = f(q*, v*, u*) - Jf * (q*, v*, u*)
-  VectorXd d_v = f_qvu_norminal - Jf_qvu_nominal;
+  // f(q, v, u, lambda) =  M(q)⁻¹(τ(u) + τ₍g₎ + fₐₚₚ(q, v, u) - C(q, v) +
+  // τ_contact)
+  AutoDiffVecXd f_qvu = M.ldlt().solve(tau_g + tau_u +
+                                       f_app.generalized_forces() - C +
+                                       tau_contact);
+
+  // f(q*, v*, u*, lambda*)
+  VectorXd f_qvu_nominal = ExtractValue(f_qvu);
+
+  // Jacobian of f(q, v, u, lambda) w.r.t. q, v, u, lambda
+  // This automatically incorporates the geometric stiffness cross-term
+  // d(Jc^T)/dq * lambda
+  MatrixXd Jf = ExtractGradient(f_qvu);
+  if (Jf.cols() != n_x_ + n_u_ + n_lambda_) {
+    throw std::runtime_error(fmt::format(
+        "Jacobian of f has unexpected number of columns: {}. "
+        "Expected: {} + {} + {} = {}",
+        Jf.cols(), n_x_, n_u_, n_lambda_, n_x_ + n_u_ + n_lambda_));
+  }
+
+  VectorXd Jf_qvu_lambda_nominal = Jf * qvu_lambda_nominal;
+  // dᵥ = f(q*, v*, u*, λ*) - Jf * (q*, v*, u*, λ*)
+  VectorXd d_v = f_qvu_nominal - Jf_qvu_lambda_nominal;
 
   // State dependent mapping q̇ = N(q)v
   Eigen::SparseMatrix<double> Nqt;
@@ -233,6 +329,7 @@ LCS LCSFactory::GenerateLCS() {
 
   return LCS(A, B, D, d, E, F, H, c, options_.N, dt_);  // Return the system;
 }
+
 void LCSFactory::FormulateFrictionlessSpringContactDynamics(
     const VectorXd& phi, const MatrixXd& Jn, const MatrixXd& qdotNv,
     const double& spring_stiffness, MatrixX<AutoDiffXd>& M, MatrixXd& D,
@@ -383,6 +480,23 @@ LCS LCSFactory::LinearizePlantToLCS(
                          options);
   lcs_factory.UpdateStateAndInput(state, input);
   return lcs_factory.GenerateLCS();
+}
+
+LCS LCSFactory::LinearizePlantToLCS(
+    const drake::multibody::MultibodyPlant<double>& plant,
+    drake::systems::Context<double>& context,
+    const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    drake::systems::Context<drake::AutoDiffXd>& context_ad,
+    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
+        contact_geoms,
+    const LCSFactoryOptions& options,
+    const Eigen::Ref<const drake::VectorX<double>>& state,
+    const Eigen::Ref<const drake::VectorX<double>>& input,
+    const Eigen::Ref<const drake::VectorX<double>>& lambda) {
+  LCSFactory lcs_factory(plant, context, plant_ad, context_ad, contact_geoms,
+                         options);
+  lcs_factory.UpdateStateAndInput(state, input);
+  return lcs_factory.GenerateLCS(lambda);
 }
 
 std::pair<MatrixXd, std::vector<VectorXd>>

@@ -43,10 +43,10 @@ public:
   // 0 = plate
   // 1 = trifinger (point fingers)
   explicit MSiC3(
-    MultibodyPlant<double>& plant,
-    MultibodyPlant<drake::AutoDiffXd>& plant_ad,
-    MultibodyPlant<double>& plant_rollout,
-    MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
+    const MultibodyPlant<double>& plant,
+    const MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    const MultibodyPlant<double>& plant_rollout,
+    const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     drake::systems::Diagram<double>& rollout_diagram,
     std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
     const vector<SortedPair<GeometryId>>& contact_geoms,
@@ -103,7 +103,8 @@ private:
   // x_hat, lcs, H, g, x_targets are all over the entire iC3 time horizon, indexing done in function
   // start_idx is the timestep w.r.t the entire iC3 time horizon to start from
   // returns x_hat, u_hat, lambda_hat, gamma, in_contact
-  tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, VectorXd ud, 
+  tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
+                                              MatrixXd lambda_hat, VectorXd ud, 
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -124,8 +125,8 @@ private:
     ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat,
                             LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects);
 
-  LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory);
-  LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, LCSFactory factory, VectorXd ee_pose, int ee_idx);
+  LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory);
+  LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory, VectorXd ee_pose, int ee_idx);
 
   LCS GetLCSSegment(LCS lcs, int start_idx, int length);
 

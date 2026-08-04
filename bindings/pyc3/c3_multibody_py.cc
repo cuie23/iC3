@@ -36,20 +36,53 @@ PYBIND11_MODULE(multibody, m) {
                     const c3::LCSFactoryOptions&>(),
            py::arg("plant"), py::arg("context"), py::arg("plant_ad"),
            py::arg("context_ad"), py::arg("contact_geoms"), py::arg("options"))
-      .def("GenerateLCS", &c3::multibody::LCSFactory::GenerateLCS)
+      
+      // Overloaded GenerateLCS
+      .def("GenerateLCS", py::overload_cast<>(&c3::multibody::LCSFactory::GenerateLCS))
+      .def("GenerateLCS", 
+           py::overload_cast<const Eigen::Ref<const drake::VectorX<double>>&>(
+               &c3::multibody::LCSFactory::GenerateLCS),
+           py::arg("lambda_nominal"))
+      
       .def("GetContactJacobianAndPoints",
            &c3::multibody::LCSFactory::GetContactJacobianAndPoints)
       .def("UpdateStateAndInput",
            &c3::multibody::LCSFactory::UpdateStateAndInput, py::arg("state"),
            py::arg("input"))
       .def_static("LinearizePlantToLCS",
-                  &c3::multibody::LCSFactory::LinearizePlantToLCS,
+                  py::overload_cast<
+                      const drake::multibody::MultibodyPlant<double>&,
+                      drake::systems::Context<double>&,
+                      const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&,
+                      drake::systems::Context<drake::AutoDiffXd>&,
+                      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&,
+                      const c3::LCSFactoryOptions&,
+                      const Eigen::Ref<const drake::VectorX<double>>&,
+                      const Eigen::Ref<const drake::VectorX<double>>&>(
+                      &c3::multibody::LCSFactory::LinearizePlantToLCS),
                   py::arg("plant"), py::arg("context"), py::arg("plant_ad"),
                   py::arg("context_ad"), py::arg("contact_geoms"),
                   py::arg("options"), py::arg("state"), py::arg("input"))
+      .def_static("LinearizePlantToLCS",
+                  py::overload_cast<
+                      const drake::multibody::MultibodyPlant<double>&,
+                      drake::systems::Context<double>&,
+                      const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&,
+                      drake::systems::Context<drake::AutoDiffXd>&,
+                      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&,
+                      const c3::LCSFactoryOptions&,
+                      const Eigen::Ref<const drake::VectorX<double>>&,
+                      const Eigen::Ref<const drake::VectorX<double>>&,
+                      const Eigen::Ref<const drake::VectorX<double>>&>(
+                      &c3::multibody::LCSFactory::LinearizePlantToLCS),
+                  py::arg("plant"), py::arg("context"), py::arg("plant_ad"),
+                  py::arg("context_ad"), py::arg("contact_geoms"),
+                  py::arg("options"), py::arg("state"), py::arg("input"), py::arg("lambda"))
+                  
       .def_static("FixSomeModes", &c3::multibody::LCSFactory::FixSomeModes,
                   py::arg("other"), py::arg("active_lambda_inds"),
                   py::arg("inactive_lambda_inds"))
+                  
       // Overload the function GetNumContactVariables
       .def_static("GetNumContactVariables",
                   py::overload_cast<c3::multibody::ContactModel, int, int>(

@@ -755,7 +755,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     x_anchors_final.col(i / L_) = x_hat_out.col(i);
   }
 
-  auto [H_final, g_final, K_final, k_ff_final] = ComputeLQRValueFunction(x_hat_out, u_hat_out, lambda_hat_out, lcs, x_anchors_final, u_nominal[0], defects_final);
+  
+  auto [H_final, g_final, K_final, k_ff_final] = ComputeLQRValueFunction(x_hat_out, u_hat_out, lambda_hat_out, lcs, xd_mat, u_nominal[0], defects_final);
   Hs.push_back(H_final);
   gs.push_back(g_final);
   Ks.push_back(K_final);

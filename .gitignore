@@ -9,6 +9,5 @@ MODULE.bazel.lock
 *.ps
 genhtml/*
 ic3.tar.gz
-*.db
 *.bin
 *.csv

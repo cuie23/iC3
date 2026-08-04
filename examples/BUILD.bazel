@@ -61,3 +61,33 @@ cc_binary(
         "-lopenblas",
     ],
 )
+
+
+
+cc_binary(
+    name = "run_hybrid_mpc",
+    srcs = [
+        "run_hybrid_mpc.cc", 
+        "common_systems.hpp"  
+    ],
+    data = [
+        ":example_data",
+        "@drake_models//:franka_description",
+    ],
+    deps = [
+        "//core:c3",
+        "//core:lcs",
+        "//core:c3_cartpole_problem",
+        "//lcmtypes:lcmt_robot",
+        "//lcm:lcm_trajectory_saver",
+        "//systems:systems",
+        "//systems:system_utils",
+        "@drake//:drake_shared_library",
+        "@gflags",
+        "//tools:serialization_utils"
+    ],
+    linkopts = [
+        "-L/lib/x86_64-linux-gnu",
+        "-lopenblas",
+    ],
+)
