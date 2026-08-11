@@ -1,7 +1,7 @@
-num_iters: 2
+num_iters: 6
 num_warmup_iters: 0
 
-N: 360
+N: 120
 num_segments: 60
 
 
@@ -27,13 +27,14 @@ defect_quaternion_regularizer_fraction: 0
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.0
-alpha_ee_step: 1.0
+alpha_ee: 0.38
+alpha_ee_step: 0.124
 
-alpha_object: 0.34
-alpha_object_step: 0.6599999999999999
+alpha_object: 0.74
+alpha_object_step: 0.052000000000000005
 
 warm_start_alpha: 0.0
 value_function_scaling: 1.0
 num_threads: 32
-vf_trust_region_weight: 15
+vf_trust_region_weight: 16
+use_lambdas_for_lcs: false

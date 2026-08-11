@@ -74,15 +74,19 @@ def objective(trial):
     # phi_threshold = trial.suggest_int("phi_threshold", 0, 5)
     # add_phi_buffer = trial.suggest_int("add_phi_buffer", 0, 1)
 
-    admm_iter = trial.suggest_int("admm_iter", 2, 6)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 100, 10000, step=100)
-    cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
-    tracking_N = trial.suggest_int("tracking_N", 2, 6)
-    quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
+    admm_iter = trial.suggest_int("admm_iter", 3, 6)
+    tracking_N = trial.suggest_int("tracking_N", 3, 6)
+
+    # finger_position_weight = trial.suggest_int("finger_position_weight", 100, 10000, step=100)
+    # cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
+    # quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
+    finger_position_weight = 3000
+    cube_position_weight = 8000
+    quat_weight = 4000
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
     # cube_model = trial.suggest_int("cube_model", 1, 3)
-    cube_model = 2
+    cube_model = 1
     w_G_final = trial.suggest_int("w_G_final", 1, 100)
 
     # x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
@@ -266,14 +270,18 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30])
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
-    # num_warmup_iters = 0
-    warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 12, 15, 20, 30, 60])
+    # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
+    num_warmup_iters = 0
+    # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    warm_start_alpha = 0
 
-    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
+    # num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
+    num_iters = 5
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
+
+    use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
     
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
@@ -289,7 +297,7 @@ def objective(trial):
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
     use_rollout_lambdas = True
 
-    traj_N = trial.suggest_categorical("traj_N", [360, 420])
+    traj_N = trial.suggest_categorical("traj_N", [240, 300, 360])
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -330,6 +338,7 @@ def objective(trial):
     ic3_options["drake_sim_dt"] = 0.0001
 
     ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+    ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
     ic3_options["num_threads"] = 32
 
     if "p_vector" in ic3_options:
@@ -446,7 +455,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_warmup_no_reg.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/sub_15_trials_180_static_lcs_larger_dt.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -457,7 +466,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_warmup_no_reg.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180/best_params_180_static_lcs_larger_dt.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -475,9 +484,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_warmup_no_reg.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_static_lcs_larger_dt.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_warmup_no_reg.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_static_lcs_larger_dt.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -489,7 +498,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_warmup_no_reg",
+        study_name="MSiC3_point_hand_180_static_lcs_larger_dt",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

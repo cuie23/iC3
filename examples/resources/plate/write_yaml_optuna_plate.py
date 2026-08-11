@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/plate/ms_c3_tracking_options.yaml"
 MSiC3_PARAMS = "examples/resources/plate/ms_ic3_options.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_pd2.db"
-STUDY_NAME = "MSiC3_plate_pd2"
+STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_pd.db"
+STUDY_NAME = "MSiC3_plate_pd"
 
-TRIAL_NUMBER = 4275
+TRIAL_NUMBER = 10686
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -105,6 +105,16 @@ try:
 except KeyError:
     value_function_scaling = 100
 
+try:
+    use_lambdas_for_lcs = trial.params["use_lambdas_for_lcs"]
+except KeyError:
+    use_lambdas_for_lcs = False
+
+try:
+    vf_trust_region_weight = trial.params["vf_trust_region_weight"]
+except KeyError:
+    vf_trust_region_weight = 0
+
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
 
@@ -138,11 +148,14 @@ ic3_options["alpha_object_step"] = (100 - alpha_object) / (100 * (num_iters - 1)
 
 ic3_options["acceleration_cost_weight"] = accel_cost
 ic3_options["value_function_scaling"] = value_function_scaling / 100.0
+ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
 ic3_options["N"] = 200
 
 ic3_options["rollout_Kp"] = flow_seq([Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot])
 ic3_options["rollout_Kd"] = flow_seq([Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot])
+
+ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
 
 with open(MSiC3_PARAMS, "w") as f:
     yaml.dump(ic3_options, f)

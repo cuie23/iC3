@@ -6,7 +6,7 @@ publish_frequency: 1000
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 4500
+Q_quaternion_weight: 4000
 
 quaternion_regularizer_fraction: 0.0
 
@@ -22,16 +22,16 @@ lcs_factory_options:
   spring_stiffness: 0
 
   # 3 fingertip-cube, 4 cube-ground
-  mu: [0.18, 0.18, 0.18, 0.3, 0.3, 0.3, 0.3]
-  N: 5
+  mu: [0.33, 0.33, 0.33, 0.3, 0.3, 0.3, 0.3]
+  N: 6
   dt: 0.03
 
 c3_options:
   penalize_input_change: true  # Currently combines u-u_prev and u-u_des
-  input_change_weight: 0.05 # ratio of u-u_prev weight to u-u_des weight
+  input_change_weight: 0.0  # ratio of u-u_prev weight to u-u_des weight
 
   penalize_x_change: true  # Currently combines x-x_prev and x-x_des
-  x_change_weight: 0.11 # ratio of x-x_prev weight to x-x_des weight
+  x_change_weight: 0.0  # ratio of x-x_prev weight to x-x_des weight
 
   # EXPERIMENTAL
   # penalize_snap: false
@@ -46,17 +46,17 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 3
+  admm_iter: 6
   gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 50  #Penalty on all decision variables, assuming scalar
-  w_G: 0.17 #Penalty on all decision variables, assuming scalar
+  w_G: 2.14 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  w_G_final: 40
+  w_G_final: 13
 
-  q_vector: [7100, 7100, 7100, 7100, 7100, 7100, 7100, 7100, 7100, 1, 1, 1, 1, 8600, 8600, 1000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  q_vector: [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 1, 1, 1, 1, 8000, 8000, 1000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
   r_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1] # finger 3 actuation
 
@@ -68,8 +68,8 @@ c3_options:
   g_eta_slack: []
   g_eta_n: []
   g_eta_t: []
-  g_lambda: [18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18]
-  g_eta: [16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]
+  g_lambda: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+  g_eta: [56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56]
 
   u_x: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] # cube velo
   u_u: [1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -79,8 +79,8 @@ c3_options:
   u_eta_slack: []
   u_eta_n: []
   u_eta_t: []
-  u_lambda: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-  u_eta: [78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103, 103]
+  u_lambda: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  u_eta: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46]
   lambda_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   eta_threshold: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   add_phi_buffer: false

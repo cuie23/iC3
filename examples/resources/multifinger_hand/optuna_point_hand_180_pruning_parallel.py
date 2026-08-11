@@ -114,7 +114,7 @@ def objective(trial):
 
     c3_options["c3_options"]["w_G_final"] = w_G_final
 
-    finger_ratio = abs(u_ratio_finger) / 10.0
+    finger_ratio = abs(u_ratio_finger)
     if (u_ratio_finger < 0):
         u_lambda_finger = 1.0
         u_eta_finger = finger_ratio
@@ -123,7 +123,7 @@ def objective(trial):
         u_lambda_finger = finger_ratio
         u_eta_finger = 1.0
 
-    cube_ratio = abs(u_ratio_cube) / 10.0
+    cube_ratio = abs(u_ratio_cube)
     if (u_ratio_cube < 0):
         u_lambda_cube = 1.0
         u_eta_cube = cube_ratio
@@ -248,10 +248,11 @@ def objective(trial):
 
     c3_options["c3_options"]["q_vector"][13] = cube_position_weight
     c3_options["c3_options"]["q_vector"][14] = cube_position_weight
+    c3_options["c3_options"]["q_vector"][15] = 1000
 
     c3_options["c3_options"]["scale_lcs"] = True
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 100
+    c3_options["c3_options"]["w_R"] = 50
     c3_options["c3_options"]["w_U"] = 1
 
     with open(CONTORLLER_PARAMS, "w") as f:
@@ -266,24 +267,37 @@ def objective(trial):
     # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
     num_iters = trial.suggest_int("num_iters", 2, 12)
-    alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
-    alpha_object = trial.suggest_int("alpha_object", 0, 100)
-    alpha_ee_step = trial.suggest_int("alpha_ee_step", 0, 100)
-    alpha_object_step = trial.suggest_int("alpha_object_step", 0, 100)
+    # alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
+    # alpha_object = trial.suggest_int("alpha_object", 0, 100)
+    # alpha_ee_step = trial.suggest_int("alpha_ee_step", 0, 100)
+    # alpha_object_step = trial.suggest_int("alpha_object_step", 0, 100)
+
+    rho = trial.suggest_int("rho", 1, 1000)
+
+    alpha_ee = 0
+    alpha_object = 0
+    alpha_ee_step = 0
+    alpha_object_step = 0
 
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     # use_value_function = trial.suggest_categorical("use_value_function", [True, False])
     use_value_function = True
+    vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
 
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
-    accel_cost = 20
+    accel_cost = 10
 
     # use_pd = trial.suggest_categorical("use_pd", [True, False])
     use_pd = False
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
     use_rollout_lambdas = True
 
-    traj_N = trial.suggest_categorical("traj_N", [600, 720, 840])
+    use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
+
+    # use_pd = trial.suggest_categorical("use_pd", [True, False])
+    use_pd = False
+
+    traj_N = trial.suggest_categorical("traj_N", [600, 660, 720])
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -312,6 +326,7 @@ def objective(trial):
 
     value_function_scaling = 100 if use_value_function else 0
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
+    ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
     kp = 200 if use_pd else 0
     kd = 20 if use_pd else 0
@@ -328,6 +343,9 @@ def objective(trial):
     ic3_options["drake_sim_dt"] = 0.0001
 
     ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+    ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
+
+    ic3_options["anchor_rho"] = rho / 10.0
 
     if "p_vector" in ic3_options:
         del ic3_options["p_vector"]
@@ -443,7 +461,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/sub_15_trials_180_c3_final_rollout.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/sub_15_trials_180_sensitivty_anchor_update.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -454,7 +472,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/best_params_180_c3_final_rollout.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_180_parallel/best_params_180_sensitivty_anchor_update.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -472,9 +490,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_c3_final_rollout.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_180_sensitivty_anchor_update.db"
     else:
-      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180_parallel/optuna_results_180_c3_final_rollout.db"
+      STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180_parallel/optuna_results_180_sensitivty_anchor_update.db"
         
     # module = optunahub.load_module(package="samplers/catcmawm")
     # sampler = module.CatCmawmSampler()
@@ -486,7 +504,7 @@ if __name__ == "__main__":
 
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_180_c3_final_rollout",
+        study_name="MSiC3_point_hand_180_sensitivty_anchor_update",
         storage=storage,
         load_if_exists=True, 
         sampler=sampler, 

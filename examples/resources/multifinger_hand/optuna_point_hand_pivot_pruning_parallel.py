@@ -33,7 +33,7 @@ MSiC3_PARAMS = f"examples/resources/multifinger_hand/optuna_point_hand_pivot/opt
 
 def objective(trial):
     # C3 parameters
-    w_G = trial.suggest_int("w_G", 5, 5000, step=5)
+    w_G = trial.suggest_int("w_G", 1, 5000)
     # g_x_fingers = trial.suggest_int("g_x_fingers", 10, 100, step=10)
     # g_x_cube = trial.suggest_int("g_x_cube", 10, 100, step=10)
     # g_u = trial.suggest_int("g_u", 10, 100, step=10)
@@ -60,13 +60,16 @@ def objective(trial):
     cube_position_weight = trial.suggest_int("cube_position_weight", 200, 10000, step=200)
     quat_weight = trial.suggest_int("quat_weight", 5000, 500000, step=5000)
 
-    finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
+    finger_config = trial.suggest_categorical("finger_config", [2, 3])
     # finger_config = 1
     
     x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
     u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
 
     cube_model = trial.suggest_int("cube_model", 1, 10)
+    mu_finger_cube = trial.suggest_int("mu_finger_cube", 1, 100)
+
+    towards_2_fingers = trial.suggest_categorical("towards_2_fingers", [True, False])
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
@@ -82,7 +85,7 @@ def objective(trial):
 
     c3_options["c3_options"]["w_G_final"] = w_G_final
 
-    finger_ratio = abs(u_ratio_finger) / 10.0
+    finger_ratio = abs(u_ratio_finger) 
     if (u_ratio_finger < 0):
         u_lambda_finger = 1.0
         u_eta_finger = finger_ratio
@@ -91,7 +94,7 @@ def objective(trial):
         u_lambda_finger = finger_ratio
         u_eta_finger = 1.0
 
-    cube_ratio = abs(u_ratio_cube) / 10.0
+    cube_ratio = abs(u_ratio_cube)
     if (u_ratio_cube < 0):
         u_lambda_cube = 1.0
         u_eta_cube = cube_ratio
@@ -132,16 +135,17 @@ def objective(trial):
 
     c3_options["c3_options"]["q_vector"][13] = cube_position_weight
     c3_options["c3_options"]["q_vector"][14] = cube_position_weight
-    c3_options["c3_options"]["q_vector"][15] = cube_position_weight
+    c3_options["c3_options"]["q_vector"][15] = 100
 
     for i in range(9): 
         c3_options["c3_options"]["q_vector"][i] = finger_position_weight
 
-
     c3_options["lcs_factory_options"]["num_contacts"] = 11
-    c3_options["lcs_factory_options"]["mu"] = [0.646, 0.646, 0.646, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48]
+
+    mu_fc = mu_finger_cube / 100.0
+    c3_options["lcs_factory_options"]["mu"] = [mu_fc, mu_fc, mu_fc, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
     c3_options["lcs_factory_options"]["N"] = tracking_N
-    c3_options["lcs_factory_options"]["dt"] = 0.03
+    c3_options["lcs_factory_options"]["dt"] = 0.02
 
     if (finger_config == 1):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
@@ -167,8 +171,8 @@ def objective(trial):
                                 0, 0, 0]   	# cube velo
     elif (finger_config == 2):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
-                                0.06, -0.06, 0.05,   # finger 2
-                                -0.06, -0.06, 0.05,   # finger 3
+                                0.07, -0.045, 0.05,   # finger 2
+                                -0.07, -0.045, 0.05,   # finger 3
                                 1, 0, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -178,8 +182,8 @@ def objective(trial):
                                 0, 0, 0]   	# cube velo
         
         c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
-                                0.06, -0.06, 0.05,   # finger 2
-                                -0.06, -0.06, 0.05,   # finger 3
+                                0.07, -0.045, 0.05,   # finger 2
+                                -0.07, -0.045, 0.05,   # finger 3
                                 0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -189,8 +193,8 @@ def objective(trial):
                                 0, 0, 0]   	# cube velo
     elif (finger_config == 3):
         c3_options["x_init"] = [0.0, 0.07, 0.05,  # finger 1 
-                                0.05, -0.07, 0.05,   # finger 2
-                                -0.05, -0.07, 0.05,   # finger 3
+                                0.07, -0.03, 0.05,   # finger 2
+                                -0.07, -0.03, 0.05,   # finger 3
                                 1, 0, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -200,8 +204,8 @@ def objective(trial):
                                 0, 0, 0]   	# cube velo
         
         c3_options["x_des"] = [0.0, 0.07, 0.05,  # finger 1 
-                                0.05, -0.07, 0.05,   # finger 2
-                                -0.05, -0.07, 0.05,   # finger 3
+                                0.07, -0.03, 0.05,   # finger 2
+                                -0.07, -0.03, 0.05,   # finger 3
                                 0, 1, 0, 0, # cube orientation
                                 0, 0, 0.052,  # cube position
                                 0, 0, 0,     # finger 1 velo
@@ -209,9 +213,12 @@ def objective(trial):
                                 0, 0, 0,     # finger 3 velo
                                 0, 0, 0,     # cube ang velo
                                 0, 0, 0]   	# cube velo
-        
+
+    if (not towards_2_fingers):
+        c3_options["x_des"][10] = -1
+
     c3_options["c3_options"]["w_Q"] = 5
-    c3_options["c3_options"]["w_R"] = 100
+    c3_options["c3_options"]["w_R"] = 50
     c3_options["c3_options"]["w_U"] = 1
     c3_options["c3_options"]["scale_lcs"] = True
 
@@ -231,23 +238,30 @@ def objective(trial):
     # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
     warm_start_alpha = 0 
 
-    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 30, 40, 50, 60])
+    num_segments = trial.suggest_categorical("num_segments", [5, 10, 15, 20, 30, 40, 60])
 
     num_iters = trial.suggest_int("num_iters", 2, 12)
-    alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
-    alpha_object = trial.suggest_int("alpha_object", 0, 100)
-    alpha_ee_step = trial.suggest_int("alpha_ee_step", 0, 100)
-    alpha_object_step = trial.suggest_int("alpha_object_step", 0, 100)
+    # alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
+    # alpha_object = trial.suggest_int("alpha_object", 0, 100)
+    # alpha_ee_step = trial.suggest_int("alpha_ee_step", 0, 100)
+    # alpha_object_step = trial.suggest_int("alpha_object_step", 0, 100)
+    alpha_ee = 0
+    alpha_object = 0
+    alpha_ee_step = 0
+    alpha_object_step = 0
 
-    use_pd = trial.suggest_categorical("use_pd", [True, False])
+    # use_pd = trial.suggest_categorical("use_pd", [True, False])
+    use_pd = False
+    rho = trial.suggest_int("rho", 1, 1000)
 
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     # use_value_function = trial.suggest_categorical("use_value_function", [True, False])
     use_value_function = True
 
     value_function_scaling = 100 if use_value_function else 0
+    vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
 
-    accel_cost = 20
+    accel_cost = 5
 
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
     use_rollout_lambdas = True
@@ -255,7 +269,7 @@ def objective(trial):
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
-    ic3_options["N"] = 600
+    ic3_options["N"] = 360
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -277,6 +291,7 @@ def objective(trial):
 
     ic3_options["acceleration_cost_weight"] = accel_cost
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
+    ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
     Kp = 200 if use_pd else 0
     Kd = 20 if use_pd else 0
@@ -292,6 +307,7 @@ def objective(trial):
     ic3_options["num_threads"] = 32
 
     ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+    ic3_options["anchor_rho"] = rho / 10.0
 
     if "p_vector" in ic3_options:
         del ic3_options["p_vector"]
@@ -407,7 +423,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/sub_30_trials_pivot_higher_friction.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/sub_30_trials_pivot_new_anchor_updates.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -418,7 +434,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/best_params_pivot_higher_friction.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/best_params_pivot_new_anchor_updates.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -436,9 +452,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_higher_friction.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_new_anchor_updates.db"
     else:
-        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/optuna_results_pivot_higher_friction.db"
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/optuna_results_pivot_new_anchor_updates.db"
         
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
@@ -447,7 +463,7 @@ if __name__ == "__main__":
     )
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_higher_friction",
+        study_name="MSiC3_point_hand_pivot_new_anchor_updates",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

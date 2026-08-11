@@ -29,6 +29,8 @@ using Eigen::MatrixXf;
 using Eigen::VectorXd;
 using Eigen::Vector3d;
 using Eigen::VectorXf;
+using Eigen::Quaterniond;
+using Eigen::Matrix3d;
 using drake::math::RotationMatrix;
 using drake::math::RollPitchYaw;
 using drake::multibody::ContactResults;
@@ -38,8 +40,8 @@ using drake::SortedPair;
 namespace c3 {
 namespace systems {
 
-MSiC3Parallel::MSiC3Parallel(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
-  MultibodyPlant<double>& plant_rollout, MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
+MSiC3Parallel::MSiC3Parallel(const MultibodyPlant<double>& plant, const MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
+  const MultibodyPlant<double>& plant_rollout, const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
   drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,    
   const vector<SortedPair<GeometryId>>& contact_geoms, const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
   C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, HybridMpcOptions mpc_options, int example_idx)
@@ -176,28 +178,28 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       lower_bound_x(3*i+1) = xd(3*i+1) - 0.06;
       lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
-      lower_bound_x(16 + 3*i) = -0.08;
-      lower_bound_x(16 + 3*i+1) = -0.08;
+      lower_bound_x(16 + 3*i) = -0.1;
+      lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.05;
 
       upper_bound_x(3*i) = xd(3*i) + 0.06;
       upper_bound_x(3*i+1) = xd(3*i+1) + 0.06;
       upper_bound_x(3*i+2) = xd(3*i+2) + 0.01;
 
-      upper_bound_x(16 + 3*i) = 0.08;
-      upper_bound_x(16 + 3*i+1) = 0.08;
+      upper_bound_x(16 + 3*i) = 0.1;
+      upper_bound_x(16 + 3*i+1) = 0.1;
       upper_bound_x(16 + 3*i+2) = 0.05;
 
       A_u(3*i, 3*i) = 1;
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -0.4;
-      lower_bound_u(3*i+1) = -0.4;
+      lower_bound_u(3*i) = -0.5;
+      lower_bound_u(3*i+1) = -0.5;
       lower_bound_u(3*i+2) = 0.15;
       
-      upper_bound_u(3*i) = 0.4;
-      upper_bound_u(3*i+1) = 0.4;
+      upper_bound_u(3*i) = 0.5;
+      upper_bound_u(3*i+1) = 0.5;
       upper_bound_u(3*i+2) = 0.25;
     }
 
@@ -223,18 +225,21 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_x(16 + 3*i + 1, 16 + 3*i + 1) = 1;
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
+      double xy_bound = (i == 0) ? 0.07 : 0.05;
+      double z_bound = (i == 0) ? 0.07 : 0.04;
+
       // Offset from initial position
-      lower_bound_x(3*i) = xd(3*i) - 0.07;
-      lower_bound_x(3*i+1) = xd(3*i+1) - 0.07;
-      lower_bound_x(3*i+2) = xd(3*i+2) - 0.03;
+      lower_bound_x(3*i) = xd(3*i) - xy_bound;
+      lower_bound_x(3*i+1) = xd(3*i+1) - xy_bound;
+      lower_bound_x(3*i+2) = xd(3*i+2) - 0.01;
 
       lower_bound_x(16 + 3*i) = -0.1;
       lower_bound_x(16 + 3*i+1) = -0.1;
       lower_bound_x(16 + 3*i+2) = -0.1;
 
-      upper_bound_x(3*i) = xd(3*i) + 0.07;
-      upper_bound_x(3*i+1) = xd(3*i+1) + 0.07;
-      upper_bound_x(3*i+2) = xd(3*i+2) + 0.07;
+      upper_bound_x(3*i) = xd(3*i) + xy_bound;
+      upper_bound_x(3*i+1) = xd(3*i+1) + xy_bound;
+      upper_bound_x(3*i+2) = xd(3*i+2) + z_bound;
 
       upper_bound_x(16 + 3*i) = 0.1;
       upper_bound_x(16 + 3*i+1) = 0.1;
@@ -244,12 +249,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -1;
-      lower_bound_u(3*i+1) = -1;
+      double u_bound_xy = (i == 0) ? 3 : 2;
+
+      lower_bound_u(3*i) = -u_bound_xy;
+      lower_bound_u(3*i+1) = -u_bound_xy;
       lower_bound_u(3*i+2) = -0.8;
       
-      upper_bound_u(3*i) = 1;
-      upper_bound_u(3*i+1) = 1;
+      upper_bound_u(3*i) = u_bound_xy;
+      upper_bound_u(3*i+1) = u_bound_xy;
       upper_bound_u(3*i+2) = 1.2;
     }
   }
@@ -309,15 +316,15 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     for (auto idx : controller_options_.quaternion_indices) {
       double rotation = (double)k / (N_);
 
-      Eigen::Quaterniond q0(x0(idx), x0(idx+1), x0(idx+2), x0(idx+3));
-      Eigen::Quaterniond qd(xd(idx), xd(idx+1), xd(idx+2), xd(idx+3));
+      Quaterniond q0(x0(idx), x0(idx+1), x0(idx+2), x0(idx+3));
+      Quaterniond qd(xd(idx), xd(idx+1), xd(idx+2), xd(idx+3));
       VectorXd v0 = x0.segment(idx, 4);
       VectorXd vd = xd.segment(idx, 4);
 
       // Ensure quaternions are in the same hemisphere 
       if (v0.dot(vd) < 0) {
           vd = -vd;
-          qd = Eigen::Quaterniond(vd(0), vd(1), vd(2), vd(3));
+          qd = Quaterniond(vd(0), vd(1), vd(2), vd(3));
       }
 
       if (-1e-3 < q0.dot(qd) && q0.dot(qd) < 1e-3) { 
@@ -331,7 +338,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
         x_hat.col(k).segment(idx, 4) = v_interpolated;
 
       } else {
-        Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
+        Quaterniond slerp = q0.slerp(rotation, qd);
         x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
       }
     }
@@ -505,6 +512,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   int num_iters = ms_ic3_options_.num_iters;
 
+  // AuLa multiplier/penalty
+  MatrixXd xis(MatrixXd::Zero(n_x_, num_segments_));
+  VectorXd rhos(VectorXd::Ones(num_segments_));
+
+  // TODO: update these to be params
+  double rho_multiplier = 2;
+  double rho_max = 32;
+
   for (int iter = 1; iter <= num_iters; iter++) {
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -529,10 +544,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     new_x_anchors.col(0) = x0;
 
     // Set alpha
-    double alpha_ee = std::min(1.0, ms_ic3_options_.alpha_ee + (iter-1) * ms_ic3_options_.alpha_ee_step);
-    double alpha_object = std::min(1.0, ms_ic3_options_.alpha_object + (iter-1) * ms_ic3_options_.alpha_object_step);
+    // double alpha_ee = std::min(1.0, ms_ic3_options_.alpha_ee + (iter-1) * ms_ic3_options_.alpha_ee_step);
+    // double alpha_object = std::min(1.0, ms_ic3_options_.alpha_object + (iter-1) * ms_ic3_options_.alpha_object_step);
 
-    std::cout << "alpha ee " << alpha_ee << " alpha object " << alpha_object << std::endl;
+    // std::cout << "alpha ee " << alpha_ee << " alpha object " << alpha_object << std::endl;
     std::cout << "num segments " << num_segments_ << std::endl;
     std::cout << "L " << L_ << std::endl;
 
@@ -540,7 +555,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     // z_sol_iter_.resize(num_segments_);
 
     // Solve C3 over each segment
-    #pragma omp parallel for num_threads(ms_ic3_options_.num_threads)
+    #pragma omp parallel for num_threads(ms_ic3_options_.num_threads.value_or(1))
     for (int i = 0; i < num_segments_; i++) {
 
       auto [x_hat_out, u_hat_out, lambda_hat_out, gamma_out, in_contact_out] = 
@@ -554,58 +569,11 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
       // std::cout << x_hat_out.topRows(12).transpose() << std::endl;
       VectorXd x_L = x_hat_out.col(L_);
-
-      // std::cout << "x anchor segment " << i << ": " << x_anchors.col(i).segment(9, 7).transpose() << std::endl;
-      // std::cout << "x_L segment " << i << ": " << x_L.segment(9, 7).transpose() << std::endl << std::endl;
-
       VectorXd x_anchor_next = x_anchors.col(i+1);
 
-      // Update anchors
-      // HARDCODED INDICES
-      if (example_idx_ == 0) {
-        new_x_anchors.col(i+1).segment(0, 5) = x_L.segment(0, 5) - (1-alpha_ee) * (x_L - x_anchor_next).segment(0, 5);
-        new_x_anchors.col(i+1).segment(12, 5) = x_L.segment(12, 5) - (1-alpha_ee) * (x_L - x_anchor_next).segment(12, 5);
-        
-        // Update object anchors
-        new_x_anchors.col(i+1).segment(9, 3) = x_L.segment(9, 3) - (1-alpha_object) * (x_L - x_anchor_next).segment(9, 3);
-        new_x_anchors.col(i+1).segment(17, 6) = x_L.segment(17, 6) - (1-alpha_object) * (x_L - x_anchor_next).segment(17, 6);
+      // Update anchors based on value function (encodes sensitivity)
+      new_x_anchors.col(i+1) = UpdateAnchor(x_L, x_anchor_next, H[(i+1) * L_]);
 
-      } else if (example_idx_ == 1 || example_idx_ == 2) {
-        // Update ee anchors
-        new_x_anchors.col(i+1).segment(0, 9) = x_L.segment(0, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(0, 9);
-        new_x_anchors.col(i+1).segment(16, 9) = x_L.segment(16, 9) - (1-alpha_ee) * (x_L - x_anchor_next).segment(16, 9);
-        
-        // Update object anchors
-        new_x_anchors.col(i+1).segment(13, 3) = x_L.segment(13, 3) - (1-alpha_object) * (x_L - x_anchor_next).segment(13, 3);
-        new_x_anchors.col(i+1).segment(25, 6) = x_L.segment(25, 6) - (1-alpha_object) * (x_L - x_anchor_next).segment(25, 6);
-      }
-      // Linearly interpolate quaternions correctly for object
-      for (auto idx : controller_options_.quaternion_indices) {
-        Eigen::Quaterniond q0(x_anchor_next(idx), x_anchor_next(idx+1), x_anchor_next(idx+2), x_anchor_next(idx+3));
-        Eigen::Quaterniond qf(x_L(idx), x_L(idx+1), x_L(idx+2), x_L(idx+3));
-        VectorXd v0 = x_anchor_next.segment(idx, 4);
-        VectorXd vf = x_L.segment(idx, 4);
-
-        // Ensure quaternions are in the same hemisphere 
-        if (v0.dot(vf) < 0) {
-            vf = -vf;
-            qf = Eigen::Quaterniond(vf(0), vf(1), vf(2), vf(3));
-        }
-
-        if (-1e-3 < q0.dot(qf) && q0.dot(qf) < 1e-3) { 
-          // Fallback for antipodal points, use linear interpolation in R3 to get default axis
-          Eigen::Vector4d mid = v0 + vf;
-          Eigen::Vector4d tangent = (mid - mid.dot(v0) * v0).normalized();
-
-          double theta = std::acos(std::clamp(v0.dot(vf), -1.0, 1.0)); 
-          Eigen::Vector4d v_interpolated = v0 * std::cos(alpha_object * theta) + tangent * std::sin(alpha_object * theta);
-
-          new_x_anchors.col(i+1).segment(idx, 4) = v_interpolated;
-        } else {
-          Eigen::Quaterniond slerp = q0.slerp(alpha_object, qf);
-          new_x_anchors.col(i+1).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
-        }
-      }
       // Don't update final anchor
       if (i == num_segments_) {
         new_x_anchors.col(i+1) = xd;
@@ -671,6 +639,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     // END OF PARALLELIZATION
 
     x_anchors = new_x_anchors;
+
+
 
     MatrixXd x_anchors_prev = all_x_anchors[iter-1];
     for (int j = 0; j < num_segments_; j++) {
@@ -1643,6 +1613,145 @@ std::tuple<VectorXd, VectorXd, VectorXd> MSiC3Parallel::ConstructLambdasFromCont
   // std::cout << "lambda " << lambda.transpose() << std::endl;
   return {lambda, gamma, in_contact};
 }
+
+VectorXd MSiC3Parallel::UpdateAnchor(VectorXd x_L, VectorXd x_anchor_next, MatrixXd H) {
+  double rho = ms_ic3_options_.anchor_rho.value_or(1);
+
+  VectorXd x_updated = x_anchor_next;
+
+  // Track which indices belong to quaternion blocks
+  std::unordered_set<int> quat_indices_set;
+  for (int q_idx : controller_options_.quaternion_indices) {
+    quat_indices_set.insert(q_idx);
+    quat_indices_set.insert(q_idx + 1);
+    quat_indices_set.insert(q_idx + 2);
+    quat_indices_set.insert(q_idx + 3);
+  }
+
+  // ----------------------------------------------------------------------
+  // 1. Calculate Average Curvature across 3D Tangent Space
+  // ----------------------------------------------------------------------
+  double trace_tangent = 0.0;
+  int minimal_dim = 0;
+
+  for (int i = 0; i < n_x_; ) {
+    // Check if i is the start of a quaternion block
+    if (std::find(controller_options_.quaternion_indices.begin(), 
+                  controller_options_.quaternion_indices.end(), i) 
+                  != controller_options_.quaternion_indices.end()) {
+      // Extract Quaternion q_curr = [w, x, y, z]
+      double w = x_anchor_next(i), x = x_anchor_next(i + 1), y = x_anchor_next(i + 2), z = x_anchor_next(i + 3);
+
+      // Compute 4x3 G(q) matrix
+      Eigen::Matrix<double, 4, 3> G;
+      G << -x, -y, -z,
+            w, -z,  y,
+            z,  w, -x,
+            -y,  x,  w;
+
+      Eigen::Matrix<double, 4, 3> E_q = 0.5 * G;
+
+      // Project 4x4 Hessian block to 3x3 Tangent block
+      Eigen::Matrix3d V_theta_theta = E_q.transpose() * H.block<4, 4>(i, i) * E_q;
+      trace_tangent += V_theta_theta.trace();
+      minimal_dim += 3;
+
+      i += 4; // Skip full quaternion block
+    } else {
+      // Standard Euclidean component
+      trace_tangent += std::max(0.0, H(i, i));
+      minimal_dim += 1;
+      i += 1;
+    }
+  }
+
+  double mean_curvature = (minimal_dim > 0) ? (trace_tangent / minimal_dim) : 1.0;
+  mean_curvature = std::max(mean_curvature, 1e-6); // Prevent division by zero
+
+  // ----------------------------------------------------------------------
+  // 2. Update Euclidean Components
+  // ----------------------------------------------------------------------
+  for (int i = 0; i < n_x_; ++i) {
+    if (quat_indices_set.find(i) == quat_indices_set.end()) {
+      double h_ii = std::max(0.0, H(i, i));
+      
+      // Relative stiffness ratio compared to average state stiffness at this time step
+      double r_i = h_ii / mean_curvature;
+      
+      // Component-wise step size
+      double alpha_i = rho / (r_i + rho);
+      
+      // Convex combination
+      x_updated(i) = (1.0 - alpha_i) * x_anchor_next(i) + alpha_i * x_L(i);
+    }
+  }
+
+  // ----------------------------------------------------------------------
+  // 3. Update Quaternion Components
+  // ----------------------------------------------------------------------
+  for (int q_idx : controller_options_.quaternion_indices) {
+    // Extract quaternions [w, x, y, z]
+    Quaterniond q_curr(x_anchor_next(q_idx), x_anchor_next(q_idx + 1), x_anchor_next(q_idx + 2), x_anchor_next(q_idx + 3));
+    Quaterniond q_L(x_L(q_idx), x_L(q_idx + 1), x_L(q_idx + 2), x_L(q_idx + 3));
+
+    // A. Project 4x4 Hessian to 3x3 Tangent Space
+    double w = q_curr.w(), x = q_curr.x(), y = q_curr.y(), z = q_curr.z();
+    Eigen::Matrix<double, 4, 3> G;
+    G << -x, -y, -z,
+          w, -z,  y,
+          z,  w, -x,
+          -y,  x,  w;
+
+    Eigen::Matrix<double, 4, 3> E_q = 0.5 * G;
+    Matrix3d V_theta_theta = E_q.transpose() * H.block<4, 4>(q_idx, q_idx) * E_q;
+
+    // B. Compute relative rotational stiffness ratio r_theta & alpha_theta
+    double mean_v_theta = V_theta_theta.trace() / 3.0;
+    double r_theta = std::max(0.0, mean_v_theta / mean_curvature);
+    double alpha_theta = rho / (r_theta + rho);
+
+    // C. Inline Quaternion Log Map: d_theta = 2 * Log(q_curr^-1 * q_L)
+    Quaterniond q_err = (q_curr.conjugate() * q_L).normalized();
+    if (q_err.w() < 0.0) {
+      q_err.coeffs() = -q_err.coeffs(); // Ensure shortest path
+    }
+
+    Vector3d v = q_err.vec();
+    double v_norm = v.norm();
+    double w_err = q_err.w();
+
+    Vector3d d_theta;
+    if (v_norm < 1e-8) {
+      d_theta = 2.0 * v;
+    } else {
+      double angle = 2.0 * std::atan2(v_norm, w_err);
+      d_theta = angle * (v / v_norm);
+    }
+
+    // D. Inline Quaternion Exp Map & Apply Convex Combination on S^3
+    Vector3d scaled_d_theta = alpha_theta * d_theta;
+    double step_angle = scaled_d_theta.norm();
+
+    Quaterniond exp_d_theta;
+    if (step_angle < 1e-8) {
+      exp_d_theta = Quaterniond(1.0, 0.5 * scaled_d_theta.x(), 0.5 * scaled_d_theta.y(), 0.5 * scaled_d_theta.z()).normalized();
+    } else {
+      Vector3d axis = scaled_d_theta / step_angle;
+      exp_d_theta = Quaterniond(Eigen::AngleAxisd(step_angle, axis));
+    }
+
+    Quaterniond q_updated = (q_curr * exp_d_theta).normalized();
+
+    // Write back updated quaternion [w, x, y, z]
+    x_updated(q_idx) = q_updated.w();
+    x_updated(q_idx + 1) = q_updated.x();
+    x_updated(q_idx + 2) = q_updated.y();
+    x_updated(q_idx + 3) = q_updated.z();
+  }
+
+  return x_updated;
+}
+
 
 void MSiC3Parallel::UpdateQuaternionCosts(
   MatrixXd x_hat, VectorXd x_des) {

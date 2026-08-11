@@ -6,13 +6,13 @@ publish_frequency: 10
 state_prediction_joints: []
 
 quaternion_indices: [9]
-Q_quaternion_weight: 5000
+Q_quaternion_weight: 326000
 
 quaternion_regularizer_fraction: 0.0
 
 x_init: [0.0, 0.07, 0.05,  # finger 1 
-         0.065, -0.04, 0.05,   # finger 2
-         -0.065, -0.04, 0.05,   # finger 3
+         0.05, -0.07, 0.05,   # finger 2
+         -0.05, -0.07, 0.05,   # finger 3
          1, 0, 0, 0, # cube orientation
          0, 0, 0.052,  # cube position
          0, 0, 0,     # finger 1 velo
@@ -23,9 +23,9 @@ x_init: [0.0, 0.07, 0.05,  # finger 1
 
 
 x_des: [0.0, 0.07, 0.05,  # finger 1 
-         0.07, -0.03, 0.05,   # finger 2
-         -0.07, -0.03, 0.05,   # finger 3
-         0.1, -0.995, 0, 0, # cube orientation
+         0.05, -0.07, 0.05,   # finger 2
+         -0.05, -0.07, 0.05,   # finger 3
+         0.1, 0.995, 0, 0, # cube orientation
          0, 0, 0.052,  # cube position
          0, 0, 0,     # finger 1 velo
          0, 0, 0,     # finger 2 velo
@@ -44,7 +44,7 @@ lcs_factory_options:
 
   # 3 fingertip-cube, 8 cube-ground
   mu: [0.5, 0.5, 0.5, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48, 0.48]
-  N: 4
+  N: 6
   dt: 0.02
 
 c3_options:
@@ -67,21 +67,21 @@ c3_options:
 
   M: 1000
 
-  admm_iter: 5
+  admm_iter: 3
   gamma: 1.00
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 1 #Penalty on all decision variables, assuming scalar
-  w_G: 0.1 #Penalty on all decision variables, assuming scalar
+  w_G: 1.32 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
 
-  w_G_final: 10
+  w_G_final: 8
 
-  q_vector: [100, 100, 1000,    # finger 1
-             100, 100, 1000,    # finger 2
-             100, 100, 1000,    # finger 3
+  q_vector: [7000, 7000, 7000,    # finger 1
+             7000, 7000, 7000,    # finger 2
+             7000, 7000, 7000,    # finger 3
              1, 1, 1, 1,
-             500, 500, 50000,
+             9400, 9400, 9400,
              1, 1, 1,          # finger 1 velo
              1, 1, 1,          # finger 2 velo
              1, 1, 1,          # finger 3 velo 
@@ -98,12 +98,12 @@ c3_options:
         0, 0, 0, 0, 0, 0]                                 # cube velo
 
 
-  g_lambda: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_eta: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] 
+  g_lambda: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+             100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+             100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+  g_eta: [44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 
+          44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+          44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44] 
 
   g_eta_slack: [] 
   g_eta_n: [] 
@@ -117,12 +117,12 @@ c3_options:
         10, 10, 10, 10, 10, 10, 10, 10, 10,   # hand velo
         1, 1, 1, 1, 1, 1]                           # cube velo
 
-  u_lambda: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+  u_lambda: [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 
              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] 
   u_eta: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-          100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-          100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+          91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 
+          91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91, 91]
 
   u_u: [1, 1, 1, 1, 1, 1, 1, 1, 1]
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 
 using Eigen::VectorXd;
 
@@ -18,6 +19,7 @@ struct MSiC3Options {
   bool add_input_constraints;
 
   bool use_rollout_lambdas;
+  bool use_lambdas_for_lcs;
 
   bool early_termination;
 
@@ -33,7 +35,9 @@ struct MSiC3Options {
   double defect_quaternion_weight;
   double defect_quaternion_regularizer_fraction;
 
-  int num_threads;
+  // Stuff for parallelized version
+  std::optional<int> num_threads;
+  std::optional<double> anchor_rho;
 
   VectorXd rollout_Kp;
   VectorXd rollout_Kd;
@@ -78,6 +82,8 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(alpha_object_step));
     a->Visit(DRAKE_NVP(warm_start_alpha));
     a->Visit(DRAKE_NVP(vf_trust_region_weight));
+    a->Visit(DRAKE_NVP(use_lambdas_for_lcs));
+    a->Visit(DRAKE_NVP(anchor_rho));
 
   }
 };

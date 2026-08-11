@@ -1,0 +1,459 @@
+Trial #398 | Metric Score: 12.6286
+Parameters:
+  w_G: 474
+  g_lambda: 38
+  g_eta: 84
+  u_ratio_finger: -92
+  u_ratio_cube: -105
+  admm_iter: 6
+  tracking_N: 5
+  w_G_final: 45
+  num_segments: 5
+  alpha_ee: 99
+  alpha_object: 55
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 42
+  traj_N: 600
+----------------------------------------
+Trial #415 | Metric Score: 0.439284
+Parameters:
+  w_G: 260
+  g_lambda: 56
+  g_eta: 76
+  u_ratio_finger: -177
+  u_ratio_cube: -136
+  admm_iter: 6
+  tracking_N: 7
+  w_G_final: 78
+  num_segments: 15
+  alpha_ee: 93
+  alpha_object: 51
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 20
+  traj_N: 600
+----------------------------------------
+Trial #537 | Metric Score: 10.6898
+Parameters:
+  w_G: 441
+  g_lambda: 24
+  g_eta: 54
+  u_ratio_finger: -174
+  u_ratio_cube: -36
+  admm_iter: 4
+  tracking_N: 6
+  w_G_final: 98
+  num_segments: 12
+  alpha_ee: 62
+  alpha_object: 28
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 66
+  traj_N: 540
+----------------------------------------
+Trial #764 | Metric Score: 6.95601
+Parameters:
+  w_G: 461
+  g_lambda: 38
+  g_eta: 70
+  u_ratio_finger: -189
+  u_ratio_cube: -25
+  admm_iter: 4
+  tracking_N: 6
+  w_G_final: 96
+  num_segments: 12
+  alpha_ee: 57
+  alpha_object: 24
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 49
+  traj_N: 540
+----------------------------------------
+Trial #1088 | Metric Score: 8.35798
+Parameters:
+  w_G: 455
+  g_lambda: 44
+  g_eta: 86
+  u_ratio_finger: -200
+  u_ratio_cube: -67
+  admm_iter: 4
+  tracking_N: 6
+  w_G_final: 59
+  num_segments: 12
+  alpha_ee: 93
+  alpha_object: 90
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 72
+  traj_N: 600
+----------------------------------------
+Trial #1138 | Metric Score: 10.977
+Parameters:
+  w_G: 168
+  g_lambda: 90
+  g_eta: 54
+  u_ratio_finger: 27
+  u_ratio_cube: -139
+  admm_iter: 5
+  tracking_N: 5
+  w_G_final: 39
+  num_segments: 15
+  alpha_ee: 68
+  alpha_object: 15
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 23
+  traj_N: 600
+----------------------------------------
+Trial #1314 | Metric Score: 7.56066
+Parameters:
+  w_G: 446
+  g_lambda: 26
+  g_eta: 56
+  u_ratio_finger: -144
+  u_ratio_cube: -79
+  admm_iter: 3
+  tracking_N: 6
+  w_G_final: 85
+  num_segments: 5
+  alpha_ee: 54
+  alpha_object: 70
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 4
+  traj_N: 540
+----------------------------------------
+Trial #1602 | Metric Score: 0.839236
+Parameters:
+  w_G: 318
+  g_lambda: 82
+  g_eta: 88
+  u_ratio_finger: -18
+  u_ratio_cube: -97
+  admm_iter: 4
+  tracking_N: 7
+  w_G_final: 42
+  num_segments: 15
+  alpha_ee: 39
+  alpha_object: 85
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 38
+  traj_N: 600
+----------------------------------------
+Trial #1678 | Metric Score: 7.11798
+Parameters:
+  w_G: 374
+  g_lambda: 42
+  g_eta: 68
+  u_ratio_finger: -112
+  u_ratio_cube: -9
+  admm_iter: 3
+  tracking_N: 4
+  w_G_final: 91
+  num_segments: 30
+  alpha_ee: 49
+  alpha_object: 56
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 7
+  traj_N: 540
+----------------------------------------
+Trial #1751 | Metric Score: 4.25321
+Parameters:
+  w_G: 365
+  g_lambda: 80
+  g_eta: 56
+  u_ratio_finger: -12
+  u_ratio_cube: -58
+  admm_iter: 4
+  tracking_N: 6
+  w_G_final: 40
+  num_segments: 20
+  alpha_ee: 37
+  alpha_object: 83
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 39
+  traj_N: 600
+----------------------------------------
+Trial #2264 | Metric Score: 13.2461
+Parameters:
+  w_G: 409
+  g_lambda: 46
+  g_eta: 56
+  u_ratio_finger: 12
+  u_ratio_cube: -170
+  admm_iter: 5
+  tracking_N: 5
+  w_G_final: 30
+  num_segments: 30
+  alpha_ee: 41
+  alpha_object: 98
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 59
+  traj_N: 540
+----------------------------------------
+Trial #2330 | Metric Score: 10.49
+Parameters:
+  w_G: 327
+  g_lambda: 80
+  g_eta: 56
+  u_ratio_finger: -28
+  u_ratio_cube: -69
+  admm_iter: 3
+  tracking_N: 5
+  w_G_final: 59
+  num_segments: 20
+  alpha_ee: 37
+  alpha_object: 70
+  use_lambdas_for_lcs: True
+  vf_trust_region_weight: 50
+  traj_N: 540
+----------------------------------------
+Trial #2774 | Metric Score: 0.227311
+Parameters:
+  w_G: 302
+  g_lambda: 52
+  g_eta: 98
+  u_ratio_finger: -57
+  u_ratio_cube: -109
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 46
+  num_segments: 5
+  alpha_ee: 97
+  alpha_object: 66
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 44
+  traj_N: 660
+----------------------------------------
+Trial #2859 | Metric Score: 0.668628
+Parameters:
+  w_G: 461
+  g_lambda: 70
+  g_eta: 98
+  u_ratio_finger: -21
+  u_ratio_cube: -159
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 53
+  num_segments: 5
+  alpha_ee: 66
+  alpha_object: 84
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 12
+  traj_N: 660
+----------------------------------------
+Trial #2877 | Metric Score: 0.770316
+Parameters:
+  w_G: 435
+  g_lambda: 82
+  g_eta: 100
+  u_ratio_finger: -6
+  u_ratio_cube: -89
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 58
+  num_segments: 5
+  alpha_ee: 67
+  alpha_object: 89
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 59
+  traj_N: 660
+----------------------------------------
+Trial #2898 | Metric Score: 8.50759
+Parameters:
+  w_G: 396
+  g_lambda: 66
+  g_eta: 36
+  u_ratio_finger: -2
+  u_ratio_cube: -178
+  admm_iter: 6
+  tracking_N: 7
+  w_G_final: 61
+  num_segments: 30
+  alpha_ee: 94
+  alpha_object: 83
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 22
+  traj_N: 660
+----------------------------------------
+Trial #3032 | Metric Score: 13.4306
+Parameters:
+  w_G: 405
+  g_lambda: 86
+  g_eta: 80
+  u_ratio_finger: 9
+  u_ratio_cube: -121
+  admm_iter: 6
+  tracking_N: 5
+  w_G_final: 36
+  num_segments: 10
+  alpha_ee: 94
+  alpha_object: 69
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 56
+  traj_N: 660
+----------------------------------------
+Trial #3086 | Metric Score: 12.8319
+Parameters:
+  w_G: 278
+  g_lambda: 66
+  g_eta: 100
+  u_ratio_finger: 19
+  u_ratio_cube: -62
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 36
+  num_segments: 5
+  alpha_ee: 81
+  alpha_object: 63
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 64
+  traj_N: 660
+----------------------------------------
+Trial #3151 | Metric Score: 1.26117
+Parameters:
+  w_G: 253
+  g_lambda: 66
+  g_eta: 92
+  u_ratio_finger: -5
+  u_ratio_cube: -102
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 70
+  num_segments: 15
+  alpha_ee: 91
+  alpha_object: 81
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 80
+  traj_N: 660
+----------------------------------------
+Trial #3192 | Metric Score: 0.635306
+Parameters:
+  w_G: 221
+  g_lambda: 68
+  g_eta: 100
+  u_ratio_finger: -42
+  u_ratio_cube: -45
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 61
+  num_segments: 15
+  alpha_ee: 75
+  alpha_object: 73
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 77
+  traj_N: 660
+----------------------------------------
+Trial #3217 | Metric Score: 5.76453
+Parameters:
+  w_G: 371
+  g_lambda: 62
+  g_eta: 88
+  u_ratio_finger: -8
+  u_ratio_cube: -39
+  admm_iter: 6
+  tracking_N: 7
+  w_G_final: 66
+  num_segments: 15
+  alpha_ee: 99
+  alpha_object: 96
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 73
+  traj_N: 660
+----------------------------------------
+Trial #3257 | Metric Score: 0.485187
+Parameters:
+  w_G: 472
+  g_lambda: 90
+  g_eta: 56
+  u_ratio_finger: -8
+  u_ratio_cube: -129
+  admm_iter: 6
+  tracking_N: 7
+  w_G_final: 48
+  num_segments: 30
+  alpha_ee: 94
+  alpha_object: 88
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 40
+  traj_N: 540
+----------------------------------------
+Trial #3307 | Metric Score: 2.58476
+Parameters:
+  w_G: 284
+  g_lambda: 80
+  g_eta: 60
+  u_ratio_finger: -3
+  u_ratio_cube: -131
+  admm_iter: 6
+  tracking_N: 7
+  w_G_final: 24
+  num_segments: 30
+  alpha_ee: 89
+  alpha_object: 82
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 7
+  traj_N: 540
+----------------------------------------
+Trial #3376 | Metric Score: 0.23931
+Parameters:
+  w_G: 326
+  g_lambda: 54
+  g_eta: 96
+  u_ratio_finger: -26
+  u_ratio_cube: -116
+  admm_iter: 6
+  tracking_N: 6
+  w_G_final: 37
+  num_segments: 12
+  alpha_ee: 99
+  alpha_object: 68
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 62
+  traj_N: 660
+----------------------------------------
+Trial #3435 | Metric Score: 14.2136
+Parameters:
+  w_G: 426
+  g_lambda: 48
+  g_eta: 68
+  u_ratio_finger: 46
+  u_ratio_cube: -60
+  admm_iter: 5
+  tracking_N: 7
+  w_G_final: 63
+  num_segments: 5
+  alpha_ee: 91
+  alpha_object: 78
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 26
+  traj_N: 540
+----------------------------------------
+Trial #3503 | Metric Score: 0.652228
+Parameters:
+  w_G: 369
+  g_lambda: 54
+  g_eta: 90
+  u_ratio_finger: -168
+  u_ratio_cube: -183
+  admm_iter: 5
+  tracking_N: 6
+  w_G_final: 69
+  num_segments: 60
+  alpha_ee: 99
+  alpha_object: 100
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 46
+  traj_N: 600
+----------------------------------------
+Trial #3547 | Metric Score: 14.7621
+Parameters:
+  w_G: 415
+  g_lambda: 88
+  g_eta: 56
+  u_ratio_finger: 17
+  u_ratio_cube: -113
+  admm_iter: 6
+  tracking_N: 7
+  w_G_final: 49
+  num_segments: 20
+  alpha_ee: 87
+  alpha_object: 92
+  use_lambdas_for_lcs: False
+  vf_trust_region_weight: 56
+  traj_N: 540
+----------------------------------------

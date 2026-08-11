@@ -42,10 +42,10 @@ public:
   // 0 = plate
   // 1 = trifinger (point fingers)
   explicit MSiC3Parallel(
-    MultibodyPlant<double>& plant,
-    MultibodyPlant<drake::AutoDiffXd>& plant_ad,
-    MultibodyPlant<double>& plant_rollout,
-    MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
+    const MultibodyPlant<double>& plant,
+    const MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    const MultibodyPlant<double>& plant_rollout,
+    const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     drake::systems::Diagram<double>& rollout_diagram,
     std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
     const vector<SortedPair<GeometryId>>& contact_geoms,
@@ -129,6 +129,11 @@ private:
   // ASSUMES ANITESCU AND 2 FRICTION DIRECTIONS
   // Returns lambda, gamma, in_contact
   std::tuple<VectorXd, VectorXd, VectorXd> ConstructLambdasFromContactResults(drake::multibody::ContactResults<double> contact_results, std::string contact_model);
+
+  // Updates anchors by computing alpha based on value function, which encodes sensitivity (normalized by trace)
+  // Deals with quaternions by projecting to Euler angles first
+  VectorXd UpdateAnchor(VectorXd x_L, VectorXd x_anchor_next, MatrixXd H);
+
 
   // x_hat (N by n_x), kth row is x at time k
   void UpdateQuaternionCosts(

@@ -54,21 +54,24 @@ def objective(trial):
     eta_threshold = 0
 
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    tracking_N = trial.suggest_int("tracking_N", 3, 8)
-    finger_position_weight = trial.suggest_int("finger_position_weight", 1000, 10000, step=100)
-    cube_position_weight = trial.suggest_int("cube_position_weight", 100, 10000, step=100)
-    quat_weight = trial.suggest_int("quat_weight", 5000, 500000, step=5000)
+    tracking_N = trial.suggest_int("tracking_N", 3, 6)
+    # finger_position_weight = trial.suggest_int("finger_position_weight", 1000, 10000, step=100)
+    # cube_position_weight = trial.suggest_int("cube_position_weight", 100, 10000, step=100)
+    # quat_weight = trial.suggest_int("quat_weight", 5000, 500000, step=5000)
+    finger_position_weight = 5000
+    cube_position_weight = 8000
+    quat_weight = 300000
 
-    # finger_config = trial.suggest_categorical("finger_config", [1, 2, 3])
-    finger_config = 2
+    finger_config = trial.suggest_categorical("finger_config", [2, 3])
+    # finger_config = 2
 
     cube_model = trial.suggest_int("cube_model", 1, 10)
 
     # towards_2_fingers = trial.suggest_categorical("towards_2_fingers", [True, False])
     towards_2_fingers = True
 
-    large_dt = trial.suggest_categorical("large_dt", [True, False])
-
+    # large_dt = trial.suggest_categorical("large_dt", [True, False])
+    large_dt = True
 
     mu_finger_cube = trial.suggest_int("mu_finger_cube", 1, 100)
 
@@ -249,15 +252,17 @@ def objective(trial):
     num_warmup_iters = 0
     # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
     warm_start_alpha = 0
-    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 15, 30, 60])
+    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 15, 20, 30, 40, 60])
 
-    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
+    num_iters = trial.suggest_categorical("num_iters", [3, 5, 6])
+    # num_iters = 5
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
     vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
+    use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
 
     accel_cost = 10
 
@@ -267,7 +272,7 @@ def objective(trial):
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
         
-    ic3_options["N"] = 180 if large_dt else 360
+    ic3_options["N"] = 120 if large_dt else 240
     ic3_options["num_segments"] = num_segments
 
     ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -299,7 +304,8 @@ def objective(trial):
     ic3_options["drake_sim_dt"] = 0.0001
 
     ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
-    
+    ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
+
     ic3_options["num_threads"] = 32
 
     if "p_vector" in ic3_options:
@@ -405,18 +411,18 @@ def log_best_callback(study, trial):
     """
     Runs automatically after every trial.
     Logs the absolute best trial configuration AND appends any successful
-    trials that achieved a metric score under 30.
+    trials that achieved a metric score under 15.
     """
     if trial.value is None:
         return
 
-    # 1. LOG EVERY TRIAL WITH METRIC < 30
+    # 1. LOG EVERY TRIAL WITH METRIC < 15
     # Ensure the trial wasn't pruned, has a return value, and meets your condition
-    if trial.value < 30:
-        print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
+    if trial.value < 15:
+        print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
-        # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_30_trials_pivot_tighter_z_input_bounds.txt", "a") as f:
+        # Open in "a" (append) mode so you accumulate all sub-15 trials in one place
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_15_trials_pivot_static_lcs_shorter_plan.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -427,7 +433,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_tighter_z_input_bounds.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_static_lcs_shorter_plan.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -445,9 +451,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_tighter_z_input_bounds.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_static_lcs_shorter_plan.db"
     else:
-        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_tighter_z_input_bounds.db"
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_static_lcs_shorter_plan.db"
         
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
@@ -456,7 +462,7 @@ if __name__ == "__main__":
     )
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_tighter_z_input_bounds",
+        study_name="MSiC3_point_hand_pivot_static_lcs_shorter_plan",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

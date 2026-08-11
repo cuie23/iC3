@@ -20,19 +20,17 @@
         </inertial>
         <visual name="plate_visual">
           <geometry>
-            <cylinder>
-              <radius>0.2</radius>
-              <length> 0.02 </length>
-            </cylinder>
+            <mesh>
+              <uri>Plate.obj</uri>
+            </mesh>
           </geometry>
           <material><diffuse>0.1 0.1 0.1 1</diffuse></material>
         </visual>
         <collision name="plate_collision">
           <geometry>
-            <cylinder>
-              <radius>0.2</radius>
-              <length> 0.02 </length>
-            </cylinder>
+            <mesh>
+              <uri>Plate.obj</uri>
+            </mesh>
           </geometry>
           <drake:proximity_properties>
             <drake:mu_static>0.6</drake:mu_static>

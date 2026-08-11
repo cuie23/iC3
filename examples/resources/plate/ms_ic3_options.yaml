@@ -1,4 +1,4 @@
-num_iters: 2
+num_iters: 3
 num_warmup_iters: 1
 
 N: 200
@@ -19,18 +19,20 @@ drake_sim_dt: 0.0001
 use_rollout_lambdas: true
 
 penalize_acceleration: true
-acceleration_cost_weight: 20
+acceleration_cost_weight: 45
 
 defect_quaternion_weight: 50
 defect_quaternion_regularizer_fraction: 0
 
-rollout_Kp: [1000, 1000, 600, 600, 600]
-rollout_Kd: [20, 20, 40, 160, 160]
-alpha_ee: 0.74
-alpha_ee_step: 0.26
+rollout_Kp: [400, 400, 500, 800, 800]
+rollout_Kd: [20, 20, 80, 200, 200]
+alpha_ee: 0.97
+alpha_ee_step: 0.015
 
-alpha_object: 0.07
-alpha_object_step: 0.93
+alpha_object: 0.05
+alpha_object_step: 0.475
 
-warm_start_alpha: 0.42
+warm_start_alpha: 0.94
 value_function_scaling: 1.0
+vf_trust_region_weight: 72
+use_lambdas_for_lcs: true

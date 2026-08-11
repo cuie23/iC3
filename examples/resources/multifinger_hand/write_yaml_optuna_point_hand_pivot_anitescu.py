@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_tighter_u_bounds.db"
-STUDY_NAME = "MSiC3_point_hand_pivot_tighter_u_bounds"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_static_lcs_shorter_plan.db"
+STUDY_NAME = "MSiC3_point_hand_pivot_static_lcs_shorter_plan"
 
-TRIAL_NUMBER = 3740
+TRIAL_NUMBER = 4081
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -52,7 +52,7 @@ g_eta = trial.params["g_eta"]
 try:
     large_dt = trial.params["large_dt"]
 except KeyError:
-    large_dt = False
+    large_dt = True
 
 try:
     towards_2_fingers = trial.params["towards_2_fingers"]
@@ -81,10 +81,17 @@ u_ratio_cube = trial.params["u_ratio_cube"]
 # add_phi_buffer = trial.params["add_phi_buffer"]
 
 admm_iter = trial.params["admm_iter"]
-finger_position_weight = trial.params["finger_position_weight"]
-cube_position_weight = trial.params["cube_position_weight"]
+
 tracking_N = trial.params["tracking_N"]
-quat_weight = trial.params["quat_weight"]
+
+try:
+    finger_position_weight = trial.params["finger_position_weight"]
+    cube_position_weight = trial.params["cube_position_weight"]
+    quat_weight = trial.params["quat_weight"]
+except KeyError:
+    finger_position_weight = 5000
+    cube_position_weight = 8000
+    quat_weight = 300000
 
 try:
     finger_config = trial.params["finger_config"]
@@ -221,8 +228,8 @@ if (finger_config == 1):
     
 elif (finger_config == 2):
     x_init = [0.0, 0.07, 0.05,  # finger 1 
-                0.06, -0.06, 0.05,   # finger 2
-                -0.06, -0.06, 0.05,   # finger 3
+                0.07, -0.045, 0.05,   # finger 2
+                -0.07, -0.045, 0.05,   # finger 3
                 1, 0, 0, 0, # cube orientation
                 0, 0, 0.052,  # cube position
                 0, 0, 0,     # finger 1 velo
@@ -230,10 +237,10 @@ elif (finger_config == 2):
                 0, 0, 0,     # finger 3 velo
                 0, 0, 0,     # cube ang velo
                 0, 0, 0]   	# cube velo
-
+            
     x_des = [0.0, 0.07, 0.05,  # finger 1 
-                0.06, -0.06, 0.05,   # finger 2
-                -0.06, -0.06, 0.05,   # finger 3
+                0.07, -0.045, 0.05,   # finger 2
+                -0.07, -0.045, 0.05,   # finger 3
                 0, 1, 0, 0, # cube orientation
                 0, 0, 0.052,  # cube position
                 0, 0, 0,     # finger 1 velo
@@ -327,8 +334,12 @@ except KeyError:
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
 
-           
-ic3_options["N"] = 180 if large_dt else 360
+try:
+    use_lambdas_for_lcs = trial.params["use_lambdas_for_lcs"]
+except KeyError:
+    use_lambdas_for_lcs = False  
+
+ic3_options["N"] = 120 if large_dt else 240
 ic3_options["num_segments"] = num_segments
 
 ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -365,6 +376,7 @@ ic3_options["use_drake_sim"] = True
 ic3_options["drake_sim_dt"] = 0.0001
 
 ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
 ic3_options["num_threads"] = 32
 
 if "p_vector" in ic3_options:

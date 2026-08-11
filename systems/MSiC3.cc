@@ -116,6 +116,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   VectorXd upper_bound_u(VectorXd::Zero(n_u_));
   // HARDCODED
   if (example_idx_ == 0) { // plate
+    double z_offset = x0(2);
+
     A_x(0, 0) = 1;
     A_x(1, 1) = 1;
     A_x(2, 2) = 1;
@@ -124,13 +126,13 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
     lower_bound_x(0) = -0.1;
     lower_bound_x(1) = -0.1;
-    lower_bound_x(2) = -0.15; 
+    lower_bound_x(2) = x0(2) - 0.15; 
     lower_bound_x(3) = -0.5;
     lower_bound_x(4) = -0.5;
 
     upper_bound_x(0) = 0.1;
     upper_bound_x(1) = 0.1;
-    upper_bound_x(2) = 0.15;
+    upper_bound_x(2) = x0(2) + 0.15;
     upper_bound_x(3) = 0.5;
     upper_bound_x(4) = 0.5;
 
@@ -144,14 +146,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     lower_bound_u(0) = -2;
     lower_bound_u(1) = -2;
     lower_bound_u(2) = 0;
-    lower_bound_u(3) = -0.6;
-    lower_bound_u(4) = -0.6;
+    lower_bound_u(3) = -1.2;
+    lower_bound_u(4) = -1.2;
 
     upper_bound_u(0) = 2;
     upper_bound_u(1) = 2;
     upper_bound_u(2) = 25;
-    upper_bound_u(3) = 0.6;
-    upper_bound_u(4) = 0.6;
+    upper_bound_u(3) = 1.2;
+    upper_bound_u(4) = 1.2;
 
   } else if (example_idx_ == 1) { // trifinger 180
 
@@ -187,23 +189,23 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      lower_bound_u(3*i) = -0.4;
-      lower_bound_u(3*i+1) = -0.4;
+      lower_bound_u(3*i) = -0.5;
+      lower_bound_u(3*i+1) = -0.5;
       lower_bound_u(3*i+2) = 0.15;
       
-      upper_bound_u(3*i) = 0.4;
-      upper_bound_u(3*i+1) = 0.4;
+      upper_bound_u(3*i) = 0.5;
+      upper_bound_u(3*i+1) = 0.5;
       upper_bound_u(3*i+2) = 0.25;
     }
 
-    // A_x(13, 13) = 1;
-    // A_x(14, 14) = 1;
+    A_x(13, 13) = 1;
+    A_x(14, 14) = 1;
 
-    // lower_bound_x(13) = -0.03;
-    // lower_bound_x(14) = -0.03;
+    lower_bound_x(13) = -0.03;
+    lower_bound_x(14) = -0.03;
 
-    // upper_bound_x(13) = 0.03;
-    // upper_bound_x(14) = 0.03;
+    upper_bound_x(13) = 0.03;
+    upper_bound_x(14) = 0.03;
 
   } else if (example_idx_ == 2) { // trifinger pivot
 
@@ -220,7 +222,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_x(16 + 3*i + 2, 16 + 3*i + 2) = 1;
 
       double xy_bound = (i == 0) ? 0.07 : 0.05;
-      double z_bound = (i == 0) ? 0.07 : 0.04;
+      double z_bound = (i == 0) ? 0.07 : 0.05;
 
       // Offset from initial position
       lower_bound_x(3*i) = xd(3*i) - xy_bound;
@@ -243,15 +245,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       A_u(3*i+1, 3*i+1) = 1;
       A_u(3*i+2, 3*i+2) = 1;
 
-      double u_bound_xy = (i == 0) ? 3 : 2;
+      double u_bound_xy = (i == 0) ? 2 : 2;
+      double u_bound_z = (i == 0) ? 1.5 : 1;
 
       lower_bound_u(3*i) = -u_bound_xy;
       lower_bound_u(3*i+1) = -u_bound_xy;
-      lower_bound_u(3*i+2) = -0.6;
+      lower_bound_u(3*i+2) = -1;
       
       upper_bound_u(3*i) = u_bound_xy;
       upper_bound_u(3*i+1) = u_bound_xy;
-      upper_bound_u(3*i+2) = 1;
+      upper_bound_u(3*i+2) = u_bound_z;
     }
   }
 
@@ -1097,7 +1100,10 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
 
       x_targets_shortened.push_back(xd);
       x_reg_targets.push_back(x_hat.col(x_idx));
-      x_hat_for_lcs.col(i) = x_hat.col(x_idx);
+
+      // x_hat_for_lcs.col(i) = x_hat.col(x_idx);
+      x_hat_for_lcs.col(i) = x_curr;
+
       Q.push_back(discount_factor * Q_[x_idx]);
 
       if (i < tracking_N) {
@@ -1508,7 +1514,13 @@ LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_ha
 
     // Linearize about kth xhat, uhat
     factory.UpdateStateAndInput(x_hat.col(k), u_hat.col(k));
-    LCS lcs = factory.GenerateLCS(lambda_hat.col(k));
+
+    VectorXd lambda_nom(VectorXd::Zero(n_lambda_));
+    if (ms_ic3_options_.use_lambdas_for_lcs) {
+      lambda_nom = lambda_hat.col(k);
+    } 
+
+    LCS lcs = factory.GenerateLCS(lambda_nom);
     A.push_back(lcs.A()[0]);
     B.push_back(lcs.B()[0]);
     D.push_back(lcs.D()[0]);

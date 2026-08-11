@@ -71,7 +71,7 @@ DEFINE_string(experiment_type, "cube_pivoting",
               "Options: 'cartpole_softwalls [Frictionless Spring System]', "
               "'cube_pivoting [Stewart and Trinkle System]'");
 DEFINE_int32(optuna_instance, 0, "Parallelization instance for optuna");
-DEFINE_int32(ee_config, 1, "End effector configuration index, 1 = default");
+DEFINE_int32(ee_config, 1, "End effector configuration index, 1 = default"); // for plate example, config 2 = offset
 DEFINE_int32(cube_model, 1, "Cube model index, 1 = default");
 DEFINE_string(lcm_url, "udpm://239.255.76.67:7667?ttl=0",
               "LCM URL with IP, port, and TTL settings");
@@ -807,7 +807,7 @@ int RunPlateTest() {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
+  const std::string plate_file_lcs = "examples/resources/plate/plate_lcs.sdf";
 	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
   parser_for_lcs.AddModels(plate_file_lcs);
@@ -1032,7 +1032,7 @@ int RunPlateTestiC3(drake::lcm::DrakeLcm& lcm) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
+  const std::string plate_file_lcs = "examples/resources/plate/plate_lcs.sdf";
 	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
   parser_for_lcs.AddModels(plate_file_lcs);
@@ -1250,7 +1250,9 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
+
+  std::string plate_file_lcs = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate_lcs.sdf" : "examples/resources/plate/plate_lcs_offset.sdf";
 	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
   parser_for_lcs.AddModels(plate_file_lcs);
@@ -1297,7 +1299,8 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-  const std::string plate_file_rollout = "examples/resources/plate/plate.sdf";
+  std::string plate_file_rollout = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate.sdf" : "examples/resources/plate/plate_offset.sdf";
 	const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
 
   parser_rollout.AddModels(plate_file_rollout);
@@ -1311,38 +1314,59 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   DiagramBuilder<double> builder;
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
-  const std::string plate_file = "examples/resources/plate/plate.sdf";
-	const std::string cube_file = "examples/resources/plate/cube.sdf";
+  std::string plate_file = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate.sdf" : "examples/resources/plate/plate_offset.sdf";	
+  const std::string cube_file = "examples/resources/plate/cube.sdf";
 
   parser.AddModels(plate_file);
   parser.AddModels(cube_file);
 
   plant.Finalize();
-
-  // Create contexts for the plant and LCS factory system.
+  
+  // ---- double LCS plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff LCS plant: convert the WHOLE diagram so SceneGraph stays wired ----
+  auto plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  auto plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+
+  const auto& plant_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  auto& plant_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_autodiff, plant_diagram_ad_context.get());
+
+  // ---- double rollout plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context_rollout =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_autodiff_rollout =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_context_rollout = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_context_rollout.get());
-  auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
+
+  // ---- AutoDiff rollout plant: convert the WHOLE diagram ----
+  auto plant_diagram_ad_rollout =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  auto plant_diagram_ad_context_rollout =
+      plant_diagram_ad_rollout->CreateDefaultContext();
+
+  const auto& plant_autodiff_rollout =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad_rollout->GetSubsystemByName(plant_rollout.get_name()));
+  auto& plant_context_autodiff_rollout =
+      plant_diagram_ad_rollout->GetMutableSubsystemContext(
+          plant_autodiff_rollout, plant_diagram_ad_context_rollout.get()); 
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_rollout, *plant_autodiff_rollout, 
+     std::make_unique<systems::MSiC3>(plant_for_lcs, plant_autodiff, plant_rollout, plant_autodiff_rollout, 
         *plant_diagram_rollout, std::move(plant_diagram_context_rollout), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_context_rollout, *plant_context_autodiff_rollout);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_context_autodiff, 
+      plant_context_rollout, plant_context_autodiff_rollout);
       
   std::cout << "computed traj" << std::endl;
 
@@ -1446,8 +1470,9 @@ int OptunaPlateTestMSiC3(int optuna_instance) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
-	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
+  std::string plate_file_lcs = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate_lcs.sdf" : "examples/resources/plate/plate_lcs_offset.sdf";
+  const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
   parser_for_lcs.AddModels(plate_file_lcs);
   parser_for_lcs.AddModels(cube_file_lcs);
@@ -1493,8 +1518,9 @@ int OptunaPlateTestMSiC3(int optuna_instance) {
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-  const std::string plate_file_rollout = "examples/resources/plate/plate.sdf";
-	const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
+  std::string plate_file_rollout = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate.sdf" : "examples/resources/plate/plate_offset.sdf";
+  const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
 
   parser_rollout.AddModels(plate_file_rollout);
   parser_rollout.AddModels(cube_file_rollout);
@@ -1507,38 +1533,59 @@ int OptunaPlateTestMSiC3(int optuna_instance) {
   DiagramBuilder<double> builder;
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
-  const std::string plate_file = "examples/resources/plate/plate.sdf";
-	const std::string cube_file = "examples/resources/plate/cube.sdf";
+  std::string plate_file = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate.sdf" : "examples/resources/plate/plate_offset.sdf";	
+  const std::string cube_file = "examples/resources/plate/cube.sdf";
 
   parser.AddModels(plate_file);
   parser.AddModels(cube_file);
 
   plant.Finalize();
 
-  // Create contexts for the plant and LCS factory system.
+  // ---- double LCS plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff LCS plant: convert the WHOLE diagram so SceneGraph stays wired ----
+  auto plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  auto plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+
+  const auto& plant_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  auto& plant_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_autodiff, plant_diagram_ad_context.get());
+
+  // ---- double rollout plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context_rollout =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_autodiff_rollout =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_context_rollout = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_context_rollout.get());
-  auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
 
+  // ---- AutoDiff rollout plant: convert the WHOLE diagram ----
+  auto plant_diagram_ad_rollout =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  auto plant_diagram_ad_context_rollout =
+      plant_diagram_ad_rollout->CreateDefaultContext();
+
+  const auto& plant_autodiff_rollout =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad_rollout->GetSubsystemByName(plant_rollout.get_name()));
+  auto& plant_context_autodiff_rollout =
+      plant_diagram_ad_rollout->GetMutableSubsystemContext(
+          plant_autodiff_rollout, plant_diagram_ad_context_rollout.get());
+          
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_autodiff, plant_rollout, *plant_autodiff_rollout, 
+     std::make_unique<systems::MSiC3>(plant_for_lcs, plant_autodiff, plant_rollout, plant_autodiff_rollout, 
         *plant_diagram_rollout, std::move(plant_diagram_context_rollout), contact_pairs, contact_pairs, options, ms_ic3_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_context_rollout, *plant_context_autodiff_rollout);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_context_autodiff, 
+      plant_context_rollout, plant_context_autodiff_rollout);
       
   std::cout << "computed traj" << std::endl;
 
@@ -1604,8 +1651,9 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
-	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
+  std::string plate_file_lcs = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate_lcs.sdf" : "examples/resources/plate/plate_lcs_offset.sdf";	
+  const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
   parser_for_lcs.AddModels(plate_file_lcs);
   parser_for_lcs.AddModels(cube_file_lcs);
@@ -1651,8 +1699,9 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-  const std::string plate_file_rollout = "examples/resources/plate/plate.sdf";
-	const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
+  std::string plate_file_rollout = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate.sdf" : "examples/resources/plate/plate_offset.sdf";
+  const std::string cube_file_rollout = "examples/resources/plate/cube.sdf";
 
   parser_rollout.AddModels(plate_file_rollout);
   parser_rollout.AddModels(cube_file_rollout);
@@ -1665,43 +1714,72 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
   DiagramBuilder<double> builder;
   auto [plant, scene_graph] = AddMultibodyPlantSceneGraph(&builder, ms_ic3_options.drake_sim_dt);
   Parser parser(&plant, &scene_graph);
-  const std::string plate_file = "examples/resources/plate/plate.sdf";
-	const std::string cube_file = "examples/resources/plate/cube.sdf";
+  std::string plate_file = (FLAGS_ee_config == 1) ? 
+    "examples/resources/plate/plate.sdf" : "examples/resources/plate/plate_offset.sdf";	
+  const std::string cube_file = "examples/resources/plate/cube.sdf";
 
   parser.AddModels(plate_file);
   parser.AddModels(cube_file);
 
   plant.Finalize();
 
-  // Create contexts for the plant and LCS factory system.
+  // ---- double LCS plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff LCS plant: convert the WHOLE diagram so SceneGraph stays wired ----
+  auto plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  auto plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+
+  const auto& plant_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  auto& plant_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_autodiff, plant_diagram_ad_context.get());
+
+  // ---- double rollout plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context_rollout =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_autodiff_rollout =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
-  int num_segments = ms_ic3_options.num_segments;
-  std::vector<Context<double>*> plant_rollout_contexts(num_segments);
-  for (int i = 0; i < num_segments; i++){
-    plant_rollout_contexts[i] = &plant_diagram_rollout->GetMutableSubsystemContext(
-        plant_rollout, plant_diagram_context_rollout.get());
-  }
-  auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
 
+  // Make a separate context for each segment to allow parallelized simulation.
+  int num_segments = ms_ic3_options.num_segments;
+  std::vector<std::unique_ptr<drake::systems::Context<double>>>
+      plant_diagram_contexts_rollout(num_segments);
+  std::vector<drake::systems::Context<double>*> plant_rollout_contexts(
+      num_segments);
+  for (int i = 0; i < num_segments; i++) {
+    plant_diagram_contexts_rollout[i] =
+        plant_diagram_rollout->CreateDefaultContext();
+    plant_rollout_contexts[i] = &plant_diagram_rollout->GetMutableSubsystemContext(
+        plant_rollout, plant_diagram_contexts_rollout[i].get());
+  }
+
+  // ---- AutoDiff rollout plant: convert the WHOLE diagram ----
+  auto plant_diagram_ad_rollout =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  auto plant_diagram_ad_context_rollout =
+      plant_diagram_ad_rollout->CreateDefaultContext();
+
+  const auto& plant_autodiff_rollout =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad_rollout->GetSubsystemByName(plant_rollout.get_name()));
+  auto& plant_context_autodiff_rollout =
+      plant_diagram_ad_rollout->GetMutableSubsystemContext(
+          plant_autodiff_rollout, plant_diagram_ad_context_rollout.get());
+
+          
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
-     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_autodiff, plant_rollout, 
-        *plant_autodiff_rollout, *plant_diagram_rollout, std::move(plant_diagram_context_rollout), 
+     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, plant_autodiff, plant_rollout, 
+        plant_autodiff_rollout, *plant_diagram_rollout, std::move(plant_diagram_context_rollout), 
         contact_pairs, contact_pairs, options, ms_ic3_options, hybrid_mpc_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_rollout_contexts, *plant_context_autodiff_rollout);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_context_autodiff, 
+      plant_rollout_contexts, plant_context_autodiff_rollout);
       
   std::cout << "computed traj" << std::endl;
 
@@ -1807,7 +1885,7 @@ int OptunaPlateTestMSiC3Parallel(int optuna_instance) {
       AddMultibodyPlantSceneGraph(&plant_builder, 0);
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
-  const std::string plate_file_lcs = "examples/resources/plate/plate.sdf";
+  const std::string plate_file_lcs = "examples/resources/plate/plate_lcs.sdf";
 	const std::string cube_file_lcs = "examples/resources/plate/cube.sdf";
 
   parser_for_lcs.AddModels(plate_file_lcs);
@@ -1876,35 +1954,62 @@ int OptunaPlateTestMSiC3Parallel(int optuna_instance) {
 
   plant.Finalize();
 
-  // Create contexts for the plant and LCS factory system.
+  // ---- double LCS plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff LCS plant: convert the WHOLE diagram so SceneGraph stays wired ----
+  auto plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  auto plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+
+  const auto& plant_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  auto& plant_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_autodiff, plant_diagram_ad_context.get());
+
+  // ---- double rollout plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context_rollout =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_autodiff_rollout =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
+
+  // Make a separate context for each segment to allow parallelized simulation.
   int num_segments = ms_ic3_options.num_segments;
-  std::vector<Context<double>*> plant_rollout_contexts(num_segments);
-  for (int i = 0; i < num_segments; i++){
+  std::vector<std::unique_ptr<drake::systems::Context<double>>>
+      plant_diagram_contexts_rollout(num_segments);
+  std::vector<drake::systems::Context<double>*> plant_rollout_contexts(
+      num_segments);
+  for (int i = 0; i < num_segments; i++) {
+    plant_diagram_contexts_rollout[i] =
+        plant_diagram_rollout->CreateDefaultContext();
     plant_rollout_contexts[i] = &plant_diagram_rollout->GetMutableSubsystemContext(
-        plant_rollout, plant_diagram_context_rollout.get());
+        plant_rollout, plant_diagram_contexts_rollout[i].get());
   }
-  auto plant_context_autodiff_rollout = plant_autodiff_rollout->CreateDefaultContext(); 
+
+  // ---- AutoDiff rollout plant: convert the WHOLE diagram ----
+  auto plant_diagram_ad_rollout =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  auto plant_diagram_ad_context_rollout =
+      plant_diagram_ad_rollout->CreateDefaultContext();
+
+  const auto& plant_autodiff_rollout =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad_rollout->GetSubsystemByName(plant_rollout.get_name()));
+  auto& plant_context_autodiff_rollout =
+      plant_diagram_ad_rollout->GetMutableSubsystemContext(
+          plant_autodiff_rollout, plant_diagram_ad_context_rollout.get());
 
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
-     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_autodiff, plant_rollout, 
-      *plant_autodiff_rollout, *plant_diagram_rollout, std::move(plant_diagram_context_rollout), 
+     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, plant_autodiff, plant_rollout, 
+      plant_autodiff_rollout, *plant_diagram_rollout, std::move(plant_diagram_context_rollout), 
       contact_pairs, contact_pairs, options, ms_ic3_options, hybrid_mpc_options, 0);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_context_autodiff, 
-      plant_rollout_contexts, *plant_context_autodiff_rollout);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_context_autodiff, 
+      plant_rollout_contexts, plant_context_autodiff_rollout);
       
   std::cout << "computed traj" << std::endl;
 
@@ -3451,30 +3556,46 @@ int OptunaPointHandTestMSiC3Robust(int example, int instance) {
   // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_lcs_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_lcs_context_autodiff = plant_lcs_autodiff->CreateDefaultContext(); 
 
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  const auto& plant_lcs_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+  auto& plant_lcs_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_lcs_autodiff, plant_diagram_ad_context.get());
+          
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
   auto& plant_rollout_context = plant_diagram_rollout->GetMutableSubsystemContext(
       plant_rollout, plant_diagram_rollout_context.get());
-  auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
+
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_rollout_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  const auto& plant_rollout_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_rollout_ad->GetSubsystemByName(plant_rollout.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_rollout_ad_context = plant_diagram_rollout_ad->CreateDefaultContext();
+  auto& plant_rollout_context_autodiff =
+      plant_diagram_rollout_ad->GetMutableSubsystemContext(
+          plant_rollout_autodiff, plant_diagram_rollout_ad_context.get());
 
   int example_idx = (example == 0) ? 2 : 1;
 
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
-     std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+     std::make_unique<systems::MSiC3>(plant_for_lcs, plant_lcs_autodiff, plant_rollout, plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, example_idx);
 
   auto [x_hat, u_hat, lambda_hat, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_context, *plant_rollout_context_autodiff);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_lcs_context_autodiff, 
+      plant_rollout_context, plant_rollout_context_autodiff);
 
 
   std::vector<double> x_init = *options.x_init;
@@ -3529,7 +3650,7 @@ int OptunaPointHandTestMSiC3Robust(int example, int instance) {
 
   auto [x_traj, u_traj, lambda_traj] = 
       ms_ic3_controller->DoHybridMPCTracking(x0s, x_hat_final, u_hat_final, lambda_hat_final, hybrid_mpc_options, 
-              plant_for_lcs_context, *plant_lcs_context_autodiff, plant_rollout_context);
+              plant_for_lcs_context, plant_lcs_context_autodiff, plant_rollout_context);
 
   vector<double> costs;
   for (int i = 0; i < x_traj.size(); i++) {
@@ -3877,39 +3998,63 @@ int RunPointHandTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm, int example) {
   plant.Finalize();
 
   
-  // Create contexts for the plant and LCS factory system.
+  // ---- double LCS plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_lcs_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_lcs_context_autodiff = plant_lcs_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff LCS plant: convert the WHOLE diagram so SceneGraph stays wired ----
+  auto plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  auto plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+
+  const auto& plant_lcs_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  auto& plant_lcs_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_lcs_autodiff, plant_diagram_ad_context.get());
+
+  // ---- double rollout plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
 
-  // Make a separate context for each segment to allow parallelized simulation
+  // Make a separate context for each segment to allow parallelized simulation.
   int num_segments = ms_ic3_options.num_segments;
-  std::vector<Context<double>*> plant_rollout_contexts(num_segments);
-  for (int i = 0; i < num_segments; i++){
+  std::vector<std::unique_ptr<drake::systems::Context<double>>>
+      plant_rollout_diagram_contexts(num_segments);
+  std::vector<drake::systems::Context<double>*> plant_rollout_contexts(
+      num_segments);
+  for (int i = 0; i < num_segments; i++) {
+    plant_rollout_diagram_contexts[i] =
+        plant_diagram_rollout->CreateDefaultContext();
     plant_rollout_contexts[i] = &plant_diagram_rollout->GetMutableSubsystemContext(
-        plant_rollout, plant_diagram_rollout_context.get());
+        plant_rollout, plant_rollout_diagram_contexts[i].get());
   }
-  auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff rollout plant: convert the WHOLE diagram ----
+  auto plant_diagram_rollout_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  auto plant_diagram_rollout_ad_context =
+      plant_diagram_rollout_ad->CreateDefaultContext();
+
+  const auto& plant_rollout_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_rollout_ad->GetSubsystemByName(plant_rollout.get_name()));
+  auto& plant_rollout_context_autodiff =
+      plant_diagram_rollout_ad->GetMutableSubsystemContext(
+          plant_rollout_autodiff, plant_diagram_rollout_ad_context.get());
+  
   int example_idx = (example == 0) ? 2 : 1;
-
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
-     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, plant_lcs_autodiff, plant_rollout, plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, hybrid_mpc_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_contexts, *plant_rollout_context_autodiff);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_lcs_context_autodiff, 
+      plant_rollout_contexts, plant_rollout_context_autodiff);
   std::cout << "computed traj" << std::endl;
 
   if (example_idx == 1) {
@@ -4330,37 +4475,64 @@ int OptunaPointHandTestMSiC3Parallel(int example, int instance) {
 
   plant.Finalize();
 
-  // Create contexts for the plant and LCS factory system.
+  // ---- double LCS plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_lcs_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_lcs_context_autodiff = plant_lcs_autodiff->CreateDefaultContext(); 
 
+  // ---- AutoDiff LCS plant: convert the WHOLE diagram so SceneGraph stays wired ----
+  auto plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  auto plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+
+  const auto& plant_lcs_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  auto& plant_lcs_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_lcs_autodiff, plant_diagram_ad_context.get());
+
+  // ---- double rollout plant ----
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_rollout_context =
       plant_diagram_rollout->CreateDefaultContext();
-  auto plant_rollout_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_rollout);
+
+  // Make a separate context for each segment to allow parallelized simulation.
   int num_segments = ms_ic3_options.num_segments;
-  std::vector<Context<double>*> plant_rollout_contexts(num_segments);
-  for (int i = 0; i < num_segments; i++){
+  std::vector<std::unique_ptr<drake::systems::Context<double>>>
+      plant_rollout_diagram_contexts(num_segments);
+  std::vector<drake::systems::Context<double>*> plant_rollout_contexts(
+      num_segments);
+  for (int i = 0; i < num_segments; i++) {
+    plant_rollout_diagram_contexts[i] =
+        plant_diagram_rollout->CreateDefaultContext();
     plant_rollout_contexts[i] = &plant_diagram_rollout->GetMutableSubsystemContext(
-        plant_rollout, plant_diagram_rollout_context.get());
+        plant_rollout, plant_rollout_diagram_contexts[i].get());
   }
-  auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
+
+  // ---- AutoDiff rollout plant: convert the WHOLE diagram ----
+  auto plant_diagram_rollout_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram_rollout);
+  auto plant_diagram_rollout_ad_context =
+      plant_diagram_rollout_ad->CreateDefaultContext();
+
+  const auto& plant_rollout_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_rollout_ad->GetSubsystemByName(plant_rollout.get_name()));
+  auto& plant_rollout_context_autodiff =
+      plant_diagram_rollout_ad->GetMutableSubsystemContext(
+          plant_rollout_autodiff, plant_diagram_rollout_ad_context.get());
 
   int example_idx = (example == 0) ? 2 : 1;
 
   std::unique_ptr<systems::MSiC3Parallel> ms_ic3_controller =
-     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
+     std::make_unique<systems::MSiC3Parallel>(plant_for_lcs, plant_lcs_autodiff, plant_rollout, plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 
         options, ms_ic3_options, hybrid_mpc_options, example_idx);
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
-    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, *plant_lcs_context_autodiff, 
-      plant_rollout_contexts, *plant_rollout_context_autodiff);
+    ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_lcs_context_autodiff, 
+      plant_rollout_contexts, plant_rollout_context_autodiff);
 
   MatrixXd x_hat_final = x_traj.at(x_traj.size() - 1);
   VectorXd x_last = x_hat_final.col(x_hat_final.cols() - 1);
@@ -4436,7 +4608,7 @@ int RunPointHandMPC() {
   Parser parser_for_lcs(&plant_for_lcs, &scene_graph_for_lcs);
 
   const std::string hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot_config_3_mpc.sdf";
-	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy_5.sdf";
+	const std::string cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy_8.sdf";
 	const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
 
   parser_for_lcs.AddModels(hand_file_lcs);
@@ -4555,19 +4727,26 @@ int RunPointHandMPC() {
   C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
       options.c3_options, options.lcs_factory_options.N);
 
-  // Create contexts for the plant and LCS factory system.
   std::unique_ptr<drake::systems::Context<double>> plant_diagram_context =
       plant_diagram->CreateDefaultContext();
-  auto plant_autodiff =
-      drake::systems::System<double>::ToAutoDiffXd(plant_for_lcs);
   auto& plant_for_lcs_context = plant_diagram->GetMutableSubsystemContext(
       plant_for_lcs, plant_diagram_context.get());
-  auto plant_context_autodiff = plant_autodiff->CreateDefaultContext();
+
+  std::unique_ptr<drake::systems::Diagram<drake::AutoDiffXd>> plant_diagram_ad =
+      drake::systems::System<double>::ToAutoDiffXd(*plant_diagram);
+  const auto& plant_lcs_autodiff =
+      dynamic_cast<const drake::multibody::MultibodyPlant<drake::AutoDiffXd>&>(
+          plant_diagram_ad->GetSubsystemByName(plant_for_lcs.get_name()));
+  std::unique_ptr<drake::systems::Context<drake::AutoDiffXd>>
+      plant_diagram_ad_context = plant_diagram_ad->CreateDefaultContext();
+  auto& plant_lcs_context_autodiff =
+      plant_diagram_ad->GetMutableSubsystemContext(
+          plant_lcs_autodiff, plant_diagram_ad_context.get());
 
   // Add the LCS factory system.
   auto lcs_factory_system = builder.AddSystem<LCSFactorySystem>(
-      plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
-      *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
+      plant_for_lcs, plant_for_lcs_context, plant_lcs_autodiff,
+      plant_lcs_context_autodiff, contact_pairs, options.lcs_factory_options);
 
 
 	std::cout << "Before add C3 controller" << std::endl;
@@ -4612,7 +4791,7 @@ int RunPointHandMPC() {
 
     A_x(16+3*i, 16+3*i) = 1;
     A_x(16+ 3*i+1, 16+3*i+1) = 1;
-    A_x(3*i+2, 3*i+2) = 1;
+    A_x(16+3*i+2, 16+3*i+2) = 1;
 
     lower_bound_x(16+3*i) = -0.1;
     lower_bound_x(16+3*i+1) = -0.1;
@@ -4625,13 +4804,13 @@ int RunPointHandMPC() {
     A_u(3*i+1, 3*i+1) = 1; 
     A_u(3*i+2, 3*i+2) = 1; 
 
-    lower_bound_u(3*i) = -10;
-    lower_bound_u(3*i+1) = -10;
-    lower_bound_u(3*i+2) = -10;
+    lower_bound_u(3*i) = -2;
+    lower_bound_u(3*i+1) = -2;
+    lower_bound_u(3*i+2) = -2;
     
-    upper_bound_u(3*i) = 10;
-    upper_bound_u(3*i+1) = 10;
-    upper_bound_u(3*i+2) = 10;
+    upper_bound_u(3*i) = 2;
+    upper_bound_u(3*i+1) = 2;
+    upper_bound_u(3*i+2) = 2;
   }
   // A_x(13, 13) = 1;
   // A_x(14, 14) = 1;

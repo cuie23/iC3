@@ -19,10 +19,10 @@ MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_18
 # CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_31.yaml"
 # MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_31.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_choose_mu_fc.db"
-STUDY_NAME = "MSiC3_point_hand_180_choose_mu_fc"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_static_lcs_larger_dt.db"
+STUDY_NAME = "MSiC3_point_hand_180_static_lcs_larger_dt"
 
-TRIAL_NUMBER = 4063
+TRIAL_NUMBER = 2856
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -93,10 +93,18 @@ except KeyError:
 # add_phi_buffer = trial.params["add_phi_buffer"]
 
 admm_iter = trial.params["admm_iter"]
-finger_position_weight = trial.params["finger_position_weight"]
-cube_position_weight = trial.params["cube_position_weight"]
 tracking_N = trial.params["tracking_N"]
-quat_weight = trial.params["quat_weight"]
+
+
+try:
+    finger_position_weight = trial.params["finger_position_weight"]
+    cube_position_weight = trial.params["cube_position_weight"]
+    quat_weight = trial.params["quat_weight"]
+except KeyError:
+    finger_position_weight = 3000
+    cube_position_weight = 8000
+    quat_weight = 4000
+
 
 with open(CONTORLLER_PARAMS, "r") as f:
     c3_options = yaml.load(f)
@@ -232,9 +240,16 @@ num_segments = trial.params["num_segments"]
 # num_warmup_iters = trial.params["num_warmup_iters"]
 num_warmup_iters = 0
 
-warm_start_alpha = trial.params["warm_start_alpha"]
+try:
+    warm_start_alpha = trial.params["warm_start_alpha"]
+except KeyError:
+    warm_start_alpha = 0
 
-num_iters = trial.params["num_iters"]
+try:
+    num_iters = trial.params["num_iters"]
+except KeyError:
+    num_iters = 5
+
 alpha_ee = trial.params["alpha_ee"]
 alpha_object = trial.params["alpha_object"]
 
@@ -265,7 +280,11 @@ except KeyError:
 with open(MSiC3_PARAMS, "r") as f:
     ic3_options = yaml.load(f)
 
-           
+try:
+    use_lambdas_for_lcs = trial.params["use_lambdas_for_lcs"]
+except KeyError:
+    use_lambdas_for_lcs = False
+
 ic3_options["num_segments"] = num_segments
 
 ic3_options["num_warmup_iters"] = num_warmup_iters
@@ -300,6 +319,7 @@ ic3_options["use_drake_sim"] = True
 ic3_options["drake_sim_dt"] = 0.0001
 
 ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
 ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 

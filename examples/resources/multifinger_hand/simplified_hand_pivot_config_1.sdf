@@ -251,7 +251,7 @@
           <limit>
             <velocity> 0.1 </velocity>
             <lower> 0.04 </lower>
-            <upper> 0.09 </upper>
+            <upper> 0.1 </upper>
           </limit>
           <!-- <dynamics>
             <damping>10</damping>
@@ -377,7 +377,7 @@
           <limit>
             <velocity> 0.1 </velocity>
             <lower> 0.04 </lower>
-            <upper> 0.09 </upper>
+            <upper> 0.1 </upper>
           </limit>
           <!-- <dynamics>
             <damping>10</damping>

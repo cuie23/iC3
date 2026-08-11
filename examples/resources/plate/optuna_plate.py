@@ -20,7 +20,7 @@ MSiC3_PARAMS = f"examples/resources/plate/optuna_plate/optuna_yamls/optuna_ms_ic
 def objective(trial):
     # C3 parameters
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    w_G = trial.suggest_int("w_G", 1, 1000)
+    w_G = trial.suggest_int("w_G", 1, 5000)
     plate_z_cost = trial.suggest_int("plate_z_cost", 50, 5000, step=50)
     plate_rot_cost = trial.suggest_int("plate_rot_cost", 100, 5000, step=100)
     tracking_N = trial.suggest_int("tracking_N", 3, 6)
@@ -30,6 +30,8 @@ def objective(trial):
 
     # init_x_offset = trial.suggest_int("init_x_offset", 13, 15)
     init_x_offset = 13
+
+    plate_offset = True
 
     ratio = abs(u_ratio)
     if (u_ratio < 0):
@@ -59,6 +61,9 @@ def objective(trial):
 
     c3_options["c3_options"]["scale_lcs"] = False
 
+    c3_options["x_init"][2] = -0.107 if plate_offset else 0
+    c3_options["x_des"][2] = -0.107 if plate_offset else 0
+
     c3_options["x_init"][9] = init_x_offset / 100.0
     c3_options["x_des"][9] = init_x_offset / 100.0
 
@@ -75,20 +80,30 @@ def objective(trial):
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
 
     num_segments = trial.suggest_categorical("num_segments", [2, 5, 10])
-    num_iters = trial.suggest_categorical("num_iters", [2, 3, 5, 6])
+    num_iters = trial.suggest_categorical("num_iters", [3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=5)
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
+    vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
 
-    Kp_xy = trial.suggest_int("Kp_xy", 100, 1000, step=100)
-    Kd_xy = trial.suggest_int("Kd_xy", 20, 200, step=20)
-    Kp_z = trial.suggest_int("Kp_z", 100, 1000, step=100)
-    Kd_z = trial.suggest_int("Kd_z", 20, 200, step=20)
-    Kp_rot = trial.suggest_int("Kp_rot", 100, 1000, step=100)
-    Kd_rot = trial.suggest_int("Kd_rot", 20, 200, step=20)
+    use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
+
+    # Kp_xy = trial.suggest_int("Kp_xy", 100, 1000, step=100)
+    # Kd_xy = trial.suggest_int("Kd_xy", 20, 200, step=20)
+    # Kp_z = trial.suggest_int("Kp_z", 100, 1000, step=100)
+    # Kd_z = trial.suggest_int("Kd_z", 20, 200, step=20)
+    # Kp_rot = trial.suggest_int("Kp_rot", 100, 1000, step=100)
+    # Kd_rot = trial.suggest_int("Kd_rot", 20, 200, step=20)
+
+    Kp_xy = 0
+    Kd_xy = 0
+    Kp_z = 0
+    Kd_z = 0
+    Kp_rot = 0
+    Kd_rot = 0
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -113,17 +128,21 @@ def objective(trial):
     ic3_options["rollout_Kp"] = [Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot]
     ic3_options["rollout_Kd"] = [Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot]
 
-    ic3_options["vf_trust_region_weight"] = 0
+    ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
     ic3_options["num_threads"] = 32
+
+    ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 
+    ee_config = 2 if plate_offset else 1
     # Construct and execute the bazel command
     cmd = [
         "./bazel-bin/examples/lcs_factory_system_example", 
         "--experiment_type=MSiC3_plate_optuna",
-        f"--optuna_instance={worker_id}"
+        f"--optuna_instance={worker_id}",
+        f"--ee_config={ee_config}"
     ]
 
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
@@ -198,7 +217,7 @@ def log_best_callback(study, trial):
           print(f"--> New best metric found: {study.best_value}. Saving to file...")
           
           # Open in "w" (write) mode to overwrite the file with the fresh best data
-          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_pd.txt", "w") as f:
+          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_offset.txt", "w") as f:
               f.write("=========================================\n")
               f.write("       BEST HYPERPARAMETERS SO FAR       \n")
               f.write("=========================================\n")
@@ -218,7 +237,7 @@ def log_best_callback(study, trial):
 if __name__ == "__main__":
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
 
-    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_pd.db"
+    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_offset.db"
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  
         heartbeat_interval=60            
@@ -226,7 +245,7 @@ if __name__ == "__main__":
 
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     study = optuna.create_study(
-        study_name="MSiC3_plate_pd",
+        study_name="MSiC3_plate_offset",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

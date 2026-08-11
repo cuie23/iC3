@@ -48,6 +48,12 @@ GeomGeomCollider<T>::GeomGeomCollider(
 template <typename T>
 bool GeomGeomCollider<T>::IsSphereAndMesh(
     const SceneGraphInspector<T>& inspector) const {
+
+  // Don't use this fallback for autodiff since drake doesn't support mesh-point 
+  if (std::is_same_v<std::decay_t<T>, drake::AutoDiffXd>) {
+    return false;
+  }
+
   const auto type_A = inspector.GetShape(geometry_id_A_).type_name();
   const auto type_B = inspector.GetShape(geometry_id_B_).type_name();
   return ((type_A == "Sphere" && type_B == "Mesh") ||

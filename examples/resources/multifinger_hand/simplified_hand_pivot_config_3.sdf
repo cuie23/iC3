@@ -203,7 +203,7 @@
         <axis>
             <xyz>1 0 0</xyz>
           <limit>
-            <velocity>0.1</velocity>
+            <!-- <velocity>0.1</velocity> -->
             <lower> 0.02 </lower>
             <upper> 0.12 </upper>
           </limit>
@@ -251,7 +251,7 @@
           <limit>
             <!-- <velocity> 0.1 </velocity> -->
             <lower> 0.04 </lower>
-            <upper> 0.09 </upper>
+            <upper> 0.1 </upper>
           </limit>
           <!-- <dynamics>
             <damping>10</damping>
@@ -331,8 +331,8 @@
           <xyz>1 0 0</xyz>
           <limit>
             <!-- <velocity> 0.1 </velocity> -->
-            <lower> -0.1 </lower>
-            <upper> -0.0 </upper>
+            <lower> -0.12 </lower>
+            <upper> -0.02 </upper>
           </limit>
           <!-- <dynamics>
             <damping>10</damping>
@@ -377,7 +377,7 @@
           <limit>
             <!-- <velocity> 0.1 </velocity> -->
             <lower> 0.04 </lower>
-            <upper> 0.09 </upper>
+            <upper> 0.1 </upper>
           </limit>
           <!-- <dynamics>
             <damping>10</damping>
