@@ -4,10 +4,11 @@
 #include <chrono>
 
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
+#include <algorithm>
+#include <cmath>
 
-#include "core/c3_miqp.h"
 #include "core/c3_plus.h"
-#include "core/c3_qp.h"
 #include "multibody/lcs_factory.h"
 #include "multibody/geom_geom_collider.h"
 #include "common/quaternion_error_hessian.h"
@@ -35,6 +36,7 @@ using drake::math::RollPitchYaw;
 using drake::multibody::ContactResults;
 using drake::geometry::GeometryId;
 using drake::SortedPair;
+using Eigen::LLT;
 
 namespace c3 {
 namespace systems {
@@ -80,6 +82,16 @@ MSiC3::MSiC3(const MultibodyPlant<double>& plant, const MultibodyPlant<drake::Au
   num_segments_ = ms_ic3_options_.num_segments;
   L_ = N_ / num_segments_;
 
+  // Initialize cost matrices
+  for (int i = 0; i < N_+1; i++) {
+    Q_.push_back(controller_options_.c3_options.Q);
+    if (i < N_) {
+      R_.push_back(controller_options_.c3_options.R);
+      G_.push_back(controller_options_.c3_options.G);
+      U_.push_back(controller_options_.c3_options.U);
+    }
+  }  
+
   if (use_drake_sim_) {
     simulator_ = std::make_unique<drake::systems::Simulator<double>>(
         rollout_diagram_, std::move(rollout_diagram_context_)
@@ -94,7 +106,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   drake::systems::Context<double>& context,
   drake::systems::Context<drake::AutoDiffXd>& context_ad, 
   drake::systems::Context<double>& context_rollout,
-  drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout) {
+  drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout,
+  double plate_u_torque_bound) {
 
   auto start_total = std::chrono::high_resolution_clock::now();
   
@@ -114,27 +127,30 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   VectorXd upper_bound_x(VectorXd::Zero(n_x_));
   VectorXd lower_bound_u(VectorXd::Zero(n_u_));
   VectorXd upper_bound_u(VectorXd::Zero(n_u_));
+
+  MatrixXd A_u_warmup(MatrixXd::Zero(n_u_, n_u_));
+  VectorXd lower_bound_u_warmup(VectorXd::Zero(n_u_));
+  VectorXd upper_bound_u_warmup(VectorXd::Zero(n_u_));
+
   // HARDCODED
   if (example_idx_ == 0) { // plate
-    double z_offset = x0(2);
-
     A_x(0, 0) = 1;
     A_x(1, 1) = 1;
     A_x(2, 2) = 1;
     A_x(3, 3) = 1;
     A_x(4, 4) = 1;
 
-    lower_bound_x(0) = -0.1;
-    lower_bound_x(1) = -0.1;
-    lower_bound_x(2) = x0(2) - 0.15; 
-    lower_bound_x(3) = -0.5;
-    lower_bound_x(4) = -0.5;
+    lower_bound_x(0) = -0.08;
+    lower_bound_x(1) = -0.08;
+    lower_bound_x(2) = x0(2) - 0.1; 
+    lower_bound_x(3) = -0.8;
+    lower_bound_x(4) = -0.8;
 
-    upper_bound_x(0) = 0.1;
-    upper_bound_x(1) = 0.1;
-    upper_bound_x(2) = x0(2) + 0.15;
-    upper_bound_x(3) = 0.5;
-    upper_bound_x(4) = 0.5;
+    upper_bound_x(0) = 0.08;
+    upper_bound_x(1) = 0.08;
+    upper_bound_x(2) = x0(2) + 0.1;
+    upper_bound_x(3) = 0.8;
+    upper_bound_x(4) = 0.8;
 
     // Actuation limits
     A_u(0, 0) = 1;
@@ -143,17 +159,35 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     A_u(3, 3) = 1;
     A_u(4, 4) = 1;
 
-    lower_bound_u(0) = -2;
-    lower_bound_u(1) = -2;
-    lower_bound_u(2) = 0;
-    lower_bound_u(3) = -1.2;
-    lower_bound_u(4) = -1.2;
+    lower_bound_u(0) = -1;
+    lower_bound_u(1) = -1;
+    lower_bound_u(2) = 9.81 * 0.85 - 3.2;
+    lower_bound_u(3) = (plate_u_torque_bound == -1) ? -2.4 : -plate_u_torque_bound;
+    lower_bound_u(4) = (plate_u_torque_bound == -1) ? -2.4 : -plate_u_torque_bound;
 
-    upper_bound_u(0) = 2;
-    upper_bound_u(1) = 2;
-    upper_bound_u(2) = 25;
-    upper_bound_u(3) = 1.2;
-    upper_bound_u(4) = 1.2;
+    upper_bound_u(0) = 1;
+    upper_bound_u(1) = 1;
+    upper_bound_u(2) = 9.81 * 0.85 + 3.2;
+    upper_bound_u(3) = (plate_u_torque_bound == -1) ? 2.4 : plate_u_torque_bound;
+    upper_bound_u(4) = (plate_u_torque_bound == -1) ? 2.4 : plate_u_torque_bound;;
+
+    A_u_warmup(0, 0) = 1;
+    A_u_warmup(1, 1) = 1;
+    A_u_warmup(2, 2) = 1;
+    A_u_warmup(3, 3) = 1;
+    A_u_warmup(4, 4) = 1;
+
+    lower_bound_u_warmup(0) = -1;
+    lower_bound_u_warmup(1) = -1;
+    lower_bound_u_warmup(2) = 9.81 * 0.85 - 5;
+    lower_bound_u_warmup(3) = -2;
+    lower_bound_u_warmup(4) = -2;
+
+    upper_bound_u_warmup(0) = 1;
+    upper_bound_u_warmup(1) = 1;
+    upper_bound_u_warmup(2) = 9.81 * 0.85 + 5;
+    upper_bound_u_warmup(3) = 2;
+    upper_bound_u_warmup(4) = 2;
 
   } else if (example_idx_ == 1) { // trifinger 180
 
@@ -207,6 +241,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     upper_bound_x(13) = 0.03;
     upper_bound_x(14) = 0.03;
 
+    A_u_warmup = A_u;
+    lower_bound_u_warmup = lower_bound_u;
+    upper_bound_u_warmup = upper_bound_u;
+
   } else if (example_idx_ == 2) { // trifinger pivot
 
 
@@ -256,10 +294,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       upper_bound_u(3*i+1) = u_bound_xy;
       upper_bound_u(3*i+2) = u_bound_z;
     }
+    A_u_warmup = A_u;
+    lower_bound_u_warmup = lower_bound_u;
+    upper_bound_u_warmup = upper_bound_u;
   }
-
-  std::cout << "lb x " << lower_bound_x.transpose() << std::endl;
-  std::cout << "ub x " << upper_bound_x.transpose() << std::endl;
 
 
   vector<VectorXd> x_targets;
@@ -276,16 +314,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   MatrixXd gamma = MatrixXd::Zero(n_lambda_ / 4, N_);
   MatrixXd in_contact = MatrixXd::Zero(n_lambda_ / 4, N_);
 
-  VectorXd gravity;
+  const VectorXd tau_g = plant_rollout_.CalcGravityGeneralizedForces(context_rollout);
+  VectorXd gravity = -1 * plant_rollout_.MakeActuationMatrix().transpose() * tau_g;
+
+  // Object must be supported by plate, so need additional torque
   if (example_idx_ == 0) {
-    gravity = VectorXd::Zero(5);
-    gravity[2] = 8.33;
-  } else if (example_idx_ == 1 || example_idx_ == 2) {
-    gravity = VectorXd::Zero(9);
-    gravity[2] = 0.196;
-    gravity[5] = 0.196;
-    gravity[8] = 0.196;
+    gravity[4] = (x0(9) * tau_g(10));
   }
+  std::cout << "gravity " << gravity.transpose() << std::endl;
 
   LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
       contact_geoms_, controller_options_.lcs_factory_options);
@@ -295,6 +331,27 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   std::cout << "plant lcs dt " << plant_.time_step() << std::endl;
   std::cout << "plant rollout dt " << plant_rollout_.time_step() << std::endl;
+
+
+  int tracking_N = controller_options_.lcs_factory_options.N;
+  vector<VectorXd> x_targets_temp(tracking_N + 1, xd);
+  MatrixXd x_hat_temp = x0.replicate(1, tracking_N);
+  MatrixXd u_hat_temp = MatrixXd::Zero(n_u_, tracking_N);
+  vector<MatrixXd> Q_temp(Q_.begin(), Q_.begin() + tracking_N + 1);
+  vector<MatrixXd> R_temp(R_.begin(), R_.begin() + tracking_N);
+  vector<MatrixXd> G_temp(G_.begin(), G_.begin() + tracking_N);
+  vector<MatrixXd> U_temp(U_.begin(), U_.begin() + tracking_N);
+  
+  C3::CostMatrices costs_temp(Q_temp, R_temp, G_temp, U_temp);
+  LCS lcs_temp = MakeTimeVaryingLCS(
+      x_hat_temp, u_hat_temp, MatrixXd::Zero(n_lambda_, tracking_N), lcs_factory);
+
+  c3_tracking_ = std::make_unique<C3Plus>(
+      lcs_temp, costs_temp, x_targets_temp, controller_options_.c3_options);
+
+  if (ms_ic3_options_.penalize_acceleration) {
+    c3_tracking_->AddAccelerationCost(n_q_, n_v_, ms_ic3_options_.acceleration_cost_weight);
+  }
 
   // Set initial guess to something kinda reasonable
   // Set initial guess for x - linear interpolation (including in quaternion space)
@@ -329,8 +386,13 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
         x_hat.col(k).segment(idx, 4) = v_interpolated;
 
       } else {
-        Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
-        x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
+        if (example_idx_ == 0) {
+          Eigen::Quaterniond slerp = slerpLong(q0, qd, rotation); 
+          x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
+        } else if (example_idx_ == 1 && example_idx_ == 2) {
+          Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
+          x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z();
+        }
       }
     }
 
@@ -344,7 +406,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
             plant_.GetBodyByName("cube"))[0];
       SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
 
+      // x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
+      //           A_x, lower_bound_x, upper_bound_x);
       x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+
     } else if (example_idx_ == 1) {
 
       // Ensure anchors don't have penetration
@@ -361,10 +426,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       drake::geometry::GeometryId ground_collision_geom =
         plant_.GetCollisionGeometriesForBody(
             plant_.GetBodyByName("ground"))[0];
-      SortedPair<GeometryId>cube_plate_contact(cube_collision_geom, ground_collision_geom);
+      SortedPair<GeometryId>cube_ground_contact(cube_collision_geom, ground_collision_geom);
 
-      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 15);
-
+      x_projected = ProjectContactVertical(context, cube_ground_contact, x_projected, 15);
 
       // Ensure fingers don't have penetration
       for (int j = 0; j < 3; j++) {
@@ -434,6 +498,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
             plant_.GetBodyByName("cube"))[0];
       SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
 
+      // x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
+      //     A_x, lower_bound_x, upper_bound_x);
       x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
     } else if (example_idx_ == 1) {
 
@@ -451,9 +517,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       drake::geometry::GeometryId ground_collision_geom =
         plant_.GetCollisionGeometriesForBody(
             plant_.GetBodyByName("ground"))[0];
-      SortedPair<GeometryId>cube_plate_contact(cube_collision_geom, ground_collision_geom);
+      SortedPair<GeometryId>cube_ground_contact(cube_collision_geom, ground_collision_geom);
 
-      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 15);
+      x_projected = ProjectContactVertical(context, cube_ground_contact, x_projected, 15);
 
 
       // Ensure fingers don't have penetration
@@ -508,12 +574,41 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
     bool is_warmup = (iter < 1);
 
+    c3_tracking_->RemoveConstraints();
+    if (ms_ic3_options_.add_position_constraints) {
+      // std::cout << "A x diag " << A_x.diagonal().transpose() << std::endl;
+      // std::cout << "lb x " << lb_x.transpose() << std::endl;
+      // std::cout << "ub x " << ub_x.transpose() << std::endl;
+      c3_tracking_->AddLinearConstraint(A_x, lower_bound_x, upper_bound_x,
+                            ConstraintVariable::STATE);
+    }  
+    if (is_warmup) {
+      if (ms_ic3_options_.add_input_constraints) {
+        c3_tracking_->AddLinearConstraint(A_u_warmup, lower_bound_u_warmup, upper_bound_u_warmup,
+                                  ConstraintVariable::INPUT);
+      }
+    } else {
+      if (ms_ic3_options_.add_input_constraints) {
+        c3_tracking_->AddLinearConstraint(A_u, lower_bound_u, upper_bound_u,
+                                  ConstraintVariable::INPUT);
+      }
+    }
+
+
+
     UpdateQuaternionCosts(x_hat, xd); // Note: this overrides R, G, U as well
 
-    std::cout << "before compute lqr value fun" << std::endl;
+    // std::cout << "before compute lqr value fun" << std::endl;
     // Backwards Pass - Compute Value Function
-    auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
-    std::cout << "after compute lqr value fun" << std::endl;
+    // auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
+    // std::cout << "after compute lqr value fun" << std::endl;
+    // auto start_vf = std::chrono::high_resolution_clock::now();
+    auto [H, g, K, k_ff] = ComputeBoxDDPValueFunction(x_hat, u_hat, lambda_hat,
+                              lcs, xd, u_nominal[0], defects, lower_bound_u, upper_bound_u);
+
+    // auto end_vf = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> duration_vf = end_vf - start_vf;
+    // std::cout << "BoxDDP backwards pass runtime: " << duration_vf.count() << " seconds\n\n " << std::endl;
 
     // Don't store warmup iters
     if (!is_warmup) {
@@ -601,6 +696,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
           Eigen::Quaterniond slerp = q0.slerp(alpha_object, qf);
           new_x_anchors.col(i+1).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
         }
+        new_x_anchors.col(i+1).segment(idx, 4) = new_x_anchors.col(i+1).segment(idx, 4).normalized();
       }
       // Don't update final anchor
       if (i == num_segments_) {
@@ -619,8 +715,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
               plant_.GetBodyByName("cube"))[0];
         SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
 
+        // x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
+        //                 A_x, lower_bound_x, upper_bound_x);
         x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
-        
+
       } else if (example_idx_ == 1) {
         for (int j = 0; j < 3; j++) {
           x_projected = ProjectContact(context, contact_geoms_[j], x_projected, 3*j, 3, 
@@ -695,8 +793,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   }
   UpdateQuaternionCosts(x_hat, xd);
-  std::cout << "Before compute lqr value function" << std::endl;
-  auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
+  // std::cout << "Before compute lqr value function" << std::endl;
+  // auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
+
+  // auto start_vf = std::chrono::high_resolution_clock::now();
+  auto [H, g, K, k_ff] = ComputeBoxDDPValueFunction(x_hat, u_hat, lambda_hat,
+                            lcs, xd, u_nominal[0], defects, lower_bound_u, upper_bound_u);
+  // auto end_vf = std::chrono::high_resolution_clock::now();
+  // std::chrono::duration<double> duration_vf = end_vf - start_vf;
+  // std::cout << "BoxDDP backwards pass runtime: " << duration_vf.count() << " seconds\n\n " << std::endl;
+
   Hs.push_back(H);
   gs.push_back(g);
   Ks.push_back(K);
@@ -885,11 +991,11 @@ VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context,
     auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
         drake::multibody::JacobianWrtVariable::kQDot);
 
-    // HARDCODED FOR PLATE EXAMPLE and pivoting
+    // HARDCODED FOR PIVOTING
     double phi_check = phi;
     while (phi_check < -3e-4) {
-      // Displace z of object upwards
-      x_out(z_idx) = x_out(z_idx) + 0.002;
+      // Displace z of object upwards 
+      x_out(z_idx) += 0.002;
       
       plant_.SetPositionsAndVelocities(&context, x_out);
       auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
@@ -900,6 +1006,51 @@ VectorXd MSiC3::ProjectContactVertical(drake::systems::Context<double>& context,
 
     return x_out;
 }
+
+
+VectorXd MSiC3::ProjectContactPlate(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
+                                VectorXd x_init, int z_idx, int pitch_idx, 
+                                MatrixXd A_x, VectorXd lb_x, VectorXd ub_x) {
+    
+    VectorXd x_out = x_init;
+    plant_.SetPositionsAndVelocities(&context, x_init);
+    multibody::GeomGeomCollider collider(plant_, geom_pair);
+    auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
+        drake::multibody::JacobianWrtVariable::kQDot);
+
+    // HARDCODED FOR PLATE EXAMPLE
+    int counter = 0;
+    double phi_check = phi;
+    while (phi_check < -1e-4 && counter < 50) {
+      // Displace z of object upwards 
+      x_out(z_idx) += 0.002;
+      
+      // Displace pitch of plate towards object
+      // HARDCODED SCALAR
+      double displacement = 0.2 * (x_init(9) - x_init(0));
+      x_out(pitch_idx) += displacement;
+  
+      // Threshold
+      for (int i = 0; i < n_q_; i++) {
+        if (A_x(i, i) == 1) { // Assumes diagonal
+          x_out(i) = std::min(std::max(x_out(i), lb_x(i)), ub_x(i));
+        }
+      }
+
+      plant_.SetPositionsAndVelocities(&context, x_out);
+      auto [phi, J] = collider.EvalPolytope(context, controller_options_.lcs_factory_options.num_friction_directions, 
+        drake::multibody::JacobianWrtVariable::kQDot);
+      phi_check = phi;
+      counter++;
+    }
+    if (counter > 10) {
+      std::cout << "counter " << counter << std::endl;
+    }
+    x_out(z_idx) = x_out(z_idx) -= 0.002; // Add a little extra to ensure no penetration
+
+    return x_out;
+}
+
 
 // TODO: clean up this function
 VectorXd MSiC3::ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
@@ -1072,8 +1223,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
 
   int tracking_N = controller_options_.lcs_factory_options.N;
 
-  rollout_factory.SetNewDt(dt_ / factor);
-
   // Run receding horizon C3 MPC
   for (int t = 0; t < num_steps; t++) {
 
@@ -1090,7 +1239,6 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
     MatrixXd x_hat_for_lcs(MatrixXd::Zero(n_x_, tracking_N+1));
     MatrixXd u_hat_for_lcs(MatrixXd::Zero(n_u_, tracking_N));
     MatrixXd lambda_hat_for_lcs(MatrixXd::Zero(n_lambda_, tracking_N));
-
 
     double discount_factor = 1;
     for (int i = 0; i < tracking_N + 1; i++) {
@@ -1143,28 +1291,17 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
       }
     }
 
-    std::unique_ptr<C3Plus> c3_tracking = std::make_unique<C3Plus>(lcs, costs, x_targets_shortened,
-                                  controller_options_.c3_options);
-    c3_tracking->UpdateInputTarget(u_targets_shortened);
-    c3_tracking->SetPenalizeChange(false); // TODO: change the interface of regularization costs so this isn't needed
+    c3_tracking_->UpdateCostMatrices(costs);
+    c3_tracking_->UpdateLCS(lcs);
+    c3_tracking_->UpdateTarget(x_targets_shortened);
+    c3_tracking_->UpdateInputTarget(u_targets_shortened);
+    c3_tracking_->SetPenalizeChange(false); // TODO: change the interface of regularization costs so this isn't needed
 
-    c3_tracking->SetXHat(x_reg_targets);
-    c3_tracking->SetUHat(u_reg_targets);
-    c3_tracking->AddRegularizationCostsState(Q_reg);
-    c3_tracking->AddRegularizationCostsInput(R_reg);
+    // c3_tracking_->SetXHat(x_reg_targets);
+    // c3_tracking_->SetUHat(u_reg_targets);
+    // c3_tracking_->AddRegularizationCostsState(Q_reg);
+    // c3_tracking_->AddRegularizationCostsInput(R_reg);
 
-    if (ms_ic3_options_.add_position_constraints) {
-      c3_tracking->AddLinearConstraint(A_x, lb_x, ub_x,
-                                ConstraintVariable::STATE);
-    }  
-    if (ms_ic3_options_.add_input_constraints) {
-      c3_tracking->AddLinearConstraint(A_u, lb_u, ub_u,
-                                ConstraintVariable::INPUT);
-    }
-    
-    if (n_u_ == 9 && ms_ic3_options_.penalize_acceleration) {
-      c3_tracking->AddAccelerationCost(n_q_, n_v_, ms_ic3_options_.acceleration_cost_weight);
-    }
 
     // If tracking c3 horizon goes past iC3 N, just use last H, g
     int lqr_idx = std::min(start_idx + t + tracking_N, N_); 
@@ -1174,18 +1311,18 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
     MatrixXd Q_trust = UpdateQuaternionCosts(x_curr, {x_hat.col(lqr_idx)}, {Q_[lqr_idx]})[0];
     Q_trust *= ms_ic3_options_.vf_trust_region_weight;
     VectorXd bias = g[lqr_idx] - (H[lqr_idx] + Q_trust) * x_hat.col(lqr_idx);
-    c3_tracking->UpdateFinalCost(scaling * (H[lqr_idx] + Q_trust), scaling * bias);
+    c3_tracking_->UpdateFinalCost(scaling * (H[lqr_idx] + Q_trust), scaling * bias);
 
     auto c3_start = std::chrono::high_resolution_clock::now();
-    c3_tracking->Solve(x_curr);
+    c3_tracking_->Solve(x_curr);
     auto c3_end = std::chrono::high_resolution_clock::now();
     auto c3_elapsed = c3_end - c3_start;
     double c3_solve_time =
         std::chrono::duration_cast<std::chrono::microseconds>(c3_elapsed).count() / 1e6;
-    vector<MatrixXd> delta_proj = c3_tracking->GetDeltaProjection();
+    vector<MatrixXd> delta_proj = c3_tracking_->GetDeltaProjection();
     
     // Rescale lambda, eta
-    double AnDn = c3_tracking->GetAnDn();
+    double AnDn = c3_tracking_->GetAnDn();
     for (int ii = 0; ii < delta_proj.size(); ii++) {
       for (int jj = 0; jj < delta_proj[ii].cols(); jj++) {
         delta_proj[ii].col(jj).segment(n_x_, n_lambda_) *= AnDn;
@@ -1196,7 +1333,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
     delta_projection_iter_.push_back(delta_proj);
 
 
-    vector<Eigen::VectorXd> z_sol = c3_tracking->GetFullSolution();
+    vector<Eigen::VectorXd> z_sol = c3_tracking_->GetFullSolution();
 
     vector<Eigen::VectorXd> z_sol_scaled = z_sol;
     for (int ii = 0; ii < z_sol_scaled.size(); ii++) {
@@ -1263,6 +1400,7 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
           if (x_curr.segment(idx, 4).dot(x_next.segment(idx, 4)) < 0) {
             x_next.segment(idx, 4) *= -1;
           }
+          x_next.segment(idx, 4) = x_next.segment(idx, 4).normalized();
         }
 
         // std::cout << "x next " << x_next.transpose() << std::endl;  
@@ -1295,6 +1433,8 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
       
 
     } else {
+      rollout_factory.SetNewDt(dt_ / factor);
+
       // Rollout this u with LCS
       for (int i = 0; i < factor; i++) {
         // Normalize quaternions
@@ -1484,13 +1624,158 @@ MSiC3::ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_h
     // Backpropagate Value Function
     H_vf[t] = Q_xx + K[t].transpose() * Q_ux; // Mathematically identical to Q_xx - K^T Q_uu K
     H_vf[t] = 0.5 * (H_vf[t] + H_vf[t].transpose()); // Enforce symmetry
-    
+
+    // Threshold small values for conditioning
+    constexpr double EPS_ABS = 1e-4;
+    for (int i = 0; i < n_x_; ++i) {
+        for (int j = 0; j < n_x_; ++j) {
+            if (std::abs(H_vf[t](i, j)) < EPS_ABS) {
+                H_vf[t](i, j) = 0.0;
+            }
+        }
+    }
+
     g[t] = Q_x + K[t].transpose() * Q_u;
   }
 
   return std::make_tuple(H_vf, g, K, k_ff);
 }
+std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
+MSiC3::ComputeBoxDDPValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat,
+      LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects,
+      VectorXd u_min, VectorXd u_max) {
+  
+  const vector<MatrixXd>& A = lcs.A();
+  const vector<MatrixXd>& B = lcs.B();
+  const vector<MatrixXd>& D = lcs.D();
+  const vector<MatrixXd>& E = lcs.E();
+  const vector<MatrixXd>& F = lcs.F();
+  const vector<MatrixXd>& H = lcs.H();
 
+  const vector<MatrixXd>& Q = Q_;
+  const vector<MatrixXd>& R = R_;
+
+  vector<MatrixXd> H_vf(N_+1, MatrixXd::Zero(n_x_, n_x_));
+  vector<VectorXd> g(N_+1, VectorXd::Zero(n_x_));
+  vector<MatrixXd> K(N_, MatrixXd::Zero(n_u_, n_x_));
+  vector<VectorXd> k_ff(N_, VectorXd::Zero(n_u_));    
+
+  // Terminal value function
+  H_vf[N_] = Q[N_];
+
+  for (int t = N_ - 1; t >= 0; t--) {
+    int k_idx = t / L_;
+
+    VectorXd x_t = x_hat.col(t);
+    VectorXd u_t = u_hat.col(t);
+
+    // Active contact detection
+    double active_tol = 1e-6;
+    std::vector<int> active;
+    active.reserve(n_lambda_);
+    for (int j = 0; j < n_lambda_; j++) {
+      if (lambda_hat.col(t)(j) > active_tol) {
+        active.push_back(j);
+      }
+    }
+
+    MatrixXd f_x, f_u;
+    if (active.empty()) {
+      f_x = A[t];
+      f_u = B[t];
+    } else {
+      int na = static_cast<int>(active.size());
+
+      MatrixXd D_a(n_x_, na);
+      MatrixXd E_a(na, n_x_);
+      MatrixXd H_a(na, n_u_);
+      MatrixXd F_aa(na, na);
+
+      for (int a = 0; a < na; a++) {
+        int ja = active[a];
+        D_a.col(a) = D[t].col(ja);
+        E_a.row(a) = E[t].row(ja);
+        H_a.row(a) = H[t].row(ja);
+        for (int b = 0; b < na; b++) {
+          F_aa(a, b) = F[t](ja, active[b]);
+        }
+      }
+
+      Eigen::ColPivHouseholderQR<MatrixXd> qr(F_aa);
+      MatrixXd FinvE = qr.solve(E_a);
+      MatrixXd FinvH = qr.solve(H_a);
+      
+      f_x = A[t] - D_a * FinvE;
+      f_u = B[t] - D_a * FinvH;
+    }
+
+    // Quadratic expansions
+    MatrixXd Q_xx = Q[t] + f_x.transpose() * H_vf[t+1] * f_x;
+    MatrixXd Q_uu = R[t] + f_u.transpose() * H_vf[t+1] * f_u;
+    MatrixXd Q_ux = f_u.transpose() * H_vf[t+1] * f_x;
+
+    // Linear expansions
+    VectorXd Q_x = Q[t] * (x_t - xd) + f_x.transpose() * (g[t+1] + H_vf[t+1] * defects.col(k_idx+1));
+    VectorXd Q_u = R[t] * (u_t - ud) + f_u.transpose() * (g[t+1] + H_vf[t+1] * defects.col(k_idx+1));
+
+    // Regularize Q_uu for robust inversion
+    Q_uu.diagonal().array() += 1e-6;
+
+    // =========================================================================
+    // BOX-DDP INCORPORATION (Projected Newton / BoxQP)
+    // =========================================================================
+    VectorXd lower_bound = u_min - u_t;
+    VectorXd upper_bound = u_max - u_t;
+
+    // 1. Solve for bounded k_ff using Projected Newton
+    std::vector<int> free_idx;
+    VectorXd k_init = VectorXd::Zero(n_u_);
+    k_ff[t] = SolveBoxQP(Q_uu, Q_u, lower_bound, upper_bound, k_init, free_idx);
+
+    // 2. Compute Feedback Gain K on the free subspace (K_c = 0)
+    K[t].setZero();
+    int n_f = static_cast<int>(free_idx.size());
+    if (n_f > 0) {
+      MatrixXd Q_uu_ff(n_f, n_f);
+      MatrixXd Q_ux_f(n_f, n_x_);
+
+      for (int i = 0; i < n_f; ++i) {
+        Q_ux_f.row(i) = Q_ux.row(free_idx[i]);
+        for (int j = 0; j < n_f; ++j) {
+          Q_uu_ff(i, j) = Q_uu(free_idx[i], free_idx[j]);
+        }
+      }
+
+      Eigen::LDLT<MatrixXd> free_solver(Q_uu_ff);
+      MatrixXd K_f = -free_solver.solve(Q_ux_f);
+
+      for (int i = 0; i < n_f; ++i) {
+        K[t].row(free_idx[i]) = K_f.row(i);
+      }
+    }
+
+    // 3. Backpropagate Value Function
+    MatrixXd Kt_Quu_K = K[t].transpose() * Q_uu * K[t];
+    MatrixXd Kt_Qux = K[t].transpose() * Q_ux;
+
+    H_vf[t] = Q_xx + Kt_Quu_K + Kt_Qux + Kt_Qux.transpose();
+    H_vf[t] = 0.5 * (H_vf[t] + H_vf[t].transpose()); // Enforce symmetry
+
+    // Threshold small values for conditioning
+    constexpr double EPS_ABS = 1e-4;
+    for (int i = 0; i < n_x_; ++i) {
+        for (int j = 0; j < n_x_; ++j) {
+            if (std::abs(H_vf[t](i, j)) < EPS_ABS) {
+                H_vf[t](i, j) = 0.0;
+            }
+        }
+    }
+
+    g[t] = Q_x + K[t].transpose() * (Q_uu * k_ff[t] + Q_u) + Q_ux.transpose() * k_ff[t];
+  }
+
+  return std::make_tuple(H_vf, g, K, k_ff);
+}
 
 LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory) {
   DRAKE_DEMAND(x_hat.cols() >= u_hat.cols());
@@ -1833,6 +2118,174 @@ vector<MatrixXd> MSiC3::UpdateQuaternionCosts(
     discount_factor *= controller_options_.c3_options.gamma;
   }
   return Q;
+}
+
+Eigen::Quaterniond MSiC3::slerpLong(const Eigen::Quaterniond& q0,
+                             const Eigen::Quaterniond& q1, double t) {
+    Eigen::Quaterniond a = q0.normalized();
+    Eigen::Quaterniond b = q1.normalized();
+
+    double d = a.dot(b);
+
+    // For the LONG way we want the larger quaternion arc,
+    // i.e. force the dot product to be <= 0.
+    if (d > 0.0) {
+        b.coeffs() = -b.coeffs();
+        d = -d;
+    }
+
+    double theta    = std::acos(std::clamp(d, -1.0, 1.0)); // obtuse now
+    double sinTheta = std::sin(theta);
+
+    if (sinTheta < 1e-9)               // degenerate / antipodal
+        return a;
+
+    double s0 = std::sin((1.0 - t) * theta) / sinTheta;
+    double s1 = std::sin(t * theta)         / sinTheta;
+
+    Eigen::Quaterniond res;
+    res.coeffs() = s0 * a.coeffs() + s1 * b.coeffs();
+    return res.normalized();
+}
+
+VectorXd MSiC3::SolveBoxQP(const MatrixXd& Q_uu,
+                    const VectorXd& Q_u,
+                    const VectorXd& lower_bound,
+                    const VectorXd& upper_bound,
+                    const VectorXd& k_init,
+                    std::vector<int>& free_indices) {
+
+  const int n_u = Q_u.size();
+  const int max_iters = 30;
+  const double tol = 1e-6;
+  const double armijo_c1 = 0.1;
+  const double step_decay = 0.5;
+  const int max_linesearch_iters = 10;
+
+  // Initialize and clamp initial guess
+  VectorXd k = k_init;
+  for (int i = 0; i < n_u; ++i) {
+    k(i) = std::clamp(k(i), lower_bound(i), upper_bound(i));
+  }
+
+  auto compute_cost = [&](const VectorXd& x) -> double {
+    return 0.5 * x.dot(Q_uu * x) + Q_u.dot(x);
+  };
+
+  VectorXd grad(n_u);
+  VectorXd delta_k(n_u);
+
+  for (int iter = 0; iter < max_iters; ++iter) {
+    grad = Q_u + Q_uu * k;
+
+    // 1. Identify Free (Inactive) and Clamped (Active) sets
+    free_indices.clear();
+    std::vector<int> clamped_indices;
+    free_indices.reserve(n_u);
+    clamped_indices.reserve(n_u);
+
+    for (int i = 0; i < n_u; ++i) {
+      bool at_lower = (k(i) <= lower_bound(i) + 1e-9);
+      bool at_upper = (k(i) >= upper_bound(i) - 1e-9);
+
+      // A variable is clamped if it is at the boundary and the gradient points outside
+      if ((at_lower && grad(i) > 0.0) || (at_upper && grad(i) < 0.0)) {
+        clamped_indices.push_back(i);
+      } else {
+        free_indices.push_back(i);
+      }
+    }
+
+    // 2. Check first-order optimality (Projected Gradient Norm)
+    double projected_grad_norm = 0.0;
+    for (int i = 0; i < n_u; ++i) {
+      double proj_step = std::clamp(k(i) - grad(i), lower_bound(i), upper_bound(i)) - k(i);
+      projected_grad_norm = std::max(projected_grad_norm, std::abs(proj_step));
+    }
+    if (projected_grad_norm < tol) {
+      break;
+    }
+
+    // 3. Compute Newton Search Direction
+    delta_k.setZero();
+
+    // Clamped variables move toward projected bounds
+    for (int i : clamped_indices) {
+      delta_k(i) = std::clamp(k(i) - grad(i), lower_bound(i), upper_bound(i)) - k(i);
+    }
+
+    const int n_f = free_indices.size();
+    if (n_f > 0) {
+      // Extract free sub-Hessian and sub-gradient
+      MatrixXd H_ff(n_f, n_f);
+      VectorXd g_f(n_f);
+
+      for (int r = 0; r < n_f; ++r) {
+        int i = free_indices[r];
+        // g_f = Q_u_f + H_fc * delta_k_c
+        double coupling = 0.0;
+        for (int j : clamped_indices) {
+          coupling += Q_uu(i, j) * delta_k(j);
+        }
+        g_f(r) = grad(i) + coupling;
+
+        for (int c = 0; c < n_f; ++c) {
+          int j = free_indices[c];
+          H_ff(r, c) = Q_uu(i, j);
+        }
+      }
+
+      // Solve H_ff * delta_k_f = -g_f via Cholesky (LLT)
+      LLT<MatrixXd> llt(H_ff);
+      VectorXd delta_k_free;
+      if (llt.info() == Eigen::Success) {
+        delta_k_free = llt.solve(-g_f);
+      } else {
+        // Fallback to scaled gradient descent if free Hessian is singular
+        delta_k_free = -g_f;
+      }
+
+      for (int r = 0; r < n_f; ++r) {
+        delta_k(free_indices[r]) = delta_k_free(r);
+      }
+    }
+
+    // 4. Projected Armijo Line Search
+    double current_cost = compute_cost(k);
+    double directional_deriv = grad.dot(delta_k);
+    if (directional_deriv > 0.0) {
+      // If search direction is not descent due to numerical error, use projected gradient
+      delta_k = -grad;
+      directional_deriv = -grad.squaredNorm();
+    }
+
+    double alpha = 1.0;
+    VectorXd k_trial(n_u);
+    bool accepted = false;
+
+    for (int ls = 0; ls < max_linesearch_iters; ++ls) {
+      // Project candidate point along the arc
+      for (int i = 0; i < n_u; ++i) {
+        k_trial(i) = std::clamp(k(i) + alpha * delta_k(i), lower_bound(i), upper_bound(i));
+      }
+
+      double trial_cost = compute_cost(k_trial);
+      // Armijo condition: f(k_trial) <= f(k) + c1 * alpha * grad^T * delta_k
+      if (trial_cost <= current_cost + armijo_c1 * alpha * directional_deriv) {
+        k = k_trial;
+        accepted = true;
+        break;
+      }
+      alpha *= step_decay;
+    }
+
+    if (!accepted) {
+      // Line search failed to find sufficient decrease; terminate
+      break;
+    }
+  }
+
+  return k;
 }
 
 } // namespace systems

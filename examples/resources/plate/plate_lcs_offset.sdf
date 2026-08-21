@@ -55,7 +55,7 @@
           <drake:proximity_properties>
             <drake:mu_static>0.5</drake:mu_static>
             <drake:mu_dynamic>0.5</drake:mu_dynamic>
-            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
+            <drake:hunt_crossley_dissipation>2.0</drake:hunt_crossley_dissipation>
           </drake:proximity_properties>
         </collision>
       </link>
@@ -153,7 +153,7 @@
         <child>link_roll</child>
         <axis>
           <xyz>1 0 0</xyz>
-          <limit><lower>-0.5</lower><upper>0.5</upper></limit>
+          <limit><lower>-0.6</lower><upper>0.6</upper></limit>
         </axis>
       </joint>
 
@@ -163,7 +163,7 @@
         <pose>0 0 0 0 0 0</pose>
         <axis>
           <xyz>0 1 0</xyz>
-          <limit><lower>-0.5</lower><upper>0.5</upper></limit>
+          <limit><lower>-0.6</lower><upper>0.6</upper></limit>
         </axis>
       </joint>
 

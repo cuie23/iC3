@@ -1,8 +1,8 @@
-num_iters: 5
+num_iters: 3
 num_warmup_iters: 0
 
-N: 240
-num_segments: 12
+N: 480
+num_segments: 15
 
 
 add_position_constraints: true
@@ -27,15 +27,15 @@ num_threads: 32
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-alpha_ee: 0.41
-alpha_ee_step: 0.14750000000000002
+alpha_ee: 0.57
+alpha_ee_step: 0.21500000000000002
 
-alpha_object: 0.54
-alpha_object_step: 0.11499999999999999
+alpha_object: 0.78
+alpha_object_step: 0.10999999999999999
 
 warm_start_alpha: 0.0
 use_rollout_lambdas: true
 
 value_function_scaling: 1.0
-vf_trust_region_weight: 9
+vf_trust_region_weight: 55
 use_lambdas_for_lcs: false

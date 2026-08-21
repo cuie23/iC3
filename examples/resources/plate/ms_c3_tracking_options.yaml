@@ -6,7 +6,7 @@ publish_frequency: 100
 state_prediction_joints: []
 
 quaternion_indices: [5]
-Q_quaternion_weight: 4000
+Q_quaternion_weight: 18500
 
 quaternion_regularizer_fraction: 0.0
 
@@ -21,10 +21,9 @@ lcs_factory_options:
   num_friction_directions: 2
   num_contacts: 8
   spring_stiffness: 0
-  mu: [0.33, 0.33, 0.33, 0.33, 0.33, 0.33, 0.33, 0.33]
-  #mu: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-  N: 5
-  dt: 0.01
+  mu: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
+  N: 3
+  dt: 0.02
 
 c3_options:
   penalize_input_change: false # Currently combines u-u_prev and u-u_des
@@ -43,25 +42,25 @@ c3_options:
   M: 1000
 
   admm_iter: 6
-  gamma: 1.00
+  gamma: 1.0
   rho_scale: 1.1 #matrix scaling
   w_Q: 5
   w_R: 10 #Penalty on all decision variables, assuming scalar
-  w_G: 284.7 #Penalty on all decision variables, assuming scalar
+  w_G: 152.2 #Penalty on all decision variables, assuming scalar
   w_U: 5 #State Tracking Error, assuming diagonal
 
 
-  q_vector: [800, 800, 4900, 2400, 2400, 1, 1, 1, 1, 1000, 1000, 500, 1, 1, 1, 10, 10, 1, 1, 1, 1, 1, 1]
+  q_vector: [800, 800, 16000, 39200, 39200, 1, 1, 1, 1, 1000, 1000, 400, 1, 1, 1, 8, 8, 1, 1, 1, 1, 1, 1]
 
-  r_vector: [1, 1, 10, 1, 1]
+  r_vector: [1, 1, 1, 1, 1]
   #Penalty on matching projected variables
   g_x: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   g_gamma: []
   g_lambda_n: []
   g_lambda_t: []
-  g_eta: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  g_lambda: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-  g_u: [1, 1, 1, 1, 1]
+  g_eta: [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+  g_lambda: [95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95, 95]
+  g_u: [10, 10, 10, 10, 10]
   g_eta_slack: []
   g_eta_n: []
   g_eta_t: []
@@ -69,8 +68,8 @@ c3_options:
 
   #Penalty on matching the QP variables
   u_x: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  u_lambda: [18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4, 18.4]
-  u_eta: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  u_lambda: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  u_eta: [99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99]
   u_u: [1, 1, 1, 1, 1]
 
   u_gamma: []
@@ -80,3 +79,4 @@ c3_options:
   u_eta_slack: []
   u_eta_n: []
   u_eta_t: []
+  w_G_final: 1

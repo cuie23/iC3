@@ -1,7 +1,7 @@
 import optuna
 
-STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_pd2.db"
-STUDY_NAME = "MSiC3_plate_pd2"
+STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_vert_proj_offset_x_target.db"
+STUDY_NAME = "MSiC3_plate_vert_proj_offset_x_target"
 
 # STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final.db"
 # STUDY_NAME = "MSiC3_point_hand_180_wG_final"

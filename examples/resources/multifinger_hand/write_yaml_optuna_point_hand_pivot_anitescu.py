@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_static_lcs_shorter_plan.db"
-STUDY_NAME = "MSiC3_point_hand_pivot_static_lcs_shorter_plan"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_box_ddp_smaller_dt.db"
+STUDY_NAME = "MSiC3_point_hand_pivot_box_ddp_smaller_dt"
 
-TRIAL_NUMBER = 4081
+TRIAL_NUMBER = 1660
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -200,7 +200,7 @@ c3_options["c3_options"]["admm_iter"] = admm_iter
 c3_options["lcs_factory_options"]["mu"] = flow_seq([mu_fc, mu_fc, mu_fc, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
 c3_options["lcs_factory_options"]["num_contacts"] = 11
 c3_options["lcs_factory_options"]["N"] = tracking_N
-c3_options["lcs_factory_options"]["dt"] = 0.04 if large_dt else 0.02
+c3_options["lcs_factory_options"]["dt"] = 0.03 if large_dt else 0.02
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
 if (finger_config == 1):

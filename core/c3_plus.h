@@ -44,6 +44,8 @@ class C3Plus final : public C3 {
          const std::vector<Eigen::VectorXd>& xdesired,
          const C3Options& options);
   ~C3Plus() override = default;
+  
+  void UpdateLCS(const LCS& lcs) override;
 
   Eigen::VectorXd SolveSingleProjection(
       const Eigen::MatrixXd& U, const Eigen::VectorXd& delta_c,
@@ -64,7 +66,6 @@ class C3Plus final : public C3 {
  private:
   void StoreQPResults(const drake::solvers::MathematicalProgramResult& result,
                       int admm_iteration, bool is_final_solve) override;
-  void UpdateLCS(const LCS& lcs) override;
   void SetInitialGuessQP(const Eigen::VectorXd& x0,
                          int admm_iteration) override;
   std::vector<drake::solvers::VectorXDecisionVariable> eta_;

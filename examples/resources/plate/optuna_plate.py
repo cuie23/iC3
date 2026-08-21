@@ -21,17 +21,29 @@ def objective(trial):
     # C3 parameters
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
     w_G = trial.suggest_int("w_G", 1, 5000)
-    plate_z_cost = trial.suggest_int("plate_z_cost", 50, 5000, step=50)
-    plate_rot_cost = trial.suggest_int("plate_rot_cost", 100, 5000, step=100)
-    tracking_N = trial.suggest_int("tracking_N", 3, 6)
-    quat_weight = trial.suggest_int("quat_weight", 500, 50000, step=500)
+    g_lambda = trial.suggest_int("g_lambda", 1, 100)
+    g_eta = trial.suggest_int("g_eta", 1, 100)
+    # w_G_final = trial.suggest_int("w_G_final", 1, 100)
+    w_G_final = 1
+
+    plate_z_cost = trial.suggest_int("plate_z_cost", 50, 20000, step=50)
+    plate_rot_cost = trial.suggest_int("plate_rot_cost", 100, 50000, step=100)
+    tracking_N = trial.suggest_int("tracking_N", 3, 8)
+    quat_weight = trial.suggest_int("quat_weight", 100, 50000, step=100)
 
     u_ratio = trial.suggest_int("u_ratio", -200, 199)
+    dt = trial.suggest_categorical("dt", [1, 2, 4])
+    # dt = trial.suggest_int("dt", 1, 2)
+
+    mu = trial.suggest_int("mu", 1, 100)
+
+    # scale_lcs = trial.suggest_categorical("scale_lcs", [True, False])
+    scale_lcs = False
 
     # init_x_offset = trial.suggest_int("init_x_offset", 13, 15)
     init_x_offset = 13
 
-    plate_offset = True
+    plate_offset = False
 
     ratio = abs(u_ratio)
     if (u_ratio < 0):
@@ -44,31 +56,64 @@ def objective(trial):
 
     with open(CONTORLLER_PARAMS, "r") as f:
         c3_options = yaml.safe_load(f)
-        
+
+    n_contacts = 8
+
     c3_options["c3_options"]["admm_iter"] = admm_iter
     c3_options["c3_options"]["w_G"] = w_G / 10.0
+    c3_options["c3_options"]["g_lambda"] = [g_lambda] * (4 * n_contacts)
+    c3_options["c3_options"]["g_eta"] =  [g_eta] * (4 * n_contacts)
+    c3_options["c3_options"]["w_G_final"] = w_G_final
+    c3_options["c3_options"]["g_u"] = [10, 10, 10, 10, 10]
+
 
     c3_options["c3_options"]["q_vector"][2] = plate_z_cost
     c3_options["c3_options"]["q_vector"][3] = plate_rot_cost
     c3_options["c3_options"]["q_vector"][4] = plate_rot_cost
 
+    c3_options["c3_options"]["q_vector"][11] = 400
+    c3_options["c3_options"]["q_vector"][15] = 8
+    c3_options["c3_options"]["q_vector"][16] = 8
+
+    c3_options["c3_options"]["r_vector"] = [1, 1, 1, 1, 1]
+
+
     c3_options["Q_quaternion_weight"] = quat_weight
     c3_options["lcs_factory_options"]["N"] = tracking_N
-    
-    n_contacts = 8
+    c3_options["lcs_factory_options"]["dt"] = dt / 100.0
+    c3_options["lcs_factory_options"]["mu"] = [mu / 100] * n_contacts
+
     c3_options["c3_options"]["u_lambda"] = [u_lambda] * (4 * n_contacts)
     c3_options["c3_options"]["u_eta"] = [u_eta] * (4 * n_contacts)
 
-    c3_options["c3_options"]["scale_lcs"] = False
+    c3_options["c3_options"]["scale_lcs"] = scale_lcs
 
     c3_options["x_init"][2] = -0.107 if plate_offset else 0
     c3_options["x_des"][2] = -0.107 if plate_offset else 0
 
     c3_options["x_init"][9] = init_x_offset / 100.0
     c3_options["x_des"][9] = init_x_offset / 100.0
+    # c3_options["x_des"][9] = 0
 
     c3_options["x_init"][11] = 0.022
     c3_options["x_des"][11] = 0.022
+
+    c3_options["x_init"][4] = 0
+    c3_options["x_init"][5] = 1
+    c3_options["x_init"][6] = 0
+    c3_options["x_init"][7] = 0
+    c3_options["x_init"][8] = 0
+
+    # c3_options["x_des"][22] = 1
+    c3_options["x_des"][22] = 0
+
+    # start pre tilted
+    # c3_options["x_init"][4] = 0.2
+
+    # c3_options["x_init"][5] = 0.995004
+    # c3_options["x_init"][6] = 0
+    # c3_options["x_init"][7] = 0.099833
+    # c3_options["x_init"][8] = 0
 
     with open(CONTORLLER_PARAMS, "w") as f:
         yaml.dump(c3_options, f, default_flow_style=True)
@@ -76,18 +121,23 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 1)
+    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
     warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    # num_warmup_iters = 0
+    # warm_start_alpha = 0
 
-    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10])
+    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 20, 40])
     num_iters = trial.suggest_categorical("num_iters", [3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
     accel_cost = trial.suggest_int("accel_cost", 0, 50, step=5)
+    # accel_cost = 0
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
     vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
+
+    torque_bound = trial.suggest_int("torque_bound", 14, 24, step=2)
 
     use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
 
@@ -123,7 +173,7 @@ def objective(trial):
     ic3_options["acceleration_cost_weight"] = accel_cost
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 
-    ic3_options["N"] = 200
+    ic3_options["N"] = int(160 / dt)
 
     ic3_options["rollout_Kp"] = [Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot]
     ic3_options["rollout_Kd"] = [Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot]
@@ -132,6 +182,8 @@ def objective(trial):
     ic3_options["num_threads"] = 32
 
     ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
+
+    ic3_options["rollout_dt_scaling"] = 1
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
@@ -142,7 +194,8 @@ def objective(trial):
         "./bazel-bin/examples/lcs_factory_system_example", 
         "--experiment_type=MSiC3_plate_optuna",
         f"--optuna_instance={worker_id}",
-        f"--ee_config={ee_config}"
+        f"--ee_config={ee_config}",
+        f"--plate_u_torque_bound={torque_bound / 10.0}"
     ]
 
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
@@ -169,14 +222,14 @@ def objective(trial):
             if "x anchor pancake" in line:
                 raw_numbers = line.split("pancake")[1].split()
                 current_anchor_z = float(raw_numbers[6])
-                if (current_anchor_z < -1.5):
+                if (current_anchor_z < -1):
                     return 50000 * current_anchor_z * current_anchor_z
                 
             # 4. Extract the actual (hat) quaternion and add to the running cost
             if "x_hat[L] pancake:" in line:
                 raw_numbers = line.split("pancake:")[1].split()
                 hat_z = float(raw_numbers[6])
-                if (hat_z < -1.5):
+                if (hat_z < -1 or hat_z > 1):
                     return 50000 * hat_z * hat_z
 
             # 6. Extract Final Metric
@@ -217,7 +270,7 @@ def log_best_callback(study, trial):
           print(f"--> New best metric found: {study.best_value}. Saving to file...")
           
           # Open in "w" (write) mode to overwrite the file with the fresh best data
-          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_offset.txt", "w") as f:
+          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_choose_u_bound_offset_x_target.txt", "w") as f:
               f.write("=========================================\n")
               f.write("       BEST HYPERPARAMETERS SO FAR       \n")
               f.write("=========================================\n")
@@ -237,15 +290,15 @@ def log_best_callback(study, trial):
 if __name__ == "__main__":
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
 
-    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_offset.db"
+    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_choose_u_bound_offset_x_target.db"
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  
         heartbeat_interval=60            
     )
 
-    sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
+    sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True, n_startup_trials=400)
     study = optuna.create_study(
-        study_name="MSiC3_plate_offset",
+        study_name="MSiC3_plate_choose_u_bound_offset_x_target",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

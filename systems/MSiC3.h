@@ -6,8 +6,7 @@
 
 #include "common/find_resource.h"
 #include "core/c3.h"
-#include "core/c3_miqp.h"
-#include "core/c3_qp.h"
+#include "core/c3_plus.h"
 #include "core/lcs.h"
 #include "systems/c3_controller_options.h"
 #include "systems/MSiC3_options.h"
@@ -74,7 +73,8 @@ public:
     drake::systems::Context<double>& context,
     drake::systems::Context<drake::AutoDiffXd>& context_ad, 
     drake::systems::Context<double>& context_rollout,
-    drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout);
+    drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout,
+    double plate_u_torque_bound = -1);
 
   // 1. x_hat for each x0
   // 2. u_hat for each x0
@@ -88,6 +88,10 @@ private:
   
   VectorXd ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
                                 VectorXd x_init, int z_idx);
+
+  VectorXd ProjectContactPlate(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
+                                VectorXd x_init, int z_idx, int pitch_idx, 
+                                MatrixXd A_x, VectorXd lb_x, VectorXd ub_x);
 
   VectorXd ProjectContact(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
                                   VectorXd x_init, int start_idx, int q_size, MatrixXd A_x, VectorXd lb_x, VectorXd ub_x); 
@@ -125,6 +129,17 @@ private:
     ComputeLQRValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat,
                             LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects);
 
+  std::tuple<vector<MatrixXd>, vector<VectorXd>, vector<MatrixXd>, vector<VectorXd>> 
+    ComputeBoxDDPValueFunction(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat,
+        LCS lcs, VectorXd xd, VectorXd ud, MatrixXd defects,
+        VectorXd u_min, VectorXd u_max);
+  VectorXd SolveBoxQP(const MatrixXd& Q_uu,
+                      const VectorXd& Q_u,
+                      const VectorXd& lower_bound,
+                      const VectorXd& upper_bound,
+                      const VectorXd& k_init,
+                      std::vector<int>& free_indices);
+
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory);
   LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory, VectorXd ee_pose, int ee_idx);
 
@@ -141,6 +156,10 @@ private:
   vector<MatrixXd> UpdateQuaternionCosts(
     VectorXd x_curr, vector<VectorXd> x_des, vector<MatrixXd> Q);
 
+  Eigen::Quaterniond slerpLong(const Eigen::Quaterniond& q0, const Eigen::Quaterniond& q1, double t);
+
+
+
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;
   const drake::multibody::MultibodyPlant<double>& plant_rollout_;
@@ -154,6 +173,8 @@ private:
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
   MSiC3Options ms_ic3_options_;
+
+  std::unique_ptr<c3::C3Plus> c3_tracking_;
 
   // Convenience variables for dimensions.
   int n_q_;       // Number of generalized positions.

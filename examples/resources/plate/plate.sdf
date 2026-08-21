@@ -9,8 +9,7 @@
     <pose>0 0 0 0 0 0</pose>
 
     <inertial>
-      <!-- CoM of the disk is 0.107 above the pivot/joint origin -->
-      <pose>0 0 0.107 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <mass>0.85</mass>
       <inertia>
         <ixx>0.01029</ixx>
@@ -23,7 +22,7 @@
     </inertial>
 
     <visual name="plate_visual">
-      <pose>0 0 0.107 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <geometry>
         <cylinder>
           <radius>0.2</radius>
@@ -33,20 +32,8 @@
       <material><diffuse>0.1 0.1 0.1 1</diffuse></material>
     </visual>
 
-    <!-- Optional: visualize the rod so you can see the geometry -->
-    <visual name="rod_visual">
-      <pose>0 0 0.0535 0 0 0</pose>
-      <geometry>
-        <cylinder>
-          <radius>0.01</radius>
-          <length>0.107</length>
-        </cylinder>
-      </geometry>
-      <material><diffuse>0.6 0.6 0.6 1</diffuse></material>
-    </visual>
-
     <collision name="plate_collision">
-      <pose>0 0 0.107 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <geometry>
         <cylinder>
           <radius>0.2</radius>
@@ -155,7 +142,7 @@
         <child>link_roll</child>
         <axis>
           <xyz>1 0 0</xyz>
-          <limit><lower>-0.5</lower><upper>0.5</upper></limit>
+          <limit><lower>-1</lower><upper>1</upper></limit>
         </axis>
       </joint>
 
@@ -165,7 +152,7 @@
         <pose>0 0 0 0 0 0</pose>
         <axis>
           <xyz>0 1 0</xyz>
-          <limit><lower>-0.5</lower><upper>0.5</upper></limit>
+          <limit><lower>-1</lower><upper>1</upper></limit>
         </axis>
       </joint>
 

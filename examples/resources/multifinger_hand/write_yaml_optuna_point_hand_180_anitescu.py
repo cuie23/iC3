@@ -19,10 +19,10 @@ MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_18
 # CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_31.yaml"
 # MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_31.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_static_lcs_larger_dt.db"
-STUDY_NAME = "MSiC3_point_hand_180_static_lcs_larger_dt"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_box_ddp_small_dt.db"
+STUDY_NAME = "MSiC3_point_hand_180_box_ddp_small_dt"
 
-TRIAL_NUMBER = 2856
+TRIAL_NUMBER = 2526
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -101,10 +101,12 @@ try:
     cube_position_weight = trial.params["cube_position_weight"]
     quat_weight = trial.params["quat_weight"]
 except KeyError:
+    
     finger_position_weight = 3000
     cube_position_weight = 8000
     quat_weight = 4000
-
+    if (STUDY_NAME == "MSiC3_point_hand_180_box_ddp_small_dt"):
+        finger_position_weight = 2000
 
 with open(CONTORLLER_PARAMS, "r") as f:
     c3_options = yaml.load(f)
@@ -183,7 +185,7 @@ c3_options["c3_options"]["admm_iter"] = admm_iter
 
 c3_options["lcs_factory_options"]["mu"] = flow_seq([mu_fc, mu_fc, mu_fc, 0.3, 0.3, 0.3, 0.3])
 c3_options["lcs_factory_options"]["N"] = tracking_N
-c3_options["lcs_factory_options"]["dt"] = 0.03
+c3_options["lcs_factory_options"]["dt"] = 0.025
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
 x_init = [0.0, 0.07, 0.05,  # finger 1 

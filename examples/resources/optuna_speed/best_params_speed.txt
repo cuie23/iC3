@@ -1,0 +1,17 @@
+=========================================
+       BEST HYPERPARAMETERS SO FAR       
+=========================================
+Best Trial Number: 0
+Best Metric Value: 2798.937
+
+Parameters:
+  polish: 0
+  polish_refine_iter: 5
+  check_termination: 50
+  scaling: 22
+  rho_mult: 3
+  rho_exp: -4
+  sigma_exp: -4
+  alpha: 9
+  delta: -7
+=========================================

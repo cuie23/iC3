@@ -78,6 +78,7 @@ DEFINE_string(lcm_url, "udpm://239.255.76.67:7667?ttl=0",
 DEFINE_string(diagram_path, "",
               "Path to store the diagram (.ps) for the system. If empty, will "
               "be ignored");
+DEFINE_double(plate_u_torque_bound, -1, "torque bound for plate example");
 
 using c3::systems::C3Controller;
 using c3::systems::C3ControllerOptions;
@@ -1260,18 +1261,6 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
   plant_for_lcs.Finalize();
 
-  std::cout << "floating " << plant_for_lcs.GetBodyByName("plate").is_floating() << std::endl;
-
-  for (drake::multibody::JointIndex i(0); i < plant_for_lcs.num_joints(); ++i) {
-    const auto& j = plant_for_lcs.get_joint(i);
-    std::cout << j.name() << ": "
-              << j.position_lower_limits().transpose() << " -> "
-              << j.position_upper_limits().transpose() << std::endl;
-  }
-  std::cout << "approx: "
-            << static_cast<int>(plant_for_lcs.get_discrete_contact_approximation())
-            << std::endl;
-
   // Build the plant diagram.
   auto plant_diagram = plant_builder.Build();
 
@@ -1307,6 +1296,20 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
   parser_rollout.AddModels(cube_file_rollout);
 
   plant_rollout.Finalize();
+
+
+  std::cout << "floating " << plant_rollout.GetBodyByName("plate").is_floating() << std::endl;
+
+  for (drake::multibody::JointIndex i(0); i < plant_rollout.num_joints(); ++i) {
+    const auto& j = plant_rollout.get_joint(i);
+    std::cout << j.name() << ": "
+              << j.position_lower_limits().transpose() << " -> "
+              << j.position_upper_limits().transpose() << std::endl;
+  }
+  std::cout << "approx: "
+            << static_cast<int>(plant_rollout.get_discrete_contact_approximation())
+            << std::endl;
+
 
   auto plant_diagram_rollout = plant_builder_rollout.Build();
 
@@ -1366,7 +1369,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_context_autodiff, 
-      plant_context_rollout, plant_context_autodiff_rollout);
+      plant_context_rollout, plant_context_autodiff_rollout, FLAGS_plate_u_torque_bound);
       
   std::cout << "computed traj" << std::endl;
 
@@ -1421,7 +1424,7 @@ int RunPlateTestMSiC3(drake::lcm::DrakeLcm& lcm) {
 
   // Set the initial state of the system.
   Eigen::VectorXd x0(23);
-	x0 << 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+	// x0 << 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
   // x0 << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
   std::vector<double> x_init = *options.x_init;
@@ -1585,7 +1588,7 @@ int OptunaPlateTestMSiC3(int optuna_instance) {
 
   auto [x_traj, u_traj, lambda_traj, H, g, K, k_ff, all_delta_projections, all_z_sols, all_gammas, all_in_contacts] = 
     ms_ic3_controller->ComputeTrajectory(plant_for_lcs_context, plant_context_autodiff, 
-      plant_context_rollout, plant_context_autodiff_rollout);
+      plant_context_rollout, plant_context_autodiff_rollout, FLAGS_plate_u_torque_bound);
       
   std::cout << "computed traj" << std::endl;
 
@@ -1615,13 +1618,30 @@ int OptunaPlateTestMSiC3(int optuna_instance) {
     double z_diff = x_last(11);
     double x_diff = x_last(9) - xd(9);
 
-    std::cout << x_last.segment(0, 12).transpose() << std::endl;
+
+    // std::cout << x_last.segment(0, 12).transpose() << std::endl;
 
     z_cost += 20000 * z_diff * z_diff;
     x_cost += 5000 * x_diff * x_diff;
     total_angle_diff += qd.angularDistance(qf) * 180 / M_PI;
     plate_rot_cost += 300 * x_last(3) * x_last(3);
     plate_rot_cost += 300 * x_last(4) * x_last(4);
+  }
+
+  for (int i = 0; i < x_hat_final.cols(); i++) {
+    VectorXd x_last = x_hat_final.col(i);
+
+    if (std::abs(x_last(3)) > 0.8) {
+      plate_rot_cost += 1000;
+      std::cout << "PITCH OVER LIMIT " << std::endl;
+    }
+    if (std::abs(x_last(4)) > 0.8) {
+      plate_rot_cost += 1000;
+      std::cout << "ROLL OVER LIMIT " << std::endl;
+    } 
+    if (x_last(11) < -0.7 || x_last(11) > 0.7) {
+      z_cost += 10000;
+    }
   }
 
   std::cout << "z_cost: " << z_cost << std::endl;
@@ -1660,18 +1680,6 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
 
   plant_for_lcs.Finalize();
 
-  std::cout << "floating " << plant_for_lcs.GetBodyByName("plate").is_floating() << std::endl;
-
-  for (drake::multibody::JointIndex i(0); i < plant_for_lcs.num_joints(); ++i) {
-    const auto& j = plant_for_lcs.get_joint(i);
-    std::cout << j.name() << ": "
-              << j.position_lower_limits().transpose() << " -> "
-              << j.position_upper_limits().transpose() << std::endl;
-  }
-  std::cout << "approx: "
-            << static_cast<int>(plant_for_lcs.get_discrete_contact_approximation())
-            << std::endl;
-
   // Build the plant diagram.
   auto plant_diagram = plant_builder.Build();
 
@@ -1707,6 +1715,18 @@ int RunPlateTestMSiC3Parallel(drake::lcm::DrakeLcm& lcm) {
   parser_rollout.AddModels(cube_file_rollout);
 
   plant_rollout.Finalize();
+
+  std::cout << "floating " << plant_rollout.GetBodyByName("plate").is_floating() << std::endl;
+
+  for (drake::multibody::JointIndex i(0); i < plant_rollout.num_joints(); ++i) {
+    const auto& j = plant_rollout.get_joint(i);
+    std::cout << j.name() << ": "
+              << j.position_lower_limits().transpose() << " -> "
+              << j.position_upper_limits().transpose() << std::endl;
+  }
+  std::cout << "approx: "
+            << static_cast<int>(plant_rollout.get_discrete_contact_approximation())
+            << std::endl;
 
   auto plant_diagram_rollout = plant_builder_rollout.Build();
 
