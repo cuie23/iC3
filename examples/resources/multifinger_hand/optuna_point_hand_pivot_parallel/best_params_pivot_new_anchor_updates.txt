@@ -1,3 +1,7 @@
+sudo docker build -t ic3 .
+sudo docker save ic3 | gzip > /home/ericcui/c3_plus/c3/ic3.tar.gz 
+sudo chown ericcui:ericcui /home/ericcui/c3_plus/c3/ic3.tar.gz
+gzip /home/ericcui/c3_plus/c3/ic3.tar.gz
 =========================================
        BEST HYPERPARAMETERS SO FAR       
 =========================================

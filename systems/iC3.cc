@@ -1322,7 +1322,7 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
     Parser parser(&plant_sim, &scene_graph);
 
     const std::string hand_file = "examples/resources/multifinger_hand/allegro_hand_description_right.urdf";
-    const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+    const std::string cube_file = "examples/resources/multifinger_hand/urdf/cube.sdf";
     const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
     parser.AddModels(hand_file);
@@ -1392,8 +1392,8 @@ iC3::iC3(MultibodyPlant<double>& plant, MultibodyPlant<drake::AutoDiffXd>& plant
         drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.0001);
     Parser parser(&plant_sim, &scene_graph);
 
-    const std::string hand_file = "examples/resources/multifinger_hand/simplified_hand.sdf";
-    const std::string cube_file = "examples/resources/multifinger_hand/cube.sdf";
+    const std::string hand_file = "examples/resources/multifinger_hand/urdf/simplified_hand.sdf";
+    const std::string cube_file = "examples/resources/multifinger_hand/urdf/cube.sdf";
     const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
     parser.AddModels(hand_file);

@@ -9,9 +9,16 @@ import sys
 import math
 import platform
 
+if len(sys.argv) > 1:
+    worker_id = int(sys.argv[1])
+    print(f"Running worker number: {worker_id}")
+else:
+    # Fallback if you forget to pass the integer
+    worker_id = 0 
+    print("No integer passed, defaulting to 0")
 
 # Define paths to your parameter files
-OSQP_PARAMS = f"core/configs/solver_options_default.yaml"
+OSQP_PARAMS = f"core/configs/solver_options_{worker_id}.yaml"
 
 def objective(trial):
 
@@ -45,23 +52,23 @@ def objective(trial):
     # Construct and execute the bazel command
     cmd_plate = [
         "./bazel-bin/examples/lcs_factory_system_example", 
-        f"--optuna_instance={0}", 
         "--experiment_type=MSiC3_plate",
         f"--ee_config={1}",
+        f"--solver_options_file={OSQP_PARAMS}"
     ]
     cmd_speed = [
         "./bazel-bin/examples/lcs_factory_system_example", 
-        f"--optuna_instance={0}", 
         "--experiment_type=MSiC3_point_hand_180",
         f"--ee_config={1}",
-        f"--cube_model={1}"
+        f"--cube_model={1}",
+        f"--solver_options_file={OSQP_PARAMS}"
     ]
     cmd_pivot = [
         "./bazel-bin/examples/lcs_factory_system_example", 
-        f"--optuna_instance={0}", 
         "--experiment_type=MSiC3_point_hand",
         f"--ee_config={3}",
-        f"--cube_model={4}"
+        f"--cube_model={4}",
+        f"--solver_options_file={OSQP_PARAMS}"
     ]
 
     commands = [cmd_plate, cmd_speed, cmd_pivot]
@@ -85,30 +92,37 @@ def objective(trial):
                         print(f"Large Primal Residual ({float(primal_match.group(1))}) on cmd {cmd_idx + 1} run {run_idx + 1}")
                         process.terminate()
                         process.wait()
-                        return 30000 * float(primal_match.group(1))
+                        return 300000 * float(primal_match.group(1))
                     if dual_match and float(dual_match.group(1)) > 0.01:
                         print(f"Large Dual Residual ({float(dual_match.group(1))}) on cmd {cmd_idx + 1} run {run_idx + 1}")
                         process.terminate()
                         process.wait()
-                        return 30000 * float(dual_match.group(1))
+                        return 300000 * float(dual_match.group(1))
 
                     # Extract Final Metric
                     final_match = re.search(r"Total runtime:\s*([0-9.]+)", line)
                     if final_match:
                         run_score = float(final_match.group(1))
+                        if process.poll() is None:
+                            process.terminate()
+                            process.wait()
+                        break
 
             except optuna.TrialPruned as e:
                 # Kill the C++ subprocess immediately to save compute time
-                process.terminate() 
-                process.wait() 
+                if process.poll() is None:
+                    process.terminate() 
+                    process.wait() 
                 raise e 
             
             finally:
                 process.stdout.close()
                 process.stderr.close()
 
-            process.wait()
-            if process.returncode != 0:
+            if process.poll() is None:
+                process.wait()
+
+            if run_score is None and process.returncode != 0:
                 print(f"Trial failed with exit code {process.returncode} on cmd {cmd_idx + 1} run {run_idx + 1}")
                 raise optuna.TrialPruned(f"Process crashed or returned non-zero exit code on cmd {cmd_idx + 1} run {run_idx + 1}")
 

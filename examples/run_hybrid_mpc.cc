@@ -193,18 +193,18 @@ int RunHybridMPCPointHand(drake::lcm::DrakeLcm& lcm, MatrixXd z_hat, int example
   std::string hand_file_lcs;
 	std::string cube_file_lcs;
   if (example == 0) {
-    cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_heavy" + cube_model + ".sdf";
-    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
+    cube_file_lcs = "examples/resources/multifinger_hand/urdf/cube_for_lcs_heavy" + cube_model + ".sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/urdf/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
     if (ms_ic3_options.use_drake_sim == true) {
-      cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs" + cube_model + ".sdf";
+      cube_file_lcs = "examples/resources/multifinger_hand/urdf/cube_for_lcs" + cube_model + ".sdf";
     } else {
-      cube_file_lcs = "examples/resources/multifinger_hand/cube_for_lcs_small_contacts.sdf";
+      cube_file_lcs = "examples/resources/multifinger_hand/urdf/cube_for_lcs_small_contacts.sdf";
     }
-    hand_file_lcs = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
+    hand_file_lcs = "examples/resources/multifinger_hand/urdf/simplified_hand_180" + hand_config + ".sdf";
   }
 
-  // const std::string cube_file_lcs = "examples/resources/multifinger_hand/cylinder_for_lcs.sdf";
+  // const std::string cube_file_lcs = "examples/resources/multifinger_hand/urdf/cylinder_for_lcs.sdf";
   const std::string ground_file_lcs = "examples/resources/multifinger_hand/ground.urdf";
 
   parser_for_lcs.AddModels(hand_file_lcs);
@@ -243,20 +243,20 @@ int RunHybridMPCPointHand(drake::lcm::DrakeLcm& lcm, MatrixXd z_hat, int example
       AddMultibodyPlantSceneGraph(&plant_builder_rollout, ms_ic3_options.drake_sim_dt);
   Parser parser_rollout(&plant_rollout, &scene_graph_rollout);
 
-	std::string cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+	std::string cube_file_rollout = "examples/resources/multifinger_hand/urdf/cube.sdf";
   if (ms_ic3_options.use_drake_sim == true) {
-    cube_file_rollout = "examples/resources/multifinger_hand/cube.sdf";
+    cube_file_rollout = "examples/resources/multifinger_hand/urdf/cube.sdf";
   } else {
-    cube_file_rollout = "examples/resources/multifinger_hand/cube_small_contacts.sdf";
+    cube_file_rollout = "examples/resources/multifinger_hand/urdf/cube_small_contacts.sdf";
   }
-  // const std::string cube_file_rollout = "examples/resources/multifinger_hand/cylinder.sdf";
+  // const std::string cube_file_rollout = "examples/resources/multifinger_hand/urdf/cylinder.sdf";
 	const std::string ground_file_rollout = "examples/resources/multifinger_hand/ground.urdf";
 
   std::string hand_file_rollout;
   if (example == 0) {
-    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
+    hand_file_rollout = "examples/resources/multifinger_hand/urdf/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    hand_file_rollout = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
+    hand_file_rollout = "examples/resources/multifinger_hand/urdf/simplified_hand_180" + hand_config + ".sdf";
   }
 
   parser_rollout.AddModels(hand_file_rollout);
@@ -384,17 +384,17 @@ int RunHybridMPCPointHand(drake::lcm::DrakeLcm& lcm, MatrixXd z_hat, int example
 
 	std::string cube_file;
   if (ms_ic3_options.use_drake_sim == true) {
-    cube_file = "examples/resources/multifinger_hand/cube.sdf";
+    cube_file = "examples/resources/multifinger_hand/urdf/cube.sdf";
   } else {
-    cube_file = "examples/resources/multifinger_hand/cube_small_contacts.sdf";
+    cube_file = "examples/resources/multifinger_hand/urdf/cube_small_contacts.sdf";
   }
 	const std::string ground_file = "examples/resources/multifinger_hand/ground.urdf";
 
   std::string hand_file;
   if (example == 0) {
-    hand_file = "examples/resources/multifinger_hand/simplified_hand_pivot" + hand_config + ".sdf";
+    hand_file = "examples/resources/multifinger_hand/urdf/simplified_hand_pivot" + hand_config + ".sdf";
   } else {
-    hand_file = "examples/resources/multifinger_hand/simplified_hand_180" + hand_config + ".sdf";
+    hand_file = "examples/resources/multifinger_hand/urdf/simplified_hand_180" + hand_config + ".sdf";
   }
 
   parser.AddModels(hand_file);

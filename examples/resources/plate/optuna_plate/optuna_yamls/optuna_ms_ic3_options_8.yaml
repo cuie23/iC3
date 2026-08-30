@@ -1,8 +1,8 @@
-{N: 80, acceleration_cost_weight: 25, add_input_constraints: true, add_position_constraints: true,
-  alpha_ee: 0.62, alpha_ee_step: 0.19, alpha_object: 1.0, alpha_object_step: 0.0,
+{N: 200, acceleration_cost_weight: 0, add_input_constraints: true, add_position_constraints: true,
+  alpha_ee: 0.01, alpha_ee_step: 0.198, alpha_object: 0.82, alpha_object_step: 0.036,
   defect_quaternion_regularizer_fraction: 0, defect_quaternion_weight: 50, drake_sim_dt: 0.0001,
-  early_termination: true, num_iters: 3, num_segments: 20, num_threads: 32, num_warmup_iters: 2,
+  early_termination: true, num_iters: 6, num_segments: 25, num_threads: 32, num_warmup_iters: 0,
   penalize_acceleration: true, print_costs: false, rollout_Kd: [0, 0, 0, 0, 0], rollout_Kp: [
-    0, 0, 0, 0, 0], rollout_dt_scaling: 1, use_drake_sim: true, use_lambdas_for_lcs: true,
-  use_rollout_lambdas: true, value_function_scaling: 1.0, vf_trust_region_weight: 84,
-  warm_start_alpha: 0.3}
+    0, 0, 0, 0, 0], rollout_dt_scaling: 1, use_drake_sim: true, use_lambdas_for_lcs: false,
+  use_rollout_lambdas: true, value_function_scaling: 1.0, vf_trust_region_weight: 79,
+  warm_start_alpha: 0.04}

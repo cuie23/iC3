@@ -1,16 +1,22 @@
 import optuna
 
-STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_vert_proj_offset_x_target.db"
-STUDY_NAME = "MSiC3_plate_vert_proj_offset_x_target"
+# STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_fixed_value_function.db"
+# STUDY_NAME = "MSiC3_plate_fixed_value_function"
 
-# STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_wG_final.db"
-# STUDY_NAME = "MSiC3_point_hand_180_wG_final"
+# STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/laptop_plate_db_1.db"
+# STUDY_NAME = "MSiC3_plate_fixed_value_function"
+
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_less_params.db"
+STUDY_NAME = "MSiC3_point_hand_180_less_params"
 
 # STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_lighter_cubes_no_thresh.db"
 # STUDY_NAME = "MSiC3_point_hand_180_lighter_cubes_no_thresh"
 
 # STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_anitescu_drake_pruning.db"
 # STUDY_NAME = "MSiC3_point_hand_pivot_anitescu_drake_pruning"
+
+# STORAGE_PATH = "sqlite:///examples/resources/optuna_speed/optuna_results_speed.db"
+# STUDY_NAME = "MSiC3_point_hand_speed"
 
 TOP_N = 5  # Change this to however many you want
 

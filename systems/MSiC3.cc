@@ -9,11 +9,13 @@
 #include <cmath>
 
 #include "core/c3_plus.h"
+#include "core/solver_options_io.h"
 #include "multibody/lcs_factory.h"
 #include "multibody/geom_geom_collider.h"
 #include "common/quaternion_error_hessian.h"
 
 #include "drake/common/text_logging.h"
+#include "drake/solvers/osqp_solver.h"
 #include <drake/multibody/parsing/parser.h>
 #include <chrono>
 
@@ -389,7 +391,7 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
         if (example_idx_ == 0) {
           Eigen::Quaterniond slerp = slerpLong(q0, qd, rotation); 
           x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z(); 
-        } else if (example_idx_ == 1 && example_idx_ == 2) {
+        } else if (example_idx_ == 1 || example_idx_ == 2) {
           Eigen::Quaterniond slerp = q0.slerp(rotation, qd);
           x_hat.col(k).segment(idx, 4) << slerp.w(), slerp.x(), slerp.y(), slerp.z();
         }
@@ -406,9 +408,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
             plant_.GetBodyByName("cube"))[0];
       SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
 
-      // x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
-      //           A_x, lower_bound_x, upper_bound_x);
-      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+      x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
+                A_x, lower_bound_x, upper_bound_x);
+      // x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
 
     } else if (example_idx_ == 1) {
 
@@ -498,9 +500,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
             plant_.GetBodyByName("cube"))[0];
       SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
 
-      // x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
-      //     A_x, lower_bound_x, upper_bound_x);
-      x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+      x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
+          A_x, lower_bound_x, upper_bound_x);
+      // x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
     } else if (example_idx_ == 1) {
 
       // Ensure anchors don't have penetration
@@ -603,8 +605,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
     // auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
     // std::cout << "after compute lqr value fun" << std::endl;
     // auto start_vf = std::chrono::high_resolution_clock::now();
-    auto [H, g, K, k_ff] = ComputeBoxDDPValueFunction(x_hat, u_hat, lambda_hat,
+    auto [H_out, g, K, k_ff] = ComputeBoxDDPValueFunction(x_hat, u_hat, lambda_hat,
                               lcs, xd, u_nominal[0], defects, lower_bound_u, upper_bound_u);
+    vector<MatrixXd> H = GetLowRankApproximation(H_out);
 
     // auto end_vf = std::chrono::high_resolution_clock::now();
     // std::chrono::duration<double> duration_vf = end_vf - start_vf;
@@ -715,9 +718,9 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
               plant_.GetBodyByName("cube"))[0];
         SortedPair<GeometryId>cube_plate_contact(plate_collision_geom, cube_collision_geom);
 
-        // x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
-        //                 A_x, lower_bound_x, upper_bound_x);
-        x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
+        x_projected = ProjectContactPlate(context, cube_plate_contact, x_projected, 2, 11,
+                        A_x, lower_bound_x, upper_bound_x);
+        // x_projected = ProjectContactVertical(context, cube_plate_contact, x_projected, 11);
 
       } else if (example_idx_ == 1) {
         for (int j = 0; j < 3; j++) {
@@ -797,8 +800,10 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   // auto [H, g, K, k_ff] = ComputeLQRValueFunction(x_hat, u_hat, lambda_hat, lcs, xd, u_nominal[0], defects);
 
   // auto start_vf = std::chrono::high_resolution_clock::now();
-  auto [H, g, K, k_ff] = ComputeBoxDDPValueFunction(x_hat, u_hat, lambda_hat,
+  auto [H_out, g, K, k_ff] = ComputeBoxDDPValueFunction(x_hat, u_hat, lambda_hat,
                             lcs, xd, u_nominal[0], defects, lower_bound_u, upper_bound_u);
+  vector<MatrixXd> H = GetLowRankApproximation(H_out);
+
   // auto end_vf = std::chrono::high_resolution_clock::now();
   // std::chrono::duration<double> duration_vf = end_vf - start_vf;
   // std::cout << "BoxDDP backwards pass runtime: " << duration_vf.count() << " seconds\n\n " << std::endl;
@@ -841,11 +846,16 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>> MSiC3::DoHybridMPCTr
     A_x(3, 3) = 1;
     A_x(4, 4) = 1;
 
+    A_x(9, 9) = 1;
+
     lower_bound_x(0) = -0.1;
     lower_bound_x(1) = -0.1;
     lower_bound_x(2) = -0.15; 
     lower_bound_x(3) = -0.6;
     lower_bound_x(4) = -0.6;
+
+    lower_bound_x(9) = 0.0;
+    upper_bound_x(9) = 0.2;
 
     upper_bound_x(0) = 0.1;
     upper_bound_x(1) = 0.1;
@@ -2286,6 +2296,46 @@ VectorXd MSiC3::SolveBoxQP(const MatrixXd& Q_uu,
   }
 
   return k;
+}
+
+vector<MatrixXd> MSiC3::GetLowRankApproximation(vector<MatrixXd> H_in) {
+  vector<MatrixXd> H_out;
+
+  for (int i = 0; i < H_in.size(); i++) {
+    Eigen::SelfAdjointEigenSolver<MatrixXd> es(H_in[i]);
+    VectorXd evals = es.eigenvalues();            // ascending
+    double lambda_max = evals(evals.size() - 1);
+
+    double tol = 1e-2;  
+    int r = 0;
+    for (int i = evals.size() - 1; i >= 0; --i) {
+      if (evals(i) > tol * lambda_max) ++r;
+      else break;  
+    }
+
+    MatrixXd V = es.eigenvectors().rightCols(r);
+    VectorXd d = evals.tail(r).cwiseMax(0.0);
+    MatrixXd H_lr = V * d.asDiagonal() * V.transpose();
+
+    H_out.push_back(H_lr);
+  }
+  return H_out;
+}
+
+
+void MSiC3::SetSolverOptions(const drake::solvers::SolverOptions& solver_options) {
+  solver_options_ = solver_options;
+  if (c3_tracking_) {
+    c3_tracking_->SetSolverOptions(solver_options);
+  }
+}
+
+void MSiC3::SetSolverOptions(const std::string& solver_options_file) {
+  std::cout << "solver options file " << solver_options_file << std::endl;
+  drake::solvers::SolverOptions solver_options =
+      drake::yaml::LoadYamlFile<c3::SolverOptionsFromYaml>(solver_options_file)
+          .GetAsSolverOptions(drake::solvers::OsqpSolver::id());
+  SetSolverOptions(solver_options);
 }
 
 } // namespace systems

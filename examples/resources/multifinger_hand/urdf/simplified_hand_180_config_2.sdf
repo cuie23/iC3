@@ -1,0 +1,353 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="hand_world">
+
+    <model name="fingertips_lcs">
+      <!-- HARDCODED JOINT LIMITS -->
+
+
+      <!-- ========================= -->
+      <!-- FINGER 1 -->
+      <!-- ========================= -->
+      <link name="fingertip_1">
+      <inertial>
+        <mass>0.02</mass>
+        <inertia>
+          <ixx>8e-7</ixx>
+          <iyy>8e-7</iyy>
+          <izz>8e-7</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.01</radius>
+            </sphere>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.01</radius>
+            </sphere>
+          </geometry>
+          <drake:proximity_properties>
+            <drake:mu_static>0.5</drake:mu_static>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:compliant_hydroelastic/>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
+            <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
+            <drake:mesh_resolution_hint>0.005</drake:mesh_resolution_hint>
+          </drake:proximity_properties>
+        </collision>
+      </link>
+
+      <link name="base_link_1">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <link name="link_x_1">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <joint name="joint_x_1" type="prismatic">
+        <parent>base_link_1</parent>
+        <child>link_x_1</child>
+        <axis>
+          <xyz>1 0 0</xyz>
+          <limit>
+            <lower> -0.06 </lower>
+            <upper> 0.06 </upper>
+          </limit>  
+        </axis>
+      </joint>
+
+      <link name="link_y_1">
+      <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <joint name="joint_y_1" type="prismatic">
+        <parent>link_x_1</parent>
+        <child>link_y_1</child>
+        <axis>
+          <xyz>0 1 0</xyz>
+           <limit>
+            <lower> 0.01 </lower>
+            <upper> 0.13 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <joint name="joint_z_1" type="prismatic">
+        <parent>link_y_1</parent>
+        <child>fingertip_1</child>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower> 0.04 </lower>
+            <upper> 0.06 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <!-- ========================= -->
+      <!-- FINGER 2 -->
+      <!-- ========================= -->
+      <link name="fingertip_2">
+      <inertial>
+        <mass>0.02</mass>
+        <inertia>
+          <ixx>8e-7</ixx>
+          <iyy>8e-7</iyy>
+          <izz>8e-7</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.01</radius>
+            </sphere>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.01</radius>
+            </sphere>
+          </geometry>
+          <drake:proximity_properties>
+            <drake:mu_static>0.5</drake:mu_static>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:compliant_hydroelastic/>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
+            <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
+            <drake:mesh_resolution_hint>0.005</drake:mesh_resolution_hint>
+          </drake:proximity_properties>
+        </collision>
+      </link>
+
+      <link name="base_link_2">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <link name="link_x_2">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <joint name="joint_x_2" type="prismatic">
+        <parent>base_link_2</parent>
+        <child>link_x_2</child>
+        <axis>
+            <xyz>1 0 0</xyz>
+          <limit>
+            <lower> 0.01 </lower>
+            <upper> 0.13 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <link name="link_y_2">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <joint name="joint_y_2" type="prismatic">
+        <parent>link_x_2</parent>
+        <child>link_y_2</child>
+        <axis>
+          <xyz>0 1 0</xyz>
+          <limit>
+            <lower> -0.105 </lower>
+            <upper> 0.015 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <joint name="joint_z_2" type="prismatic">
+        <parent>link_y_2</parent>
+        <child>fingertip_2</child>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower> 0.04 </lower>
+            <upper> 0.06 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <!-- ========================= -->
+      <!-- FINGER 3 -->
+      <!-- ========================= -->
+      <link name="fingertip_3">
+      <inertial>
+        <mass>0.02</mass>
+        <inertia>
+          <ixx>8e-7</ixx>
+          <iyy>8e-7</iyy>
+          <izz>8e-7</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.01</radius>
+            </sphere>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.01</radius>
+            </sphere>
+          </geometry>
+          <drake:proximity_properties>
+            <drake:mu_static>0.5</drake:mu_static>
+            <drake:mu_dynamic>0.5</drake:mu_dynamic>
+            <drake:compliant_hydroelastic/>
+            <drake:hunt_crossley_dissipation>10.0</drake:hunt_crossley_dissipation>
+            <drake:hydroelastic_modulus>1e7</drake:hydroelastic_modulus>
+            <drake:mesh_resolution_hint>0.005</drake:mesh_resolution_hint>
+          </drake:proximity_properties>
+        </collision>
+      </link>
+
+      <link name="base_link_3">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <link name="link_x_3">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <joint name="joint_x_3" type="prismatic">
+        <parent>base_link_3</parent>
+        <child>link_x_3</child>
+        <axis>
+          <xyz>1 0 0</xyz>
+          <limit>
+            <lower> -0.13 </lower>
+            <upper> -0.01 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <link name="link_y_3">
+        <inertial>
+          <mass>1.0e-6</mass>
+          <inertia>
+            <ixx>1.0e-9</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1.0e-9</iyy>
+            <iyz>0</iyz>
+            <izz>1.0e-9</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <joint name="joint_y_3" type="prismatic">
+        <parent>link_x_3</parent>
+        <child>link_y_3</child>
+        <axis>
+          <xyz>0 1 0</xyz>
+          <limit>
+            <lower> -0.105 </lower>
+            <upper> 0.0015 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+      <joint name="joint_z_3" type="prismatic">
+        <parent>link_y_3</parent>
+        <child>fingertip_3</child>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower> 0.04 </lower>
+            <upper> 0.06 </upper>
+          </limit>
+        </axis>
+      </joint>
+
+    </model>
+  </world>
+</sdf>

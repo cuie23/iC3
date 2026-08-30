@@ -84,6 +84,10 @@ public:
       HybridMpcOptions mpc_options, drake::systems::Context<double>& context,
       drake::systems::Context<drake::AutoDiffXd>& context_ad, drake::systems::Context<double>& context_rollout);
 
+  void SetSolverOptions(const drake::solvers::SolverOptions& solver_options);
+  void SetSolverOptions(const std::string& solver_options_file);
+  const std::optional<drake::solvers::SolverOptions>& solver_options() const { return solver_options_; }
+
 private:
   
   VectorXd ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
@@ -140,6 +144,8 @@ private:
                       const VectorXd& k_init,
                       std::vector<int>& free_indices);
 
+  vector<MatrixXd> GetLowRankApproximation(vector<MatrixXd> H_in);
+
   LCS MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory);
   LCS MakeTimeVaryingLCSWithEE(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_hat, LCSFactory factory, VectorXd ee_pose, int ee_idx);
 
@@ -173,6 +179,7 @@ private:
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
   MSiC3Options ms_ic3_options_;
+  std::optional<drake::solvers::SolverOptions> solver_options_;
 
   std::unique_ptr<c3::C3Plus> c3_tracking_;
 

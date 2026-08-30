@@ -15,10 +15,15 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/plate/ms_c3_tracking_options.yaml"
 MSiC3_PARAMS = "examples/resources/plate/ms_ic3_options.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_vert_proj_offset_x_target.db"
-STUDY_NAME = "MSiC3_plate_vert_proj_offset_x_target"
+STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_obj_x_constraint_longer.db"
+STUDY_NAME = "MSiC3_plate_obj_x_constraint_longer"
 
-TRIAL_NUMBER = 673
+# STORAGE_PATH = "sqlite:///examples/resources/plate/optuna_plate/laptop_plate_db_2.db"
+# STUDY_NAME = "MSiC3_plate_fixed_value_function"
+
+TRIAL_NUMBER = 10384
+
+# python3 examples/resources/plate/write_yaml_optuna_plate.py
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -220,7 +225,7 @@ ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 ic3_options["num_threads"] = 32
 ic3_options["rollout_dt_scaling"] = 1
 
-ic3_options["N"] = int(160 / dt)
+ic3_options["N"] = int(200 / dt)
 
 ic3_options["rollout_Kp"] = flow_seq([Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot])
 ic3_options["rollout_Kd"] = flow_seq([Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot])
@@ -230,4 +235,3 @@ ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
 with open(MSiC3_PARAMS, "w") as f:
     yaml.dump(ic3_options, f)
 
-# python3 examples/resources/plate/write_yaml_optuna_plate.py

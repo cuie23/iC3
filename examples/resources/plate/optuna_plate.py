@@ -5,6 +5,7 @@ import subprocess
 import optuna
 import optunahub
 import sys
+import platform
 
 if len(sys.argv) > 1:
     worker_id = int(sys.argv[1])
@@ -24,21 +25,25 @@ def objective(trial):
     g_lambda = trial.suggest_int("g_lambda", 1, 100)
     g_eta = trial.suggest_int("g_eta", 1, 100)
     # w_G_final = trial.suggest_int("w_G_final", 1, 100)
-    w_G_final = 1
+    w_G_final = 10
 
     plate_z_cost = trial.suggest_int("plate_z_cost", 50, 20000, step=50)
-    plate_rot_cost = trial.suggest_int("plate_rot_cost", 100, 50000, step=100)
-    tracking_N = trial.suggest_int("tracking_N", 3, 8)
+    # plate_rot_cost = trial.suggest_int("plate_rot_cost", 100, 50000, step=100)
+    plate_rot_cost = 16000
+    # tracking_N = trial.suggest_int("tracking_N", 3, 8)
+    tracking_N = 4
     quat_weight = trial.suggest_int("quat_weight", 100, 50000, step=100)
 
     u_ratio = trial.suggest_int("u_ratio", -200, 199)
-    dt = trial.suggest_categorical("dt", [1, 2, 4])
+    # dt = trial.suggest_categorical("dt", [1, 2, 4])
     # dt = trial.suggest_int("dt", 1, 2)
+    dt = 2
 
-    mu = trial.suggest_int("mu", 1, 100)
+    # mu = trial.suggest_int("mu", 1, 100)
+    mu = 33
 
     # scale_lcs = trial.suggest_categorical("scale_lcs", [True, False])
-    scale_lcs = False
+    scale_lcs = True
 
     # init_x_offset = trial.suggest_int("init_x_offset", 13, 15)
     init_x_offset = 13
@@ -121,26 +126,28 @@ def objective(trial):
 # ======================================================================
 
     # iC3 parameters
-    num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
-    warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
-    # num_warmup_iters = 0
-    # warm_start_alpha = 0
+    # num_warmup_iters = trial.suggest_int("num_warmup_iters", 0, 2)
+    # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
+    num_warmup_iters = 0
+    warm_start_alpha = 0
 
-    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 20, 40])
+    num_segments = trial.suggest_categorical("num_segments", [10, 25, 50])
     num_iters = trial.suggest_categorical("num_iters", [3, 5, 6])
     alpha_ee = trial.suggest_int("alpha_ee", 0, 100)
     alpha_object = trial.suggest_int("alpha_object", 0, 100)
 
-    accel_cost = trial.suggest_int("accel_cost", 0, 50, step=5)
-    # accel_cost = 0
+    # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=5)
+    accel_cost = 25
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
     vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
 
-    torque_bound = trial.suggest_int("torque_bound", 14, 24, step=2)
+    # torque_bound = trial.suggest_int("torque_bound", 16, 24, step=2)
+    torque_bound = -10
 
-    use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
-
+    # use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
+    use_lambdas_for_lcs = False
+    
     # Kp_xy = trial.suggest_int("Kp_xy", 100, 1000, step=100)
     # Kd_xy = trial.suggest_int("Kd_xy", 20, 200, step=20)
     # Kp_z = trial.suggest_int("Kp_z", 100, 1000, step=100)
@@ -173,7 +180,7 @@ def objective(trial):
     ic3_options["acceleration_cost_weight"] = accel_cost
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 
-    ic3_options["N"] = int(160 / dt)
+    ic3_options["N"] = int(200 / dt)
 
     ic3_options["rollout_Kp"] = [Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot]
     ic3_options["rollout_Kd"] = [Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot]
@@ -270,7 +277,7 @@ def log_best_callback(study, trial):
           print(f"--> New best metric found: {study.best_value}. Saving to file...")
           
           # Open in "w" (write) mode to overwrite the file with the fresh best data
-          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_choose_u_bound_offset_x_target.txt", "w") as f:
+          with open("examples/resources/plate/optuna_plate/optuna_plate_best_params_less_params.txt", "w") as f:
               f.write("=========================================\n")
               f.write("       BEST HYPERPARAMETERS SO FAR       \n")
               f.write("=========================================\n")
@@ -290,7 +297,12 @@ def log_best_callback(study, trial):
 if __name__ == "__main__":
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
 
-    STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_choose_u_bound_offset_x_target.db"
+    print(platform.release().lower())
+    if "microsoft" in platform.release().lower():
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_plate_less_params.db"
+    else:
+        STORAGE_URL = "sqlite:///examples/resources/plate/optuna_plate/optuna_plate_less_params.db"
+        
     storage = optuna.storages.RDBStorage(
         url=STORAGE_URL,  
         heartbeat_interval=60            
@@ -298,7 +310,7 @@ if __name__ == "__main__":
 
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True, n_startup_trials=400)
     study = optuna.create_study(
-        study_name="MSiC3_plate_choose_u_bound_offset_x_target",
+        study_name="MSiC3_plate_less_params",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

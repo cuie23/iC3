@@ -43,7 +43,8 @@ def objective(trial):
     g_lambda = trial.suggest_int("g_lambda", 2, 100, step=2)
     g_eta = trial.suggest_int("g_eta", 2, 100, step=2)
 
-    w_G_final = trial.suggest_int("w_G_final", 1, 100)
+    # w_G_final = trial.suggest_int("w_G_final", 1, 100)
+    w_G_final = 10
 
     u_ratio_finger = trial.suggest_int("u_ratio_finger", -200, 199) # -100 = lambda/eta = 0.1 
     u_ratio_cube = trial.suggest_int("u_ratio_cube", -200, 199) # -100 = lambda/eta = 0.1
@@ -54,7 +55,8 @@ def objective(trial):
     eta_threshold = 0
 
     admm_iter = trial.suggest_int("admm_iter", 3, 6)
-    tracking_N = trial.suggest_int("tracking_N", 3, 6)
+    # tracking_N = trial.suggest_int("tracking_N", 3, 6)
+    tracking_N = 3
     # finger_position_weight = trial.suggest_int("finger_position_weight", 1000, 10000, step=100)
     # cube_position_weight = trial.suggest_int("cube_position_weight", 100, 10000, step=100)
     # quat_weight = trial.suggest_int("quat_weight", 5000, 500000, step=5000)
@@ -62,10 +64,11 @@ def objective(trial):
     cube_position_weight = 8000
     quat_weight = 300000
 
-    finger_config = trial.suggest_categorical("finger_config", [2, 3])
-    # finger_config = 2
+    # finger_config = trial.suggest_categorical("finger_config", [2, 3])
+    finger_config = 2
 
-    cube_model = trial.suggest_int("cube_model", 1, 10)
+    # cube_model = trial.suggest_int("cube_model", 1, 10)
+    cube_model = 5
 
     # towards_2_fingers = trial.suggest_categorical("towards_2_fingers", [True, False])
     towards_2_fingers = True
@@ -73,7 +76,8 @@ def objective(trial):
     # large_dt = trial.suggest_categorical("large_dt", [True, False])
     large_dt = True
 
-    mu_finger_cube = trial.suggest_int("mu_finger_cube", 1, 100)
+    # mu_finger_cube = trial.suggest_int("mu_finger_cube", 1, 100)
+    mu_finger_cube = 33
 
     # scale_lcs = trial.suggest_categorical("scale_lcs", [True, False])
     scale_lcs = True
@@ -252,7 +256,7 @@ def objective(trial):
     num_warmup_iters = 0
     # warm_start_alpha = trial.suggest_int("warm_start_alpha", 0, 100)
     warm_start_alpha = 0
-    num_segments = trial.suggest_categorical("num_segments", [2, 5, 10, 15, 20, 30, 40, 60])
+    num_segments = trial.suggest_categorical("num_segments", [20, 30, 40, 60])
 
     num_iters = trial.suggest_categorical("num_iters", [3, 5, 6])
     # num_iters = 5
@@ -262,8 +266,8 @@ def objective(trial):
     vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
     # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
     value_function_scaling = 100
-    use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
-
+    # use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
+    use_lambdas_for_lcs = False
     accel_cost = 10
 
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
@@ -422,7 +426,7 @@ def log_best_callback(study, trial):
         print(f"--> Good trial found (Metric: {trial.value} < 15). Logging to historic file...")
         
         # Open in "a" (append) mode so you accumulate all sub-15 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_15_trials_pivot_box_ddp_smaller_dt.txt", "a") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/sub_15_trials_pivot_less_params.txt", "a") as f:
             f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
@@ -433,7 +437,7 @@ def log_best_callback(study, trial):
     if study.best_trial.number == trial.number:
         print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
         
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_box_ddp_smaller_dt.txt", "w") as f:
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot/best_params_pivot_less_params.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
@@ -451,9 +455,9 @@ if __name__ == "__main__":
 
     print(platform.release().lower())
     if "microsoft" in platform.release().lower():
-        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_box_ddp_smaller_dt.db"
+        STORAGE_URL = "sqlite:////home/ttesc255/optuna_data/optuna_results_pivot_less_params.db"
     else:
-        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_box_ddp_smaller_dt.db"
+        STORAGE_URL = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_less_params.db"
         
     sampler = optuna.samplers.TPESampler(multivariate=True, constant_liar=True)
     storage = optuna.storages.RDBStorage(
@@ -462,7 +466,7 @@ if __name__ == "__main__":
     )
     optuna.logging.set_verbosity(optuna.logging.DEBUG)
     study = optuna.create_study(
-        study_name="MSiC3_point_hand_pivot_box_ddp_smaller_dt",
+        study_name="MSiC3_point_hand_pivot_less_params",
         storage=storage,
         load_if_exists=True,  
         sampler=sampler,

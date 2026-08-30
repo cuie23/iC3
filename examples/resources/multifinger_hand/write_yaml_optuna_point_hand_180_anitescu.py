@@ -7,6 +7,8 @@ yaml = YAML()
 yaml.preserve_quotes = True
 yaml.width = 100000
 
+# python3 examples/resources/multifinger_hand/write_yaml_optuna_point_hand_180_anitescu.py
+
 def flow_seq(vals):
     seq = CommentedSeq(vals)
     seq.fa.set_flow_style()
@@ -19,10 +21,10 @@ MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_18
 # CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_31.yaml"
 # MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_31.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_box_ddp_small_dt.db"
-STUDY_NAME = "MSiC3_point_hand_180_box_ddp_small_dt"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_less_params.db"
+STUDY_NAME = "MSiC3_point_hand_180_less_params"
 
-TRIAL_NUMBER = 2526
+TRIAL_NUMBER = 171
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -81,7 +83,7 @@ except KeyError:
 try:
     w_G_final = trial.params["w_G_final"]
 except KeyError:
-    w_G_final = 1
+    w_G_final = 10
 
 try:
     mu_fc = trial.params["mu_finger_cube"] / 100.0
@@ -93,20 +95,20 @@ except KeyError:
 # add_phi_buffer = trial.params["add_phi_buffer"]
 
 admm_iter = trial.params["admm_iter"]
-tracking_N = trial.params["tracking_N"]
 
+try:
+    tracking_N = trial.params["tracking_N"]
+except: 
+    tracking_N = 4
 
 try:
     finger_position_weight = trial.params["finger_position_weight"]
     cube_position_weight = trial.params["cube_position_weight"]
     quat_weight = trial.params["quat_weight"]
 except KeyError:
-    
     finger_position_weight = 3000
     cube_position_weight = 8000
     quat_weight = 4000
-    if (STUDY_NAME == "MSiC3_point_hand_180_box_ddp_small_dt"):
-        finger_position_weight = 2000
 
 with open(CONTORLLER_PARAMS, "r") as f:
     c3_options = yaml.load(f)
@@ -269,7 +271,10 @@ except KeyError:
 
 accel_cost = 10
     
-traj_N = trial.params["traj_N"]
+try:
+    traj_N = trial.params["traj_N"]
+except KeyError:
+    traj_N = 420
 
 # use_pd = trial.params["use_pd"]
 use_pd = False

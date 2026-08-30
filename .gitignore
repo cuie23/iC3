@@ -11,3 +11,4 @@ genhtml/*
 ic3.tar.gz
 *.bin
 *.csv
+gurobi10.0.3_linux64.tar.gz

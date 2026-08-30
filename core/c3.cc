@@ -302,7 +302,6 @@ void C3::UpdateFinalCost(const Eigen::MatrixXd Q_final, const Eigen::VectorXd bi
   auto* qf_evaluator = target_costs_[N_];
   qf_evaluator->UpdateCoefficients(Q[N_], 2 * bias);
 
-  UpdateCostMatrices(CostMatrices(Q, cost_matrices_.R, cost_matrices_.G, cost_matrices_.U));
 }
 
 const std::vector<drake::solvers::QuadraticCost*>& C3::GetTargetCost() {

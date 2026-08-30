@@ -15,10 +15,10 @@ def flow_seq(vals):
 CONTORLLER_PARAMS = "examples/resources/multifinger_hand/ms_c3_tracking_options_point_hand.yaml"
 MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_pivot_box_ddp_smaller_dt.db"
-STUDY_NAME = "MSiC3_point_hand_pivot_box_ddp_smaller_dt"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_pivot/optuna_results_less_params.db"
+STUDY_NAME = "MSiC3_point_hand_less_params"
 
-TRIAL_NUMBER = 1660
+TRIAL_NUMBER = 171
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -44,7 +44,7 @@ except KeyError:
 try:
     w_G_final = trial.params["w_G_final"]
 except KeyError:
-    w_G_final = 1
+    w_G_final = 10
 
 g_lambda = trial.params["g_lambda"]
 g_eta = trial.params["g_eta"]

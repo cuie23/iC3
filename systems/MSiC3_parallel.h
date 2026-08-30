@@ -75,6 +75,10 @@ public:
     std::vector<drake::systems::Context<double>*> contexts_rollout,
     drake::systems::Context<drake::AutoDiffXd>& context_ad_rollout);
 
+  void SetSolverOptions(const drake::solvers::SolverOptions& solver_options);
+  void SetSolverOptions(const std::string& solver_options_file);
+  const std::optional<drake::solvers::SolverOptions>& solver_options() const { return solver_options_; }
+
 private:
   
   VectorXd ProjectContactVertical(drake::systems::Context<double>& context, SortedPair<GeometryId> geom_pair, 
@@ -157,6 +161,7 @@ private:
   C3ControllerOptions controller_options_;
   MSiC3Options ms_ic3_options_;
   HybridMpcOptions mpc_options_;
+  std::optional<drake::solvers::SolverOptions> solver_options_;
   
   // Convenience variables for dimensions.
   int n_q_;       // Number of generalized positions.

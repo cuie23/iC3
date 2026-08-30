@@ -8,12 +8,14 @@
 #include "core/c3_miqp.h"
 #include "core/c3_plus.h"
 #include "core/c3_qp.h"
+#include "core/solver_options_io.h"
 #include "multibody/lcs_factory.h"
 #include "multibody/geom_geom_collider.h"
 #include "common/quaternion_error_hessian.h"
 #include "systems/hybrid_mpc.h"
 
 #include "drake/common/text_logging.h"
+#include "drake/solvers/osqp_solver.h"
 #include <drake/multibody/parsing/parser.h>
 #include <chrono>
 #include <omp.h>
@@ -90,7 +92,6 @@ MSiC3Parallel::MSiC3Parallel(const MultibodyPlant<double>& plant, const Multibod
           rollout_diagram_, std::move(context_clone));
     }
   }
-  
 }
 
 tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<MatrixXd>>, 
@@ -1013,6 +1014,9 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3Parallel::DoC3Rollo
 
     std::unique_ptr<C3Plus> c3_tracking = std::make_unique<C3Plus>(lcs, costs, x_targets_shortened,
                                   controller_options_.c3_options);
+    if (solver_options_.has_value()) {
+      c3_tracking->SetSolverOptions(*solver_options_);
+    }
     c3_tracking->UpdateInputTarget(u_targets_shortened);
     c3_tracking->SetPenalizeChange(false); // TODO: change the interface of regularization costs so this isn't needed
 
@@ -1856,6 +1860,16 @@ vector<MatrixXd> MSiC3Parallel::UpdateQuaternionCosts(
   return Q;
 }
 
+void MSiC3Parallel::SetSolverOptions(const drake::solvers::SolverOptions& solver_options) {
+  solver_options_ = solver_options;
+}
+
+void MSiC3Parallel::SetSolverOptions(const std::string& solver_options_file) {
+  drake::solvers::SolverOptions solver_options =
+      drake::yaml::LoadYamlFile<c3::SolverOptionsFromYaml>(solver_options_file)
+          .GetAsSolverOptions(drake::solvers::OsqpSolver::id());
+  SetSolverOptions(solver_options);
+}
 
 } // namespace systems
 } // namespace c3
