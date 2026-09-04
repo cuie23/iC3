@@ -174,6 +174,10 @@ c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.01
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
+c3_options["mu_per_pair_type"] = flow_seq([0.33, 0.3])
+c3_options["resolve_contacts_to_lists"] = [flow_seq([3, 8])]
+c3_options["num_contacts_index"] = 0
+
 if (finger_config == 1):
     c3_options["x_init"] = flow_seq([0.0, 0.07, 0.05,  # finger 1 
                             0.07, -0.055, 0.05,   # finger 2
@@ -334,6 +338,9 @@ ic3_options["drake_sim_dt"] = 0.0001
 ic3_options["num_threads"] = 32
 
 ic3_options["use_rollout_lambdas"] = use_rollout_lambdas
+ic3_options["add_terminal_constraint"] = False
+ic3_options["terminal_slack_vector"] = flow_seq([1] * 31)
+ic3_options["terminal_slack_quaternion_weight"] = 0
 
 if "p_vector" in ic3_options:
     del ic3_options["p_vector"]

@@ -14,6 +14,7 @@ cc_library(
         ":iC3",
         ":MSiC3",
         ":MSiC3_parallel",
+        ":MSiC3_parallel_admm",
         ":hybrid_mpc",
         ":ms_ic3_options",
         ":manual_input",
@@ -120,6 +121,35 @@ cc_library( name = "MSiC3_parallel",
     ],
     hdrs = [
         "MSiC3_parallel.h",
+    ],
+    deps = [
+        ":options",
+        ":framework",
+        "//core:c3",
+        "//core:lcs",
+        "//core:options",
+        "//systems:ms_ic3_options",
+        "//systems:PdInputSource",
+        "//multibody:lcs_factory",
+        "//systems:quaternion_error_hessian",
+        "//systems:hybrid_mpc",
+        "//systems:hybrid_mpc_options",
+        "@drake//:drake_shared_library",
+    ],
+    copts = [
+        "-fopenmp",
+    ],
+    linkopts = [
+        "-lgomp",
+    ],
+)
+
+cc_library( name = "MSiC3_parallel_admm",
+    srcs = [
+        "MSiC3_parallel_admm.cc",
+    ],
+    hdrs = [
+        "MSiC3_parallel_admm.h",
     ],
     deps = [
         ":options",

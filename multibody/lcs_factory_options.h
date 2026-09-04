@@ -16,6 +16,8 @@ struct LCSFactoryOptions {
   int N;      // number of time steps in the prediction horizon
   double dt;  // time step size
 
+  std::optional<int> num_active_contact_pairs;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(contact_model));
@@ -26,8 +28,11 @@ struct LCSFactoryOptions {
 
     a->Visit(DRAKE_NVP(N));
     a->Visit(DRAKE_NVP(dt));
+    a->Visit(DRAKE_NVP(num_active_contact_pairs));
 
-    DRAKE_DEMAND(mu.size() == (size_t)num_contacts);
+    if (!mu.empty()) {
+      DRAKE_DEMAND(mu.size() == (size_t)num_contacts);
+    }
   }
 };
 

@@ -38,3 +38,6 @@ value_function_scaling: 1.0
 num_threads: 32
 vf_trust_region_weight: 50
 use_lambdas_for_lcs: false
+add_terminal_constraint: false
+terminal_slack_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+terminal_slack_quaternion_weight: 0

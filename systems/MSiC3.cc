@@ -46,24 +46,78 @@ namespace systems {
 MSiC3::MSiC3(const MultibodyPlant<double>& plant, const MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
   const MultibodyPlant<double>& plant_rollout, const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
   drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,    
-  const vector<SortedPair<GeometryId>>& contact_geoms, const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
-  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx)
+  const vector<vector<SortedPair<GeometryId>>>& contact_groups, const vector<vector<SortedPair<GeometryId>>>& contact_groups_rollout,
+  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx, bool is_optuna)
     : plant_(plant),
       plant_ad_(plant_ad),
       plant_rollout_(plant_rollout),
       plant_ad_rollout_(plant_ad_rollout),
       rollout_diagram_(rollout_diagram),
       rollout_diagram_context_(std::move(rollout_diagram_context)),
-      contact_geoms_(contact_geoms),
-      contact_geoms_rollout_(contact_geoms_rollout),
+      contact_groups_(contact_groups),
+      contact_groups_rollout_(contact_groups_rollout),
       use_drake_sim_(ms_ic3_options.use_drake_sim),
       controller_options_(controller_options),
       ms_ic3_options_(ms_ic3_options),
       N_(ms_ic3_options.N),
-      example_idx_(example_idx) {
+      example_idx_(example_idx),
+      is_optuna_(is_optuna) {
 
   if (rollout_diagram_context_ == nullptr) {
     std::cout << "NULLPTR SPJOIGNSUIPD" << std::endl;
+  }
+
+  for (const auto& group : contact_groups_) {
+    contact_geoms_.insert(contact_geoms_.end(), group.begin(), group.end());
+  }
+  for (const auto& group : contact_groups_rollout_) {
+    contact_geoms_rollout_.insert(contact_geoms_rollout_.end(), group.begin(), group.end());
+  }
+
+  if (controller_options_.resolve_contacts_to_lists.has_value() ||
+      controller_options_.c3_options.resolve_contacts_to_lists.has_value()) {
+    const auto& res_lists =
+        controller_options_.resolve_contacts_to_lists.has_value()
+            ? controller_options_.resolve_contacts_to_lists.value()
+            : controller_options_.c3_options.resolve_contacts_to_lists.value();
+    int idx = controller_options_.num_contacts_index.value_or(
+        controller_options_.c3_options.num_contacts_index.value_or(0));
+    const auto& res_list = res_lists[idx];
+    int total_resolved = 0;
+    for (size_t g = 0; g < contact_groups_.size(); ++g) {
+      int limit = (g < res_list.size()) ? res_list[g] : static_cast<int>(contact_groups_[g].size());
+      total_resolved += std::min(limit, static_cast<int>(contact_groups_[g].size()));
+    }
+    controller_options_.lcs_factory_options.num_contacts = total_resolved;
+
+    if (controller_options_.mu_per_pair_type.has_value() ||
+        controller_options_.c3_options.mu_per_pair_type.has_value()) {
+      const auto& mu_types =
+          controller_options_.mu_per_pair_type.has_value()
+              ? controller_options_.mu_per_pair_type.value()
+              : controller_options_.c3_options.mu_per_pair_type.value();
+      std::vector<double> new_mu;
+      for (size_t g = 0; g < contact_groups_.size(); ++g) {
+        int n_active = (g < res_list.size())
+                           ? std::min(res_list[g], static_cast<int>(contact_groups_[g].size()))
+                           : contact_groups_[g].size();
+        double mu_val = (g < mu_types.size()) ? mu_types[g] : (mu_types.empty() ? 0.3 : mu_types[0]);
+        new_mu.insert(new_mu.end(), n_active, mu_val);
+      }
+      controller_options_.lcs_factory_options.mu = new_mu;
+    }
+  } else if (controller_options_.mu_per_pair_type.has_value() ||
+             controller_options_.c3_options.mu_per_pair_type.has_value()) {
+    const auto& mu_types =
+        controller_options_.mu_per_pair_type.has_value()
+            ? controller_options_.mu_per_pair_type.value()
+            : controller_options_.c3_options.mu_per_pair_type.value();
+    std::vector<double> new_mu;
+    for (size_t g = 0; g < contact_groups_.size(); ++g) {
+      double mu_val = (g < mu_types.size()) ? mu_types[g] : (mu_types.empty() ? 0.3 : mu_types[0]);
+      new_mu.insert(new_mu.end(), contact_groups_[g].size(), mu_val);
+    }
+    controller_options_.lcs_factory_options.mu = new_mu;
   }
 
   // Initialize dimensions
@@ -98,6 +152,95 @@ MSiC3::MSiC3(const MultibodyPlant<double>& plant, const MultibodyPlant<drake::Au
     simulator_ = std::make_unique<drake::systems::Simulator<double>>(
         rollout_diagram_, std::move(rollout_diagram_context_)
     );
+  }
+}
+
+MSiC3::MSiC3(const MultibodyPlant<double>& plant, const MultibodyPlant<drake::AutoDiffXd>& plant_ad, 
+  const MultibodyPlant<double>& plant_rollout, const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout, 
+  drake::systems::Diagram<double>& rollout_diagram, std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,    
+  const vector<SortedPair<GeometryId>>& contact_geoms, const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
+  C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, int example_idx, bool is_optuna)
+    : MSiC3(plant, plant_ad, plant_rollout, plant_ad_rollout, rollout_diagram,
+            std::move(rollout_diagram_context),
+            vector<vector<SortedPair<GeometryId>>>{contact_geoms},
+            vector<vector<SortedPair<GeometryId>>>{contact_geoms_rollout},
+            controller_options, ms_ic3_options, example_idx, is_optuna) {}
+
+void MSiC3::ResolveContacts(
+    const drake::systems::Context<double>& context,
+    const drake::systems::Context<double>& context_rollout) {
+  if (controller_options_.resolve_contacts_to_lists.has_value() ||
+      controller_options_.c3_options.resolve_contacts_to_lists.has_value()) {
+    const auto& res_lists =
+        controller_options_.resolve_contacts_to_lists.has_value()
+            ? controller_options_.resolve_contacts_to_lists.value()
+            : controller_options_.c3_options.resolve_contacts_to_lists.value();
+    int idx = controller_options_.num_contacts_index.value_or(
+        controller_options_.c3_options.num_contacts_index.value_or(0));
+    const auto& res_list = res_lists[idx];
+
+    contact_geoms_ = multibody::LCSFactory::ResolveContactPairs(
+        plant_, context, contact_groups_, res_list);
+    contact_geoms_rollout_ = multibody::LCSFactory::ResolveContactPairs(
+        plant_rollout_, context_rollout, contact_groups_rollout_, res_list);
+
+    controller_options_.lcs_factory_options.num_contacts = contact_geoms_.size();
+    n_lambda_ = multibody::LCSFactory::GetNumContactVariables(
+        controller_options_.lcs_factory_options);
+
+    if (controller_options_.mu_per_pair_type.has_value() ||
+        controller_options_.c3_options.mu_per_pair_type.has_value()) {
+      const auto& mu_types =
+          controller_options_.mu_per_pair_type.has_value()
+              ? controller_options_.mu_per_pair_type.value()
+              : controller_options_.c3_options.mu_per_pair_type.value();
+      std::vector<double> new_mu;
+      for (size_t g = 0; g < contact_groups_.size(); ++g) {
+        int n_active =
+            (g < res_list.size())
+                ? std::min(res_list[g],
+                           static_cast<int>(contact_groups_[g].size()))
+                : contact_groups_[g].size();
+        double mu_val = (g < mu_types.size()) ? mu_types[g] : (mu_types.empty() ? 0.3 : mu_types[0]);
+        new_mu.insert(new_mu.end(), n_active, mu_val);
+      }
+      controller_options_.lcs_factory_options.mu = new_mu;
+    } else {
+      if (controller_options_.lcs_factory_options.mu.empty()) {
+        controller_options_.lcs_factory_options.mu.resize(contact_geoms_.size(), 0.3);
+      } else {
+        controller_options_.lcs_factory_options.mu.resize(
+            contact_geoms_.size(),
+            controller_options_.lcs_factory_options.mu[0]);
+      }
+    }
+  } else {
+    contact_geoms_.clear();
+    for (const auto& group : contact_groups_) {
+      contact_geoms_.insert(contact_geoms_.end(), group.begin(), group.end());
+    }
+    contact_geoms_rollout_.clear();
+    for (const auto& group : contact_groups_rollout_) {
+      contact_geoms_rollout_.insert(contact_geoms_rollout_.end(), group.begin(), group.end());
+    }
+    controller_options_.lcs_factory_options.num_contacts = contact_geoms_.size();
+    n_lambda_ = multibody::LCSFactory::GetNumContactVariables(
+        controller_options_.lcs_factory_options);
+    if (controller_options_.mu_per_pair_type.has_value() ||
+        controller_options_.c3_options.mu_per_pair_type.has_value()) {
+      const auto& mu_types =
+          controller_options_.mu_per_pair_type.has_value()
+              ? controller_options_.mu_per_pair_type.value()
+              : controller_options_.c3_options.mu_per_pair_type.value();
+      std::vector<double> new_mu;
+      for (size_t g = 0; g < contact_groups_.size(); ++g) {
+        double mu_val = (g < mu_types.size()) ? mu_types[g] : (mu_types.empty() ? 0.3 : mu_types[0]);
+        new_mu.insert(new_mu.end(), contact_groups_[g].size(), mu_val);
+      }
+      controller_options_.lcs_factory_options.mu = new_mu;
+    } else if (controller_options_.lcs_factory_options.mu.empty()) {
+      controller_options_.lcs_factory_options.mu.resize(contact_geoms_.size(), 0.3);
+    }
   }
 }
 
@@ -234,14 +377,14 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       upper_bound_u(3*i+2) = 0.25;
     }
 
-    A_x(13, 13) = 1;
-    A_x(14, 14) = 1;
+    // A_x(13, 13) = 1;
+    // A_x(14, 14) = 1;
 
-    lower_bound_x(13) = -0.03;
-    lower_bound_x(14) = -0.03;
+    // lower_bound_x(13) = -0.03;
+    // lower_bound_x(14) = -0.03;
 
-    upper_bound_x(13) = 0.03;
-    upper_bound_x(14) = 0.03;
+    // upper_bound_x(13) = 0.03;
+    // upper_bound_x(14) = 0.03;
 
     A_u_warmup = A_u;
     lower_bound_u_warmup = lower_bound_u;
@@ -325,6 +468,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   }
   std::cout << "gravity " << gravity.transpose() << std::endl;
 
+  ResolveContacts(context, context_rollout);
+
   LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
       contact_geoms_, controller_options_.lcs_factory_options);
 
@@ -353,6 +498,22 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   if (ms_ic3_options_.penalize_acceleration) {
     c3_tracking_->AddAccelerationCost(n_q_, n_v_, ms_ic3_options_.acceleration_cost_weight);
+  }
+
+  if (ms_ic3_options_.add_terminal_constraint) {
+    MatrixXd Q_slack = ms_ic3_options_.terminal_slack_vector.asDiagonal();
+    c3_tracking_->AddTerminalConstraint();
+  }
+
+
+  if (example_idx_ == 1) {
+    std::vector<int> v(12);
+    std::iota(v.begin(), v.end(), 0);
+    c3_tracking_->AddLambdaBound(2 * 0.5, v);
+  } else if (example_idx_ == 2) {
+    std::vector<int> v(12);
+    std::iota(v.begin(), v.end(), 0);
+    c3_tracking_->AddLambdaBound(2 * 1.5, v);
   }
 
   // Set initial guess to something kinda reasonable
@@ -563,10 +724,13 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
 
   LCS lcs = MakeTimeVaryingLCS(x_hat, u_hat, lambda_hat, lcs_factory);
 
+  lambda_residual_records_.clear();
+
   int num_iters = ms_ic3_options_.num_iters;
   int num_warmup_iters = ms_ic3_options_.num_warmup_iters;
 
   for (int iter = 1 - num_warmup_iters; iter <= num_iters; iter++) {
+    current_outer_iter_ = iter;
     auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "iC3 iteration " << iter << std::endl;
@@ -642,8 +806,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
       std::cout << "segment " << i << std::endl;
 
       auto [x_hat_out, u_hat_out, lambda_hat_out, gamma_out, in_contact_out] = 
-         DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), lambda_hat, gravity,
-                      lcs_factory, lcs_factory_rollout, H, g, i*L_,
+         DoC3Rollout(new_x_anchors.col(i), x_hat, u_hat.middleCols(i*L_, L_), x_anchors.col(i+1), 
+                      lambda_hat, gravity, lcs_factory, lcs_factory_rollout, H, g, i*L_, 
                       A_x, lower_bound_x, upper_bound_x, A_u, lower_bound_u, upper_bound_u,
                       context, context_rollout);
 
@@ -813,6 +977,109 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>, vector<vector<Matrix
   Ks.push_back(K);
   k_ffs.push_back(k_ff);
 
+  // Export lambda ADMM residuals to CSV
+  if (!is_optuna_) {
+    std::vector<std::string> residual_output_paths = {
+      "lambda_admm_residuals.csv",
+      "examples/resources/multifinger_hand/ic3_debug_data/lambda_admm_residuals.csv"
+    };
+    for (const auto& path : residual_output_paths) {
+      try {
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+          std::filesystem::create_directories(p.parent_path());
+        }
+        std::ofstream file(path, std::ios::trunc);
+        if (file.is_open()) {
+          file << "iteration,segment,plan_timestep,admm_iter,lambda_diff_norm,iterate_step_change,complementarity_slack\n";
+          for (const auto& rec : lambda_residual_records_) {
+            file << rec.outer_iter << "," << rec.segment << ","
+                 << rec.plan_timestep << "," << rec.admm_iter << ","
+                 << rec.lambda_diff_norm << "," << rec.iterate_step_change << ","
+                 << rec.complementarity_slack << "\n";
+          }
+          file.close();
+        }
+      } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to write lambda residuals to " << path << ": " << e.what() << std::endl;
+      }
+    }
+    std::cout << "Saved lambda ADMM residuals to lambda_admm_residuals.csv ("
+              << lambda_residual_records_.size() << " records)\n";
+
+    // Export C3 x0 and x1 plan overlay to CSV
+    std::vector<std::string> plan_output_paths = {
+      "c3_x0_x1_plan.csv",
+      "examples/resources/multifinger_hand/ic3_debug_data/c3_x0_x1_plan.csv"
+    };
+    for (const auto& path : plan_output_paths) {
+      try {
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+          std::filesystem::create_directories(p.parent_path());
+        }
+        std::ofstream file(path, std::ios::trunc);
+        if (file.is_open()) {
+          file << "iteration,segment,plan_timestep";
+          for (int j = 0; j < n_x_; ++j) file << ",x0_" << j;
+          for (int j = 0; j < n_x_; ++j) file << ",x1_" << j;
+          for (int j = 0; j < n_lambda_; ++j) file << ",lambda_" << j;
+          for (int j = 0; j < n_lambda_; ++j) file << ",eta_" << j;
+          for (int j = 0; j < n_lambda_; ++j) file << ",lambda_last_" << j;
+          for (int j = 0; j < n_lambda_; ++j) file << ",eta_last_" << j;
+          file << "\n";
+          for (const auto& rec : c3_plan_step_records_) {
+            file << rec.outer_iter << "," << rec.segment << "," << rec.plan_timestep;
+            for (int j = 0; j < n_x_; ++j) file << "," << rec.x0(j);
+            for (int j = 0; j < n_x_; ++j) file << "," << rec.x1(j);
+            for (int j = 0; j < n_lambda_; ++j) file << "," << (j < rec.lambda.size() ? rec.lambda(j) : 0.0);
+            for (int j = 0; j < n_lambda_; ++j) file << "," << (j < rec.eta.size() ? rec.eta(j) : 0.0);
+            for (int j = 0; j < n_lambda_; ++j) file << "," << (j < rec.lambda_last.size() ? rec.lambda_last(j) : 0.0);
+            for (int j = 0; j < n_lambda_; ++j) file << "," << (j < rec.eta_last.size() ? rec.eta_last(j) : 0.0);
+            file << "\n";
+          }
+          file.close();
+        }
+      } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to write c3_x0_x1_plan to " << path << ": " << e.what() << std::endl;
+      }
+    }
+    std::cout << "Saved C3 x0/x1 plan to c3_x0_x1_plan.csv ("
+              << c3_plan_step_records_.size() << " timesteps)\n";
+
+    // Export C3 full lookahead plan to CSV
+    std::vector<std::string> lookahead_output_paths = {
+      "c3_full_lookahead_plan.csv",
+      "examples/resources/multifinger_hand/ic3_debug_data/c3_full_lookahead_plan.csv"
+    };
+    for (const auto& path : lookahead_output_paths) {
+      try {
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+          std::filesystem::create_directories(p.parent_path());
+        }
+        std::ofstream file(path, std::ios::trunc);
+        if (file.is_open()) {
+          file << "iteration,segment,plan_timestep,lookahead_step";
+          for (int j = 0; j < n_x_; ++j) file << ",x_" << j;
+          file << "\n";
+          for (const auto& rec : c3_full_lookahead_records_) {
+            file << rec.outer_iter << "," << rec.segment << "," << rec.plan_timestep << "," << rec.lookahead_step;
+            for (int j = 0; j < n_x_; ++j) file << "," << rec.x(j);
+            file << "\n";
+          }
+          file.close();
+        }
+      } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to write c3_full_lookahead_plan to " << path << ": " << e.what() << std::endl;
+      }
+    }
+    std::cout << "Saved C3 full lookahead plan to c3_full_lookahead_plan.csv ("
+              << c3_full_lookahead_records_.size() << " records)\n";
+
+    (void)std::system("python3 examples/python/plot_lambda_admm_residuals.py --csv lambda_admm_residuals.csv --out lambda_admm_residuals_3d.png > /dev/null 2>&1 &");
+  }
+
   auto end_total = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = end_total - start_total;
   std::cout << "Total runtime: " << duration.count() << " seconds\n\n " << std::endl;
@@ -968,6 +1235,8 @@ tuple<vector<MatrixXd>, vector<MatrixXd>, vector<MatrixXd>> MSiC3::DoHybridMPCTr
       upper_bound_u(3*i+2) = 2;
     }
   }
+
+  ResolveContacts(context, context_rollout);
 
   LCSFactory lcs_factory(plant_, context, plant_ad_, context_ad, 
       contact_geoms_, controller_options_.lcs_factory_options);
@@ -1189,7 +1458,7 @@ tuple<LCS, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoLCSRollout(VectorXd x0, Matrix
 }
 
 tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
-                                              MatrixXd lambda_hat, VectorXd ud, 
+                                              MatrixXd lambda_hat, VectorXd ud, VectorXd x_anchor_next,
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -1307,6 +1576,12 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
     c3_tracking_->UpdateInputTarget(u_targets_shortened);
     c3_tracking_->SetPenalizeChange(false); // TODO: change the interface of regularization costs so this isn't needed
 
+    if (ms_ic3_options_.add_terminal_constraint) {
+      MatrixXd Q_slack_base = ms_ic3_options_.terminal_slack_vector.asDiagonal();
+      MatrixXd Q_slack = UpdateQuaternionCostsSlack(x_curr, x_anchor_next, Q_slack_base);
+      c3_tracking_->UpdateTerminalTarget(Q_slack, x_anchor_next);
+    }
+
     // c3_tracking_->SetXHat(x_reg_targets);
     // c3_tracking_->SetUHat(u_reg_targets);
     // c3_tracking_->AddRegularizationCostsState(Q_reg);
@@ -1325,6 +1600,14 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
 
     auto c3_start = std::chrono::high_resolution_clock::now();
     c3_tracking_->Solve(x_curr);
+    const auto& admm_res = c3_tracking_->GetLambdaMinusDeltaLambdaAvgHorizonNorms();
+    const auto& step_res = c3_tracking_->GetIterateStepChangeNorms();
+    const auto& comp_res = c3_tracking_->GetComplementaritySlackness();
+    for (int k = 0; k < static_cast<int>(admm_res.size()); ++k) {
+      double step_val = (k < static_cast<int>(step_res.size())) ? step_res[k] : 0.0;
+      double comp_val = (k < static_cast<int>(comp_res.size())) ? comp_res[k] : 0.0;
+      lambda_residual_records_.push_back({current_outer_iter_, start_idx / L_, start_idx + t, k, admm_res[k], step_val, comp_val});
+    }
     auto c3_end = std::chrono::high_resolution_clock::now();
     auto c3_elapsed = c3_end - c3_start;
     double c3_solve_time =
@@ -1354,7 +1637,22 @@ tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> MSiC3::DoC3Rollout(Vecto
 
     VectorXd c3_u = z_sol[0].segment(n_x_ + n_lambda_, n_u_);
     VectorXd c3_x = z_sol[0].segment(0, n_x_);
-    VectorXd c3_x_next = z_sol[1].segment(0, n_x_);
+    VectorXd c3_x_next = (z_sol.size() > 1) ? VectorXd(z_sol[1].segment(0, n_x_)) : c3_x;
+    VectorXd c3_lambda = (z_sol[0].size() >= n_x_ + n_lambda_) ? VectorXd(z_sol[0].segment(n_x_, n_lambda_)) : VectorXd::Zero(n_lambda_);
+    VectorXd c3_eta = (z_sol[0].size() >= n_x_ + 2 * n_lambda_ + n_u_)
+                      ? VectorXd(z_sol[0].segment(n_x_ + n_lambda_ + n_u_, n_lambda_))
+                      : VectorXd::Zero(n_lambda_);
+    int last_k = static_cast<int>(z_sol.size()) - 1;
+    VectorXd c3_lambda_last = (last_k >= 0 && z_sol[last_k].size() >= n_x_ + n_lambda_)
+                              ? VectorXd(z_sol[last_k].segment(n_x_, n_lambda_))
+                              : VectorXd::Zero(n_lambda_);
+    VectorXd c3_eta_last = (last_k >= 0 && z_sol[last_k].size() >= n_x_ + 2 * n_lambda_ + n_u_)
+                           ? VectorXd(z_sol[last_k].segment(n_x_ + n_lambda_ + n_u_, n_lambda_))
+                           : VectorXd::Zero(n_lambda_);
+    c3_plan_step_records_.push_back({current_outer_iter_, start_idx / L_, start_idx + t, c3_x, c3_x_next, c3_lambda, c3_eta, c3_lambda_last, c3_eta_last});
+    for (int k = 0; k < static_cast<int>(z_sol.size()); ++k) {
+      c3_full_lookahead_records_.push_back({current_outer_iter_, start_idx / L_, start_idx + t, k, z_sol[k].segment(0, n_x_)});
+    }
 
     if (ms_ic3_options_.print_costs) {
       std::cout << "c3 solve time " << c3_solve_time << std::endl;
@@ -1815,7 +2113,7 @@ LCS MSiC3::MakeTimeVaryingLCS(MatrixXd x_hat, MatrixXd u_hat, MatrixXd lambda_ha
       lambda_nom = lambda_hat.col(k);
     } 
 
-    LCS lcs = factory.GenerateLCS(lambda_nom);
+    LCS lcs = factory.GenerateLCS();
     A.push_back(lcs.A()[0]);
     B.push_back(lcs.B()[0]);
     D.push_back(lcs.D()[0]);
@@ -2127,6 +2425,49 @@ vector<MatrixXd> MSiC3::UpdateQuaternionCosts(
     }
     discount_factor *= controller_options_.c3_options.gamma;
   }
+  return Q;
+}
+
+
+MatrixXd MSiC3::UpdateQuaternionCostsSlack(
+    VectorXd x_curr, VectorXd x_des, MatrixXd Q_in) {
+  
+  // std::cout << x_hat.rows() << ", " << x_hat.cols() << std::endl;
+  // std::cout << "xd: " << x_des.transpose() << std::endl;
+  // std::cout << c3_quat_norms.size() << std::endl;
+  
+  MatrixXd Q = Q_in;
+
+  double discount_factor = 1;
+  int j = 0;
+  for (int index : controller_options_.quaternion_indices) {
+
+    // make quaternion costs time-varying based on x_hat
+    Eigen::VectorXd quat_curr_i = x_curr.segment(index, 4).normalized();
+    Eigen::VectorXd quat_des_i = x_des.segment(index, 4).normalized();
+
+    //std::cout << "xhat q: " << quat_curr_i.transpose() << std::endl;
+
+    Eigen::MatrixXd quat_hessian_i = common::hessian_of_squared_quaternion_angle_difference(quat_curr_i, quat_des_i);
+
+    // Regularize hessian so Q is always PSD
+    double min_eigenval = quat_hessian_i.eigenvalues().real().minCoeff();
+    //std::cout << min_eigenval << std::endl;
+
+    Eigen::MatrixXd Q_quat_regularizer_1 = std::max(0.0, -min_eigenval) * Eigen::MatrixXd::Identity(4, 4);
+    Eigen::MatrixXd Q_quat_regularizer_2 = quat_des_i * quat_des_i.transpose();
+    Eigen::MatrixXd Q_quat_regularizer_3 = 1e-4 * Eigen::MatrixXd::Identity(4, 4);
+
+    Q.block(index, index, 4, 4) = 
+      discount_factor * ms_ic3_options_.terminal_slack_quaternion_weight * 
+        (quat_hessian_i + Q_quat_regularizer_1 + Q_quat_regularizer_3);
+
+    // double q_min_eigenval = Q_[i].eigenvalues().real().minCoeff();
+    // std::cout << "Q_" << i << " min eigenvalue " <<  q_min_eigenval << std::endl;
+    j++;
+  }
+  discount_factor *= controller_options_.c3_options.gamma;
+  
   return Q;
 }
 

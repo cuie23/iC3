@@ -4,16 +4,14 @@
     <link name="stick">
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>1.0</mass>
-        <!-- Inertia values were calculated to be consistent with the mass and
-             geometry size, assuming a uniform density. -->
+        <mass>0.05</mass>
         <inertia>
-            <ixx>0.003</ixx>
-            <iyy>0.003 </iyy>
-            <izz>0.006 </izz>
-            <ixy>0.0</ixy>
-            <ixz>0.0</ixz>
-            <iyz>0.0</iyz>
+          <ixx>5.2253555e-06</ixx>
+          <iyy>6.0754624e-05</iyy>
+          <izz>6.1515034e-05</izz>
+          <ixy>-1.3188445e-06</ixy>
+          <ixz>-1.840152e-07</ixz>
+          <iyz>-7.0865857e-08</iyz>
         </inertia>
       </inertial>
       <visual name="convex_0">

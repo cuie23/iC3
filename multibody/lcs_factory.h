@@ -77,19 +77,11 @@ class LCSFactory {
       const LCSFactoryOptions& options);
 
   /**
-   * @brief Generates a Linear Complementarity System (LCS) around a nominal state and input (lambda = 0).
+   * @brief Generates a Linear Complementarity System (LCS).
    *
    * @return LCS The resulting Linear Complementarity System.
    */
   LCS GenerateLCS();
-
-  /**
-   * @brief Generates a Linear Complementarity System (LCS) around a nominal state, input, and contact force.
-   *
-   * @param lambda_nominal The nominal contact force vector.
-   * @return LCS The resulting Linear Complementarity System.
-   */
-  LCS GenerateLCS(const Eigen::Ref<const drake::VectorX<double>>& lambda_nominal);
 
   /**
    * @brief Computes the contact Jacobian for a given multibody plant and
@@ -115,7 +107,7 @@ class LCSFactory {
 
   /**
    * @brief Linearizes the dynamics of a multibody plant into a Linear
-   * Complementarity System (LCS) without nominal force.
+   * Complementarity System (LCS).
    *
    * This method uses two copies of the Context, one for double and one for
    * AutoDiffXd, to perform gradient calculations. Contacts are specified by the
@@ -147,37 +139,6 @@ class LCSFactory {
       const Eigen::Ref<const drake::VectorX<double>>& input);
 
   /**
-   * @brief Linearizes the dynamics of a multibody plant into a Linear
-   * Complementarity System (LCS) around a nominal contact force.
-   *
-   * @param plant The standard MultibodyPlant templated on `double`.
-   * @param context The context about which to linearize (templated on
-   * `double`).
-   * @param plant_ad An AutoDiffXd templated MultibodyPlant for gradient
-   * calculation.
-   * @param context_ad The context about which to linearize (templated on
-   * `AutoDiffXd`).
-   * @param contact_geoms Vector of geometry pairs defining contact points.
-   * @param options Options for LCS creation, including friction properties and
-   * contact model.
-   * @param state The state vector at which to linearize.
-   * @param input The input vector at which to linearize.
-   * @param lambda The nominal contact force vector at which to linearize.
-   * @return LCS The resulting Linear Complementarity System.
-   */
-  static LCS LinearizePlantToLCS(
-      const drake::multibody::MultibodyPlant<double>& plant,
-      drake::systems::Context<double>& context,
-      const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad,
-      drake::systems::Context<drake::AutoDiffXd>& context_ad,
-      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
-          contact_geoms,
-      const LCSFactoryOptions& options,
-      const Eigen::Ref<const drake::VectorX<double>>& state,
-      const Eigen::Ref<const drake::VectorX<double>>& input,
-      const Eigen::Ref<const drake::VectorX<double>>& lambda);
-
-  /**
    * @brief Creates an LCS by fixing some modes from another LCS.
    *
    * This method modifies the complementarity constraints by ignoring
@@ -198,6 +159,7 @@ class LCSFactory {
    * @param contact_model The contact model to use.
    * @param num_contacts The number of contact points.
    * @param num_friction_directions The number of friction directions.
+   * @param frictionless Whether the contacts are frictionless.
    * @return int The number of contact variables.
    */
   static int GetNumContactVariables(ContactModel contact_model,
@@ -212,6 +174,41 @@ class LCSFactory {
    * @return int The number of contact variables.
    */
   static int GetNumContactVariables(const LCSFactoryOptions options);
+
+  /**
+   * @brief Selects the N closest contact pairs based on signed distance.
+   *
+   * @param plant The MultibodyPlant.
+   * @param context The context for the MultibodyPlant.
+   * @param contact_pairs The list of contact pairs to filter.
+   * @param N The number of closest pairs to select.
+   * @return std::vector<drake::SortedPair<drake::geometry::GeometryId>> The N
+   * closest contact pairs.
+   */
+  static std::vector<drake::SortedPair<drake::geometry::GeometryId>>
+  GetNClosestContactPairs(
+      const drake::multibody::MultibodyPlant<double>& plant,
+      const drake::systems::Context<double>& context,
+      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
+          contact_pairs,
+      unsigned int N);
+
+  /**
+   * @brief Selects active contact pairs for multiple contact groups based on a resolution list.
+   *
+   * @param plant The MultibodyPlant.
+   * @param context The context for the MultibodyPlant.
+   * @param contact_groups A list of contact pair groups.
+   * @param resolution_list Number of contacts to select per group.
+   * @return std::vector<drake::SortedPair<drake::geometry::GeometryId>> The resolved contact pairs.
+   */
+  static std::vector<drake::SortedPair<drake::geometry::GeometryId>>
+  ResolveContactPairs(
+      const drake::multibody::MultibodyPlant<double>& plant,
+      const drake::systems::Context<double>& context,
+      const std::vector<std::vector<drake::SortedPair<drake::geometry::GeometryId>>>&
+          contact_groups,
+      const std::vector<int>& resolution_list);
 
   void SetNewDt(double dt) {
     dt_ = dt;
@@ -313,18 +310,6 @@ class LCSFactory {
    * @param[out] Jt Contact Jacobian for tangential forces.
    */
   void ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn, MatrixXd& Jt);
-
-  /**
-   * @brief Computes the contact Jacobian matrices for normal and tangential
-   * forces using AutoDiff variables.
-   *
-   * @param[out] phi Vector of signed distances.
-   * @param[out] Jn Contact Jacobian for normal forces.
-   * @param[out] Jt Contact Jacobian for tangential forces.
-   */
-  void ComputeContactJacobianAD(drake::VectorX<drake::AutoDiffXd>& phi, 
-                                drake::MatrixX<drake::AutoDiffXd>& Jn,
-                                drake::MatrixX<drake::AutoDiffXd>& Jt);
 
   /**
    * @brief Finds the witness points for each contact pair.

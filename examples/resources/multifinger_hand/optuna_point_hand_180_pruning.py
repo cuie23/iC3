@@ -323,6 +323,10 @@ def objective(trial):
     if "w_P" in ic3_options:
         del ic3_options["w_P"]
 
+    ic3_options["add_terminal_constraint"] = False
+    ic3_options["terminal_slack_vector"] = [1] * 31
+    ic3_options["terminal_slack_quaternion_weight"] = 0
+
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 

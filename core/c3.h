@@ -71,6 +71,12 @@ class C3 {
    */
   void Solve(const Eigen::VectorXd& x0);
 
+  /*!
+   * Compute the closed-loop policy Jacobian J_policy = du0/dx0 from the KKT
+   * sensitivity of the final QP solve.
+   */
+  Eigen::MatrixXd ComputePolicyJacobian();
+
   /*!cost_matrices_.
    * Update the dynamics
    * @param lcs the new LCS
@@ -165,6 +171,11 @@ class C3 {
 
   void AddAccelerationCost(int n_q, int n_v, double weight);
 
+  void AddTerminalConstraint();
+  void UpdateTerminalTarget(Eigen::MatrixXd Q_slack, Eigen::VectorXd x_target_terminal);
+
+  void AddLambdaBound(double bound, std::vector<int> indices);
+
   void AddL1Cost(Eigen::MatrixXd A, CostVariable variable, int start_idx);
 
   // L = Cholesky decomposition of Q or R matrix, serves as a cost shaping term
@@ -225,6 +236,28 @@ class C3 {
 
   std::vector<Eigen::MatrixXd> GetDeltaProjection() {
     return delta_projection_;
+  }
+
+  const std::vector<Eigen::VectorXd>& GetLambdaMinusDeltaLambda() const {
+    return lambda_minus_delta_lambda_;
+  }
+  const std::vector<double>& GetLambdaMinusDeltaLambdaNorms() const {
+    return lambda_minus_delta_lambda_norms_;
+  }
+  const std::vector<double>& GetLambdaMinusDeltaLambdaAvgHorizonNorms() const {
+    return lambda_minus_delta_lambda_avg_horizon_norms_;
+  }
+  const std::vector<double>& GetIterateStepChangeNorms() const {
+    return iterate_step_change_norms_;
+  }
+  const std::vector<double>& GetComplementaritySlackness() const {
+    return complementarity_slackness_;
+  }
+  const std::vector<double>& GetLambdaMinusDeltaLambdaMaxAbs() const {
+    return lambda_minus_delta_lambda_max_abs_;
+  }
+  const std::vector<Eigen::MatrixXd>& GetLambdaMinusDeltaLambdaAllStages() const {
+    return lambda_minus_delta_lambda_all_stages_;
   }
   
   double GetAnDn() { return AnDn_; }
@@ -372,13 +405,20 @@ class C3 {
   std::vector<drake::solvers::VectorXDecisionVariable> lambda_;
   std::vector<drake::solvers::VariableRefList> z_;
 
+  drake::solvers::VectorXDecisionVariable epsilon_;
+
   // QP step constraints
+  std::optional<drake::solvers::Binding<drake::solvers::LinearEqualityConstraint>>
+      initial_state_constraint_binding_;
   std::shared_ptr<drake::solvers::LinearEqualityConstraint>
       initial_state_constraint_;
   std::shared_ptr<drake::solvers::LinearEqualityConstraint>
       initial_force_constraint_;
   std::vector<drake::solvers::LinearEqualityConstraint*> dynamics_constraints_;
   std::vector<LinearConstraintBinding> user_constraints_;
+
+  drake::solvers::QuadraticCost* terminal_slack_cost_;
+  drake::solvers::LinearConstraint* terminal_constraint_;
 
   /// Projection step variables are defined outside of the MathematicalProgram
   /// interface
@@ -405,6 +445,15 @@ class C3 {
   std::unique_ptr<std::vector<Eigen::VectorXd>> w_sol_;
 
   std::vector<Eigen::MatrixXd> delta_projection_;
+
+  std::vector<Eigen::VectorXd> lambda_minus_delta_lambda_;
+  std::vector<double> lambda_minus_delta_lambda_norms_;
+  std::vector<double> lambda_minus_delta_lambda_avg_horizon_norms_;
+  std::vector<double> iterate_step_change_norms_;
+  std::vector<double> complementarity_slackness_;
+  std::vector<double> lambda_minus_delta_lambda_max_abs_;
+  std::vector<Eigen::MatrixXd> lambda_minus_delta_lambda_all_stages_;
+  std::vector<Eigen::VectorXd> prev_delta_;
 };
 
 }  // namespace c3

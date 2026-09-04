@@ -4,16 +4,14 @@
     <link name="rubber_duck">
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.0528</mass>
-        <!-- Inertia values were calculated to be consistent with the mass and
-             geometry size, assuming a uniform density. -->
+        <mass>0.05</mass>
         <inertia>
-            <ixx>0.00412</ixx>
-            <iyy>0.00412 </iyy>
-            <izz>0.00685 </izz>
-            <ixy>0.0</ixy>
-            <ixz>0.0</ixz>
-            <iyz>0.0</iyz>
+          <ixx>3.5338529e-05</ixx>
+          <iyy>4.5772114e-05</iyy>
+          <izz>2.8437261e-05</izz>
+          <ixy>-2.3352593e-11</ixy>
+          <ixz>-4.0583709e-06</ixz>
+          <iyz>1.4436325e-10</iyz>
         </inertia>
       </inertial>
       <visual name="convex_0">

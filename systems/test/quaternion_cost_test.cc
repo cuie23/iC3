@@ -110,13 +110,13 @@ TEST_F(QuaternionCostTest, HessianAngleDifferenceTest) {
 
 TEST_F(QuaternionCostTest, QuaternionCostMatrixTest) {
   C3ControllerOptions controller_options =
-      drake::yaml::LoadYamlFile<C3ControllerOptions>(
+      LoadC3ControllerOptions(
           "systems/test/quaternion_cost_test.yaml");
 
-  VectorXd q1(4);
-  q1 << 0.5, 0.5, 0.5, 0.5;
-  VectorXd q2(4);
-  q2 << 0.707, 0, 0, 0.707;
+  VectorXd q1(VectorXd::Zero(23));
+  q1.segment(5, 4) << 0.5, 0.5, 0.5, 0.5;
+  VectorXd q2(VectorXd::Zero(23));
+  q2.segment(5, 4) << 0.707, 0, 0, 0.707;
 
   std::vector<MatrixXd> Q = UpdateQuaternionCosts(q1, q2, controller_options);
 
@@ -247,7 +247,7 @@ TEST_F(QuaternionCostTest, HessianSmallAngleDifferenceTest) {
 
 TEST_F(QuaternionCostTest, RealizedCostTest) {
   C3ControllerOptions controller_options =
-      drake::yaml::LoadYamlFile<C3ControllerOptions>(
+      LoadC3ControllerOptions(
           "systems/test/quaternion_cost_test.yaml");
 
   Eigen::Quaterniond q0 = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()) *
@@ -317,6 +317,64 @@ TEST_F(QuaternionCostTest, RealizedCostTest) {
     std::cout << "angle: " << angle << std::endl;
     std::cout << "cost hessian: " << cost_hessian << std::endl;
     std::cout << "cost regularized: " << cost_regularized << std::endl << std::endl;
+  }
+}
+
+TEST_F(QuaternionCostTest, GradientZeroAtIdentity) {
+  VectorXd q1(4);
+  q1 << 0.5, 0.5, 0.5, 0.5;
+
+  VectorXd grad = common::gradient_of_squared_quaternion_angle_difference(q1, q1);
+  EXPECT_TRUE(grad.isApprox(VectorXd::Zero(4), 1e-6));
+
+  // Antipodal quaternion representing the same 3D rotation
+  VectorXd q1_neg = -q1;
+  VectorXd grad_neg = common::gradient_of_squared_quaternion_angle_difference(q1, q1_neg);
+  EXPECT_TRUE(grad_neg.isApprox(VectorXd::Zero(4), 1e-6));
+}
+
+TEST_F(QuaternionCostTest, GradientFiniteDifferenceTest) {
+  auto cost_fn = [](const VectorXd& q, const VectorXd& q_des) -> double {
+    Eigen::Vector4d q_norm = q.normalized();
+    Eigen::Vector4d r_norm = q_des.normalized();
+    if (q_norm.dot(r_norm) < 0.0) {
+      r_norm = -r_norm;
+    }
+    double s = std::clamp(q_norm.dot(r_norm), -1.0, 1.0);
+    double sin_half = std::sqrt(std::max(0.0, 1.0 - s * s));
+    double theta = 2.0 * std::atan2(sin_half, s);
+    return theta * theta;
+  };
+
+  for (int i = 1; i <= 8; i++) {
+    Eigen::Quaterniond q = Eigen::AngleAxisd(0.3 * i, Eigen::Vector3d::UnitX()) *
+                           Eigen::AngleAxisd(-0.2 * i, Eigen::Vector3d::UnitY()) *
+                           Eigen::AngleAxisd(0.5 * i, Eigen::Vector3d::UnitZ());
+    Eigen::Quaterniond qd = Eigen::AngleAxisd(0.1 * i, Eigen::Vector3d::UnitZ()) *
+                            Eigen::AngleAxisd(-0.4 * i, Eigen::Vector3d::UnitX());
+
+    VectorXd q_vec(4);
+    q_vec << q.w(), q.x(), q.y(), q.z();
+    VectorXd qd_vec(4);
+    qd_vec << qd.w(), qd.x(), qd.y(), qd.z();
+
+    VectorXd analytic_grad = common::gradient_of_squared_quaternion_angle_difference(q_vec, qd_vec);
+
+    // Compute numerical gradient via central differences
+    double eps = 1e-6;
+    VectorXd num_grad(4);
+    for (int k = 0; k < 4; k++) {
+      VectorXd q_plus = q_vec;
+      q_plus(k) += eps;
+      VectorXd q_minus = q_vec;
+      q_minus(k) -= eps;
+
+      num_grad(k) = (cost_fn(q_plus, qd_vec) - cost_fn(q_minus, qd_vec)) / (2.0 * eps);
+    }
+
+    EXPECT_TRUE(analytic_grad.isApprox(num_grad, 1e-4))
+        << "Analytic: " << analytic_grad.transpose()
+        << "\nNumeric: " << num_grad.transpose();
   }
 }
 

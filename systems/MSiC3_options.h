@@ -29,6 +29,10 @@ struct MSiC3Options {
   bool use_drake_sim;
   double drake_sim_dt;
 
+  bool add_terminal_constraint = false;
+  VectorXd terminal_slack_vector;
+  double terminal_slack_quaternion_weight = 0.0;
+
   bool penalize_acceleration;
   double acceleration_cost_weight;
 
@@ -67,6 +71,9 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(penalize_acceleration));
     a->Visit(DRAKE_NVP(acceleration_cost_weight));
     a->Visit(DRAKE_NVP(rollout_dt_scaling));
+    a->Visit(DRAKE_NVP(add_terminal_constraint));
+    a->Visit(DRAKE_NVP(terminal_slack_vector));
+    a->Visit(DRAKE_NVP(terminal_slack_quaternion_weight));
     a->Visit(DRAKE_NVP(use_drake_sim));
     a->Visit(DRAKE_NVP(drake_sim_dt));
     a->Visit(DRAKE_NVP(defect_quaternion_weight));
@@ -84,7 +91,6 @@ struct MSiC3Options {
     a->Visit(DRAKE_NVP(vf_trust_region_weight));
     a->Visit(DRAKE_NVP(use_lambdas_for_lcs));
     a->Visit(DRAKE_NVP(anchor_rho));
-
   }
 };
 

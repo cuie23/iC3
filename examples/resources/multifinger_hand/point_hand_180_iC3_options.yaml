@@ -17,7 +17,7 @@ print_costs: true
 rollout_Kp: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 rollout_Kd: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-penalize_acceleration: true 
+penalize_acceleration: true
 acceleration_cost_weight: 20
 
 position_l2_decoupling_weight: 0
@@ -47,3 +47,6 @@ huber_delta: 0.01
 huber_frequency: 0 # 0 = No Huber cost
 
 ff_alpha: 0.4
+add_terminal_constraint: false
+terminal_slack_vector: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+terminal_slack_quaternion_weight: 0

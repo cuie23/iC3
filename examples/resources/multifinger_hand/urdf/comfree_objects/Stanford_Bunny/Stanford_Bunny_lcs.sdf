@@ -2,18 +2,16 @@
 <sdf version="1.7">
   <model name="t_shape">    
     <link name="Stanford_Bunny">
-      <inertial>
+        <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>1.0</mass>
-        <!-- Inertia values were calculated to be consistent with the mass and
-             geometry size, assuming a uniform density. -->
+        <mass>0.05</mass>
         <inertia>
-            <ixx>0.003</ixx>
-            <iyy>0.003 </iyy>
-            <izz>0.006 </izz>
-            <ixy>0.0</ixy>
-            <ixz>0.0</ixz>
-            <iyz>0.0</iyz>
+          <ixx>3.8901341e-05</ixx>
+          <iyy>5.7429647e-05</iyy>
+          <izz>4.1887696e-05</izz>
+          <ixy>2.250496e-06</ixy>
+          <ixz>1.06405e-05</ixz>
+          <iyz>-5.1878796e-06</iyz>
         </inertia>
       </inertial>
       <visual name="convex_0">

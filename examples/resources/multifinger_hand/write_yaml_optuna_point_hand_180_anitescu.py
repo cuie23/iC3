@@ -21,10 +21,10 @@ MSiC3_PARAMS = "examples/resources/multifinger_hand/ms_ic3_options_point_hand_18
 # CONTORLLER_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_c3_tracking_options_point_hand_180_31.yaml"
 # MSiC3_PARAMS = "examples/resources/multifinger_hand/optuna_point_hand_180/optuna_yamls/optuna_ms_ic3_options_point_hand_180_31.yaml"
 
-STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_less_params.db"
-STUDY_NAME = "MSiC3_point_hand_180_less_params"
+STORAGE_PATH = "sqlite:///examples/resources/multifinger_hand/optuna_point_hand_180/optuna_results_180_multi_target.db"
+STUDY_NAME = "MSiC3_point_hand_180_multi_target"
 
-TRIAL_NUMBER = 171
+TRIAL_NUMBER = 2077
 
 study = optuna.load_study(study_name=STUDY_NAME, storage=STORAGE_PATH)
 trial = None
@@ -190,6 +190,10 @@ c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = 0.025
 c3_options["lcs_factory_options"]["contact_model"] = "anitescu"
 
+c3_options["mu_per_pair_type"] = flow_seq([mu_fc, 0.3])
+c3_options["resolve_contacts_to_lists"] = [flow_seq([3, 4])]
+c3_options["num_contacts_index"] = 0
+
 x_init = [0.0, 0.07, 0.05,  # finger 1 
         0.07, -0.055, 0.05,   # finger 2
         -0.07, -0.055, 0.05,   # finger 3
@@ -331,6 +335,9 @@ ic3_options["value_function_scaling"] = value_function_scaling / 100.0
 ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
 ic3_options["num_threads"] = 32
+ic3_options["add_terminal_constraint"] = False
+ic3_options["terminal_slack_vector"] = flow_seq([1] * 31)
+ic3_options["terminal_slack_quaternion_weight"] = 0
 
 if "p_vector" in ic3_options:
     del ic3_options["p_vector"]

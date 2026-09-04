@@ -55,7 +55,7 @@ class C3CartpoleProblem {
     k = 1;  // Input dimension
 
     // Load controller options from YAML file
-    options = drake::yaml::LoadYamlFile<C3Options>(
+    options = LoadC3Options(
         "core/test/resources/c3_cartpole_options.yaml");
     float Ts = dt;  // Sampling time for the LCS
 

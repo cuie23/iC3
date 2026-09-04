@@ -80,15 +80,15 @@ def objective(trial):
     # finger_position_weight = trial.suggest_int("finger_position_weight", 100, 10000, step=100)
     # cube_position_weight = trial.suggest_int("cube_position_weight", 2000, 10000, step=200)
     # quat_weight = trial.suggest_int("quat_weight", 500, 10000, step=500)
-    finger_position_weight = 2000
+    finger_position_weight = 3000
     cube_position_weight = 8000
     quat_weight = 4000
 
     # finger_config = trial.suggest_int("finger_config", 1, 3)
     # cube_model = trial.suggest_int("cube_model", 1, 3)
     cube_model = 1
-    w_G_final = trial.suggest_int("w_G_final", 1, 100)
-
+    # w_G_final = trial.suggest_int("w_G_final", 1, 100)
+    w_G_final = 10
     # x_change_weight = trial.suggest_int("x_change_weight", 1, 1001, log=True)
     # u_change_weight = trial.suggest_int("u_change_weight", 1, 1001, log=True)
     x_change_weight = 1
@@ -301,7 +301,8 @@ def objective(trial):
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
     use_rollout_lambdas = True
 
-    traj_N = trial.suggest_categorical("traj_N", [360, 420, 480])
+    # traj_N = trial.suggest_categorical("traj_N", [360, 420, 480])
+    traj_N = 420
 
     with open(MSiC3_PARAMS, "r") as f:
         ic3_options = yaml.safe_load(f)
@@ -349,6 +350,10 @@ def objective(trial):
         del ic3_options["p_vector"]
     if "w_P" in ic3_options:
         del ic3_options["w_P"]
+
+    ic3_options["add_terminal_constraint"] = False
+    ic3_options["terminal_slack_vector"] = [1] * 31
+    ic3_options["terminal_slack_quaternion_weight"] = 0
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)

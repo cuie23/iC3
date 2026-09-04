@@ -72,6 +72,13 @@ struct C3ControllerOptions {
 
   std::vector<C3StatePredictionJoint> state_prediction_joints;
 
+  // Contact resolution lists
+  std::optional<std::vector<std::vector<int>>> resolve_contacts_to_lists;
+  std::optional<std::vector<int>> resolve_as_planar_contacts_list;
+  std::optional<int> num_contacts_index;
+  std::optional<int> num_contacts_index_for_cost;
+  std::optional<std::vector<double>> mu_per_pair_type;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(projection_type));
@@ -85,6 +92,11 @@ struct C3ControllerOptions {
     a->Visit(DRAKE_NVP(quaternion_indices));    
     a->Visit(DRAKE_NVP(Q_quaternion_weight));       
     a->Visit(DRAKE_NVP(quaternion_regularizer_fraction));
+    a->Visit(DRAKE_NVP(resolve_contacts_to_lists));
+    a->Visit(DRAKE_NVP(resolve_as_planar_contacts_list));
+    a->Visit(DRAKE_NVP(num_contacts_index));
+    a->Visit(DRAKE_NVP(num_contacts_index_for_cost));
+    a->Visit(DRAKE_NVP(mu_per_pair_type));
 
     if (projection_type == "QP") {
       DRAKE_DEMAND(lcs_factory_options.contact_model == "anitescu");

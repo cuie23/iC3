@@ -1,3 +1,5 @@
+#pragma once
+
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/plant/contact_results.h"
 #include "drake/systems/analysis/simulator.h"

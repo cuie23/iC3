@@ -313,25 +313,18 @@ int RunHybridMPCPointHand(drake::lcm::DrakeLcm& lcm, MatrixXd z_hat, int example
 	}
 
   // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs_finger;
+  for (auto geom_id : fingertip_collision_geoms) {
+    contact_pairs_finger.emplace_back(cube_collision_geoms[0], geom_id);
+  }
+  std::vector<SortedPair<GeometryId>> contact_pairs_box;
+  int num_box_contacts = (example == 0) ? 8 : 4;
+  for (int i = 1; i <= num_box_contacts; i++) {
+    contact_pairs_box.emplace_back(cube_collision_geoms[i], ground_collision_geom);
+  }
   std::vector<SortedPair<GeometryId>> contact_pairs;
-
-  // fingertip-cube contact pairs
-	for (auto geom_id : fingertip_collision_geoms) {
-		contact_pairs.emplace_back(cube_collision_geoms[0], geom_id);
-  }
-
-
-  // cube-ground contact pairs
-  if (example == 0) {
-    for (int i = 1; i <= 8; i++) {
-      contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
-    }
-  } else if (example == 1) {
-    for (int i = 1; i <= 4; i++) {
-      contact_pairs.emplace_back(cube_collision_geoms[i], ground_collision_geom);
-    }    
-  }
-
+  contact_pairs.insert(contact_pairs.end(), contact_pairs_finger.begin(), contact_pairs_finger.end());
+  contact_pairs.insert(contact_pairs.end(), contact_pairs_box.begin(), contact_pairs_box.end());
 
   // Retrieve collision geometries for relevant bodies (ROLLOUT PLANT)
   GeometryId ground_collision_geom_rollout = 
@@ -358,24 +351,17 @@ int RunHybridMPCPointHand(drake::lcm::DrakeLcm& lcm, MatrixXd z_hat, int example
 	}
 
   // Define contact pairs for the LCS system.
+  std::vector<SortedPair<GeometryId>> contact_pairs_finger_rollout;
+  for (auto geom_id : fingertip_collision_geoms_rollout) {
+    contact_pairs_finger_rollout.emplace_back(cube_collision_geoms_rollout[0], geom_id);
+  }
+  std::vector<SortedPair<GeometryId>> contact_pairs_box_rollout;
+  for (int i = 1; i <= num_box_contacts; i++) {
+    contact_pairs_box_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
+  }
   std::vector<SortedPair<GeometryId>> contact_pairs_rollout;
-
-  // fingertip-cube contact pairs
-	for (auto geom_id : fingertip_collision_geoms_rollout) {
-		contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[0], geom_id);
-  }
-
-  if (example == 0) {
-    // cube-ground contact pairs
-    for (int i = 1; i <= 8; i++) {
-      contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
-    }
-  } else if (example == 1) {
-    // cube-ground contact pairs
-    for (int i = 1; i <= 4; i++) {
-      contact_pairs_rollout.emplace_back(cube_collision_geoms_rollout[i], ground_collision_geom_rollout);
-    }
-  }
+  contact_pairs_rollout.insert(contact_pairs_rollout.end(), contact_pairs_finger_rollout.begin(), contact_pairs_finger_rollout.end());
+  contact_pairs_rollout.insert(contact_pairs_rollout.end(), contact_pairs_box_rollout.begin(), contact_pairs_box_rollout.end());
 
   // Build the main diagram.
   DiagramBuilder<double> builder;
@@ -442,6 +428,43 @@ int RunHybridMPCPointHand(drake::lcm::DrakeLcm& lcm, MatrixXd z_hat, int example
   auto plant_rollout_context_autodiff = plant_rollout_autodiff->CreateDefaultContext(); 
 
   int example_idx = (example == 0) ? 2 : 1;
+
+  if (options.resolve_contacts_to_lists.has_value() ||
+      options.c3_options.resolve_contacts_to_lists.has_value()) {
+    const auto& res_lists = options.resolve_contacts_to_lists.has_value()
+                                ? options.resolve_contacts_to_lists.value()
+                                : options.c3_options.resolve_contacts_to_lists.value();
+    int idx = options.num_contacts_index.value_or(
+        options.c3_options.num_contacts_index.value_or(0));
+    const auto& res_list = res_lists[idx];
+    std::vector<std::vector<SortedPair<GeometryId>>> contact_groups = {
+        contact_pairs_finger, contact_pairs_box};
+    std::vector<std::vector<SortedPair<GeometryId>>> contact_groups_rollout = {
+        contact_pairs_finger_rollout, contact_pairs_box_rollout};
+    contact_pairs = multibody::LCSFactory::ResolveContactPairs(
+        plant_for_lcs, plant_for_lcs_context, contact_groups, res_list);
+    contact_pairs_rollout = multibody::LCSFactory::ResolveContactPairs(
+        plant_rollout, plant_rollout_context, contact_groups_rollout, res_list);
+    options.lcs_factory_options.num_contacts = contact_pairs.size();
+    if (options.mu_per_pair_type.has_value() || options.c3_options.mu_per_pair_type.has_value()) {
+      const auto& mu_types = options.mu_per_pair_type.has_value()
+                                 ? options.mu_per_pair_type.value()
+                                 : options.c3_options.mu_per_pair_type.value();
+      std::vector<double> new_mu;
+      for (size_t g = 0; g < contact_groups.size(); ++g) {
+        int n_active = (g < res_list.size())
+                           ? std::min(res_list[g], static_cast<int>(contact_groups[g].size()))
+                           : contact_groups[g].size();
+        if (g < mu_types.size()) {
+          new_mu.insert(new_mu.end(), n_active, mu_types[g]);
+        }
+      }
+      options.lcs_factory_options.mu = new_mu;
+    } else {
+      options.lcs_factory_options.mu.resize(contact_pairs.size(), options.lcs_factory_options.mu[0]);
+    }
+  }
+
   std::unique_ptr<systems::MSiC3> ms_ic3_controller =
      std::make_unique<systems::MSiC3>(plant_for_lcs, *plant_lcs_autodiff, plant_rollout, *plant_rollout_autodiff, 
         *plant_diagram_rollout, std::move(plant_diagram_rollout_context), contact_pairs, contact_pairs_rollout, 

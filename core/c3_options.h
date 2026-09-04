@@ -105,6 +105,13 @@ struct C3Options {
   std::optional<bool> add_phi_buffer;
   std::optional<std::vector<double>> epsilon;
 
+  // Contact resolution lists
+  std::optional<std::vector<std::vector<int>>> resolve_contacts_to_lists;
+  std::optional<std::vector<int>> resolve_as_planar_contacts_list;
+  std::optional<int> num_contacts_index;
+  std::optional<int> num_contacts_index_for_cost;
+  std::optional<std::vector<double>> mu_per_pair_type;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(warm_start));
@@ -167,6 +174,12 @@ struct C3Options {
     a->Visit(DRAKE_NVP(phi_threshold));
     a->Visit(DRAKE_NVP(add_phi_buffer));
     a->Visit(DRAKE_NVP(epsilon));
+
+    a->Visit(DRAKE_NVP(resolve_contacts_to_lists));
+    a->Visit(DRAKE_NVP(resolve_as_planar_contacts_list));
+    a->Visit(DRAKE_NVP(num_contacts_index));
+    a->Visit(DRAKE_NVP(num_contacts_index_for_cost));
+    a->Visit(DRAKE_NVP(mu_per_pair_type));
 
     g_vector = std::vector<double>();
     g_vector.insert(g_vector.end(), g_x.begin(), g_x.end());

@@ -191,6 +191,9 @@ def objective(trial):
     ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
 
     ic3_options["rollout_dt_scaling"] = 1
+    ic3_options["add_terminal_constraint"] = False
+    ic3_options["terminal_slack_vector"] = [1] * 23
+    ic3_options["terminal_slack_quaternion_weight"] = 0
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)

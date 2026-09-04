@@ -1,0 +1,30 @@
+=========================================
+       BEST HYPERPARAMETERS SO FAR       
+=========================================
+Best Trial Number: 1307
+Best Defect Metric: 1747.0513
+
+Component Scores & Metric Contributions:
+  Final Iteration:           7
+  Total Quat Defect:         60.657 deg (Contribution: 303.285)
+  Max Quat Defect:           11.638 deg (Contribution: 232.762)
+  Total Obj Defect:          0.16765 m (Contribution: 8.383)
+  Max Obj Defect:            0.03305 m (Contribution: 1.653)
+  Total EE Defect:           0.37390 m (Contribution: 1121.713)
+  Target Angle Error:        26.380 deg (Contribution: 79.140)
+  Position Error:            0.00232 (Contribution: 0.116)
+
+Parameters:
+  w_G: 293
+  g_lambda: 60
+  g_eta: 11
+  u_ratio_finger: -166
+  u_ratio_cube: -36
+  admm_iter: 4
+  finger_position_weight: 50000
+  cube_position_weight: 7000
+  quat_weight: 1500
+  num_iters: 7
+  num_segments: 10
+  anchor_rho: 32.0
+=========================================

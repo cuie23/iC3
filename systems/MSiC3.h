@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <vector>
 #include <tuple>
@@ -48,10 +50,22 @@ public:
     const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
     drake::systems::Diagram<double>& rollout_diagram,
     std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
+    const vector<vector<SortedPair<GeometryId>>>& contact_groups,
+    const vector<vector<SortedPair<GeometryId>>>& contact_groups_rollout,
+    C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
+    int example_idx, bool is_optuna = false);
+
+  explicit MSiC3(
+    const MultibodyPlant<double>& plant,
+    const MultibodyPlant<drake::AutoDiffXd>& plant_ad,
+    const MultibodyPlant<double>& plant_rollout,
+    const MultibodyPlant<drake::AutoDiffXd>& plant_ad_rollout,
+    drake::systems::Diagram<double>& rollout_diagram,
+    std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context,
     const vector<SortedPair<GeometryId>>& contact_geoms,
     const vector<SortedPair<GeometryId>>& contact_geoms_rollout,
     C3ControllerOptions controller_options, MSiC3Options ms_ic3_options, 
-    int example_idx);
+    int example_idx, bool is_optuna = false);
 
   // Outputs
   // Note: doesn't store stuff from warmup iterations
@@ -112,7 +126,7 @@ private:
   // start_idx is the timestep w.r.t the entire iC3 time horizon to start from
   // returns x_hat, u_hat, lambda_hat, gamma, in_contact
   tuple<MatrixXd, MatrixXd, MatrixXd, MatrixXd, MatrixXd> DoC3Rollout(VectorXd x0, MatrixXd x_hat, MatrixXd u_hat, 
-                                              MatrixXd lambda_hat, VectorXd ud, 
+                                              MatrixXd lambda_hat, VectorXd ud, VectorXd x_anchor_next,
                                               LCSFactory factory, LCSFactory rollout_factory, vector<MatrixXd> H, 
                                               vector<VectorXd> g, int start_idx,                                          
                                               MatrixXd A_x, VectorXd lb_x, VectorXd ub_x,
@@ -162,9 +176,16 @@ private:
   vector<MatrixXd> UpdateQuaternionCosts(
     VectorXd x_curr, vector<VectorXd> x_des, vector<MatrixXd> Q);
 
+  MatrixXd UpdateQuaternionCostsSlack(
+    VectorXd x_curr, VectorXd x_des, MatrixXd Q_in);
+
   Eigen::Quaterniond slerpLong(const Eigen::Quaterniond& q0, const Eigen::Quaterniond& q1, double t);
 
 
+
+  void ResolveContacts(
+    const drake::systems::Context<double>& context,
+    const drake::systems::Context<double>& context_rollout);
 
   const drake::multibody::MultibodyPlant<double>& plant_;
   const drake::multibody::MultibodyPlant<drake::AutoDiffXd>& plant_ad_;
@@ -173,8 +194,10 @@ private:
   drake::systems::Diagram<double>& rollout_diagram_;
   std::unique_ptr<drake::systems::Context<double>> rollout_diagram_context_;
 
-  const vector<SortedPair<GeometryId>>& contact_geoms_;
-  const vector<SortedPair<GeometryId>>& contact_geoms_rollout_;
+  vector<vector<SortedPair<GeometryId>>> contact_groups_;
+  vector<vector<SortedPair<GeometryId>>> contact_groups_rollout_;
+  vector<SortedPair<GeometryId>> contact_geoms_;
+  vector<SortedPair<GeometryId>> contact_geoms_rollout_;
 
   // C3 options and solver configuration.
   C3ControllerOptions controller_options_;
@@ -213,6 +236,39 @@ private:
   // Indexing: ic3_timestep, c3 horizon
   std::vector<std::vector<Eigen::VectorXd>> z_sol_iter_;
 
+  struct LambdaResidualRecord {
+    int outer_iter;
+    int segment;
+    int plan_timestep;
+    int admm_iter;
+    double lambda_diff_norm;
+    double iterate_step_change;
+    double complementarity_slack;
+  };
+  struct C3PlanStepRecord {
+    int outer_iter;
+    int segment;
+    int plan_timestep;
+    Eigen::VectorXd x0;
+    Eigen::VectorXd x1;
+    Eigen::VectorXd lambda;
+    Eigen::VectorXd eta;
+    Eigen::VectorXd lambda_last;
+    Eigen::VectorXd eta_last;
+  };
+  std::vector<C3PlanStepRecord> c3_plan_step_records_;
+
+  struct C3FullLookaheadRecord {
+    int outer_iter;
+    int segment;
+    int plan_timestep;
+    int lookahead_step;
+    Eigen::VectorXd x;
+  };
+  std::vector<C3FullLookaheadRecord> c3_full_lookahead_records_;
+  std::vector<LambdaResidualRecord> lambda_residual_records_;
+  int current_outer_iter_ = 0;
+  bool is_optuna_ = false;
 };
 
 

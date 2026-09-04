@@ -101,7 +101,7 @@ class C3ControllerTest : public ::testing::Test, public C3CartpoleProblem {
   void SetUp() override {
     // Load controller options from YAML
     C3ControllerOptions controller_options =
-        drake::yaml::LoadYamlFile<C3ControllerOptions>(
+        LoadC3ControllerOptions(
             "examples/resources/cartpole_softwalls/"
             "c3_controller_cartpole_options.yaml");
     controller_options.publish_frequency = 0;  // Forced Update
@@ -261,7 +261,7 @@ class LCSFactorySystemTest : public ::testing::Test, public C3CartpoleProblem {
     contact_pairs.emplace_back(right_wall_geoms[0], pole_geoms[0]);
 
     // Load controller options
-    controller_options = drake::yaml::LoadYamlFile<C3ControllerOptions>(
+    controller_options = LoadC3ControllerOptions(
         "examples/resources/cartpole_softwalls/"
         "c3_controller_cartpole_options.yaml");
 

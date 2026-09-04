@@ -7,16 +7,16 @@ import sys
 import platform
 
 def get_quaternion_angle_diff(q1, q2):
-    """Computes the angular difference (in radians) between two quaternions."""
+    """Computes the angular difference (in degrees) between two quaternions."""
     # 1. Compute the dot product
     dot_product = sum(a * b for a, b in zip(q1, q2))
     
     # 2. Clamp the dot product to [-1, 1] to avoid math domain errors from floating point drift
     dot_product = max(min(dot_product, 1.0), -1.0)
     
-    # 3. Calculate the angle. We use abs() because q and -q represent the same rotation.
-    angle_rads = 2 * math.acos(abs(dot_product))
-    return angle_rads
+    # 3. Calculate the angle in degrees
+    angle_deg = 2 * math.acos(abs(dot_product)) * 180.0 / math.pi
+    return angle_deg
 
 if len(sys.argv) > 1:
     worker_id = int(sys.argv[1])
@@ -314,6 +314,10 @@ def objective(trial):
     if "w_P" in ic3_options:
         del ic3_options["w_P"]
 
+    ic3_options["add_terminal_constraint"] = False
+    ic3_options["terminal_slack_vector"] = [1] * 31
+    ic3_options["terminal_slack_quaternion_weight"] = 0
+
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)
 
@@ -329,19 +333,20 @@ def objective(trial):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
 
-    final_score = None
-    
-    # --- State Variables for the iC3 Iteration ---
-    current_iteration = None
-    current_iteration_cost = 0.0
-    current_anchor_q = None
+    # --- State Variables for the iC3 Iteration Defect Tracking ---
+    current_iter = 0
+    iter_defects = {}
+    angle_diff = None
+    position_weight = None
 
-    full_output = []
+    ee_defect_regex = re.compile(r"Segment\s+(\d+)\s+ee defect:\s*([^\n]+)")
+    quat_defect_regex = re.compile(r"Segment\s+(\d+)\s+quaternion defect \(deg\):\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)")
+    obj_defect_regex = re.compile(r"Segment\s+(\d+)\s+object defect:\s*([^\n]+)")
 
     try:
         for line in iter(process.stdout.readline, ''):
             full_output.append(line)
-            
+
             # 1. Check for Early Solver Failures
             if "LCP failed: returning x_init" in line:
                 raise optuna.TrialPruned("LCP solver failed")
@@ -354,40 +359,61 @@ def objective(trial):
             if dual_match and float(dual_match.group(1)) > 0.01:
                 raise optuna.TrialPruned(f"Large Dual Residual ({float(dual_match.group(1))})")
 
-            # 2. Start a new iC3 iteration
+            # 2. Track iC3 iteration
             if line.startswith("iC3 iteration"):
-                current_iteration = int(line.split()[-1])
-                current_iteration_cost = 0.0  # Reset the sum for the new iteration
-                
-            # 3. Extract the target (anchor) quaternion
-            elif "x_anchor cube" in line:
-                raw_numbers = line.split("cube")[1].split()
-                current_anchor_q = [float(val) for val in raw_numbers[0:4]]
-                
-            # 4. Extract the actual (hat) quaternion and add to the running cost
-            elif "x_hat[L] cube:" in line:
-                raw_numbers = line.split("cube:")[1].split()
-                hat_q = [float(val) for val in raw_numbers[0:4]]
-                
-                if current_anchor_q is not None:
-                    angle_diff = get_quaternion_angle_diff(current_anchor_q, hat_q)
-                    current_iteration_cost += angle_diff
-                    current_anchor_q = None # Reset to prevent double-counting on malformed logs
-                    
-            # 5. End of iteration: REPORT AND PRUNE
-            elif "Iteration runtime:" in line and current_iteration is not None:
-                # Prune if angle sum is too small
-                if current_iteration_cost < 0.15 and current_iteration != num_iters: 
-                    print()
-                    raise optuna.TrialPruned(f"Pruned at iC3 iteration {current_iteration} (Summed Angle Error: {current_iteration_cost:.4f})")
+                try:
+                    current_iter = int(line.split()[-1])
+                    if current_iter not in iter_defects:
+                        iter_defects[current_iter] = {}
+                except ValueError:
+                    pass
 
-            # 6. Extract Final Metric
-            final_match = re.search(r"FINAL_METRIC:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)", line)
-            if final_match:
-                final_score = float(final_match.group(1))
+            # 3. Parse EE defect
+            m_ee = ee_defect_regex.search(line)
+            if m_ee and current_iter > 0:
+                seg_idx = int(m_ee.group(1))
+                vals = [float(v) for v in m_ee.group(2).split() if v.strip()]
+                norm = float(np.linalg.norm(vals))
+                if current_iter not in iter_defects:
+                    iter_defects[current_iter] = {}
+                if seg_idx not in iter_defects[current_iter]:
+                    iter_defects[current_iter][seg_idx] = {}
+                iter_defects[current_iter][seg_idx]["ee"] = norm
+
+            # 4. Parse Quaternion defect (deg)
+            m_quat = quat_defect_regex.search(line)
+            if m_quat and current_iter > 0:
+                seg_idx = int(m_quat.group(1))
+                deg = float(m_quat.group(2))
+                if current_iter not in iter_defects:
+                    iter_defects[current_iter] = {}
+                if seg_idx not in iter_defects[current_iter]:
+                    iter_defects[current_iter][seg_idx] = {}
+                iter_defects[current_iter][seg_idx]["quat"] = deg
+
+            # 5. Parse Object defect
+            m_obj = obj_defect_regex.search(line)
+            if m_obj and current_iter > 0:
+                seg_idx = int(m_obj.group(1))
+                vals = [float(v) for v in m_obj.group(2).split() if v.strip()]
+                norm = float(np.linalg.norm(vals))
+                if current_iter not in iter_defects:
+                    iter_defects[current_iter] = {}
+                if seg_idx not in iter_defects[current_iter]:
+                    iter_defects[current_iter][seg_idx] = {}
+                iter_defects[current_iter][seg_idx]["obj"] = norm
+
+            # 6. Parse terminal metrics
+            if "Angle diff:" in line:
+                m = re.search(r"Angle diff:\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", line)
+                if m:
+                    angle_diff = float(m.group(1))
+            if "Position weight" in line:
+                m = re.search(r"Position weight\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", line)
+                if m:
+                    position_weight = float(m.group(1))
 
     except optuna.TrialPruned as e:
-        # Kill the C++ subprocess immediately to save compute time
         process.terminate() 
         process.wait() 
         raise e 
@@ -395,51 +421,110 @@ def objective(trial):
     finally:
         process.stdout.close()
         process.stderr.close()
-        print("".join(full_output))  # Print all captured output for debugging
 
     process.wait()
     if process.returncode != 0:
-        print(f"Trial failed with exit code {process.returncode}")
-        raise optuna.TrialPruned("Process crashed or returned non-zero exit code")
+        print("".join(full_output))
+        raise optuna.TrialPruned(f"Process failed with exit code {process.returncode}")
 
+    valid_iters = sorted([it for it in iter_defects.keys() if len(iter_defects[it]) > 0])
+    if not valid_iters:
+        print("".join(full_output))
+        raise optuna.TrialPruned("No valid iteration defect logs found.")
 
-    if final_score is not None:
-        return final_score
-    else:
-        raise optuna.TrialPruned("Could not find FINAL_METRIC in output.")
+    final_iter = valid_iters[-1]
+    final_defects = iter_defects[final_iter]
+
+    total_ee_defect = sum(d.get("ee", 0.0) for d in final_defects.values())
+    total_quat_defect = sum(d.get("quat", 0.0) for d in final_defects.values())
+    total_obj_defect = sum(d.get("obj", 0.0) for d in final_defects.values())
+    max_quat_defect = max((d.get("quat", 0.0) for d in final_defects.values()), default=0.0)
+    max_obj_defect = max((d.get("obj", 0.0) for d in final_defects.values()), default=0.0)
+
+    target_angle_err = angle_diff if angle_diff is not None else 90.0
+    pos_err = (position_weight / 10000.0) if position_weight is not None else 0.0
+
+    defect_metric = (
+        1.0 * total_quat_defect +
+        2.0 * max_quat_defect +
+        150.0 * total_obj_defect +
+        300.0 * max_obj_defect +
+        50.0 * total_ee_defect +
+        0.5 * target_angle_err +
+        100.0 * pos_err
+    )
+
+    # Record individual components for logging and analysis
+    trial.set_user_attr("final_iter", int(final_iter))
+    trial.set_user_attr("total_quat_defect_deg", float(total_quat_defect))
+    trial.set_user_attr("max_quat_defect_deg", float(max_quat_defect))
+    trial.set_user_attr("total_obj_defect", float(total_obj_defect))
+    trial.set_user_attr("max_obj_defect", float(max_obj_defect))
+    trial.set_user_attr("total_ee_defect", float(total_ee_defect))
+    trial.set_user_attr("target_angle_err_deg", float(target_angle_err))
+    trial.set_user_attr("pos_err", float(pos_err))
+
+    print(f"\n[Trial #{trial.number} Result - Final Iter {final_iter}]")
+    print(f"  Total Quat Defect (deg): {total_quat_defect:.3f} (max: {max_quat_defect:.3f})")
+    print(f"  Total Obj Defect:        {total_obj_defect:.5f} (max: {max_obj_defect:.5f})")
+    print(f"  Total EE Defect:         {total_ee_defect:.5f}")
+    print(f"  Target Angle Diff (deg): {target_angle_err:.3f}")
+    print(f"  Composite Defect Score:  {defect_metric:.4f}\n")
+
+    return defect_metric
+
+def format_component_scores(user_attrs):
+    lines = ["Component Scores:"]
+    lines.append(f"  Final Iteration:           {user_attrs.get('final_iter', 'N/A')}")
+    t_q = user_attrs.get('total_quat_defect_deg')
+    lines.append(f"  Total Quat Defect (deg):   {t_q:.3f}" if isinstance(t_q, (int, float)) else f"  Total Quat Defect (deg):   {t_q}")
+    m_q = user_attrs.get('max_quat_defect_deg')
+    lines.append(f"  Max Quat Defect (deg):     {m_q:.3f}" if isinstance(m_q, (int, float)) else f"  Max Quat Defect (deg):     {m_q}")
+    t_o = user_attrs.get('total_obj_defect')
+    lines.append(f"  Total Obj Defect (m):      {t_o:.5f}" if isinstance(t_o, (int, float)) else f"  Total Obj Defect (m):      {t_o}")
+    m_o = user_attrs.get('max_obj_defect')
+    lines.append(f"  Max Obj Defect (m):        {m_o:.5f}" if isinstance(m_o, (int, float)) else f"  Max Obj Defect (m):        {m_o}")
+    t_e = user_attrs.get('total_ee_defect')
+    lines.append(f"  Total EE Defect (m):       {t_e:.5f}" if isinstance(t_e, (int, float)) else f"  Total EE Defect (m):       {t_e}")
+    t_a = user_attrs.get('target_angle_err_deg')
+    lines.append(f"  Target Angle Error (deg):  {t_a:.3f}" if isinstance(t_a, (int, float)) else f"  Target Angle Error (deg):  {t_a}")
+    p_e = user_attrs.get('pos_err')
+    lines.append(f"  Position Error:            {p_e:.5f}" if isinstance(p_e, (int, float)) else f"  Position Error:            {p_e}")
+    return "\n".join(lines)
     
 def log_best_callback(study, trial):
     """
     Runs automatically after every trial.
     Logs the absolute best trial configuration AND appends any successful
-    trials that achieved a metric score under 30.
+    trials that achieved a metric score under 50.
     """
     if trial.value is None:
         return
 
-    # 1. LOG EVERY TRIAL WITH METRIC < 30
-    # Ensure the trial wasn't pruned, has a return value, and meets your condition
-    if trial.value < 30:
-        print(f"--> Good trial found (Metric: {trial.value} < 30). Logging to historic file...")
-        
-        # Open in "a" (append) mode so you accumulate all sub-30 trials in one place
-        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/sub_30_trials_pivot_new_anchor_updates.txt", "a") as f:
-            f.write(f"Trial #{trial.number} | Metric Score: {trial.value}\n")
+    os.makedirs("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel", exist_ok=True)
+    attrs = trial.user_attrs
+
+    # 1. LOG EVERY TRIAL WITH METRIC < 50
+    if trial.value < 50:
+        print(f"--> Good trial found (Metric: {trial.value:.4f} < 50). Logging to historic file...")
+        with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/sub_50_trials_pivot_parallel.txt", "a") as f:
+            f.write(f"Trial #{trial.number} | Metric Score: {trial.value:.4f}\n")
+            f.write(format_component_scores(attrs) + "\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
                 f.write(f"  {key}: {value}\n")
-            f.write("-" * 40 + "\n")
+            f.write("-" * 50 + "\n")
     
-    # 2. TRACK THE ABSOLUTE BEST TRAJECTORY CONFIG (Overwrites with absolute best)
+    # 2. TRACK THE ABSOLUTE BEST TRAJECTORY CONFIG
     if study.best_trial.number == trial.number:
-        print(f"--> New absolute best metric found: {trial.value}. Saving to file...")
-        
+        print(f"--> New absolute best metric found: {trial.value:.4f}. Saving to file...")
         with open("examples/resources/multifinger_hand/optuna_point_hand_pivot_parallel/best_params_pivot_new_anchor_updates.txt", "w") as f:
             f.write("=========================================\n")
             f.write("       BEST HYPERPARAMETERS SO FAR       \n")
             f.write("=========================================\n")
             f.write(f"Best Trial Number: {trial.number}\n")
-            f.write(f"Best Metric Value: {trial.value}\n\n")
+            f.write(f"Best Metric Value: {trial.value:.4f}\n\n")
+            f.write(format_component_scores(attrs) + "\n\n")
             f.write("Parameters:\n")
             for key, value in trial.params.items():
                 f.write(f"  {key}: {value}\n")

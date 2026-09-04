@@ -48,3 +48,8 @@ py_binary(
         "//examples:example_data"
     ],
 )
+
+py_binary(
+    name = "plot_defects",
+    srcs = ["plot_defects.py"],
+)

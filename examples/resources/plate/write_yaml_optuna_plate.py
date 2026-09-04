@@ -116,6 +116,10 @@ c3_options["lcs_factory_options"]["N"] = tracking_N
 c3_options["lcs_factory_options"]["dt"] = dt / 100.0
 c3_options["lcs_factory_options"]["mu"] = flow_seq([mu / 100] * n_contacts)
 
+c3_options["mu_per_pair_type"] = flow_seq([mu / 100])
+c3_options["resolve_contacts_to_lists"] = [flow_seq([n_contacts])]
+c3_options["num_contacts_index"] = 0
+
 c3_options["c3_options"]["u_lambda"] = flow_seq([u_lambda] * (4 * n_contacts))
 c3_options["c3_options"]["u_eta"] = flow_seq([u_eta] * (4 * n_contacts))
 
@@ -231,6 +235,9 @@ ic3_options["rollout_Kp"] = flow_seq([Kp_xy, Kp_xy, Kp_z, Kp_rot, Kp_rot])
 ic3_options["rollout_Kd"] = flow_seq([Kd_xy, Kd_xy, Kd_z, Kd_rot, Kd_rot])
 
 ic3_options["use_lambdas_for_lcs"] = use_lambdas_for_lcs
+ic3_options["add_terminal_constraint"] = False
+ic3_options["terminal_slack_vector"] = flow_seq([1] * 23)
+ic3_options["terminal_slack_quaternion_weight"] = 0
 
 with open(MSiC3_PARAMS, "w") as f:
     yaml.dump(ic3_options, f)

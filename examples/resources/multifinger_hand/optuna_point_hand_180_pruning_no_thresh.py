@@ -290,8 +290,8 @@ def objective(trial):
     # use_lambdas_for_lcs = trial.suggest_categorical("use_lambdas_for_lcs", [True, False])
     use_lambdas_for_lcs = False
 
-    # value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100)
-    value_function_scaling = 100
+    value_function_scaling = trial.suggest_int("value_function_scaling", 0, 100, step=5)
+    # value_function_scaling = 100
 
     vf_trust_region_weight = trial.suggest_int("vf_trust_region_weight", 0, 100)
     # vf_trust_region_weight = 0
@@ -299,10 +299,16 @@ def objective(trial):
     # accel_cost = trial.suggest_int("accel_cost", 0, 50, step=10)
     accel_cost = 10
 
-    # use_pd = trial.suggest_categorical("use_pd", [True, False])
-    use_pd = False
+    use_pd = trial.suggest_categorical("use_pd", [True, False])
+    # use_pd = False
     # use_rollout_lambdas = trial.suggest_categorical("use_rollout_lambdas", [True, False])
     use_rollout_lambdas = True
+
+    # add_terminal_constraint = trial.suggest_categorical("add_terminal_constraint", [True, False])
+    # terminal_slack_fingers = trial.suggest_int("terminal_slack_fingers", 1000, 100000, step=1000)
+    # terminal_slack_quat = trial.suggest_int("terminal_slack_quat", 200, 20000, step=200)
+    # terminal_slack_cube = trial.suggest_int("terminal_slack_cube", 1000, 100000, step=1000)
+
 
     # traj_N = trial.suggest_categorical("traj_N", [360, 420, 480])
     traj_N = 420
@@ -333,7 +339,11 @@ def objective(trial):
     ic3_options["value_function_scaling"] = value_function_scaling / 100.0
     ic3_options["vf_trust_region_weight"] = vf_trust_region_weight
 
-    kp = 200 if use_pd else 0
+    # ic3_options["add_terminal_constraint"] = add_terminal_constraint
+    # ic3_options["terminal_slack_vector"] = [terminal_slack_fingers] * 9 + [1] * 4 + [terminal_slack_cube] * 3 + [1] * 15
+    # ic3_options["terminal_slack_quaternion_weight"] = terminal_slack_quat
+
+    kp = 300 if use_pd else 0
     kd = 20 if use_pd else 0
 
     ic3_options["rollout_Kp"] = [kp] * 9
@@ -353,6 +363,10 @@ def objective(trial):
         del ic3_options["p_vector"]
     if "w_P" in ic3_options:
         del ic3_options["w_P"]
+
+    ic3_options["add_terminal_constraint"] = False
+    ic3_options["terminal_slack_vector"] = [1] * 31
+    ic3_options["terminal_slack_quaternion_weight"] = 0
 
     with open(MSiC3_PARAMS, "w") as f:
         yaml.dump(ic3_options, f, default_flow_style=True)

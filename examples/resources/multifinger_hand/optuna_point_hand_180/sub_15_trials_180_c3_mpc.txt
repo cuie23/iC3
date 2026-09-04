@@ -1,0 +1,560 @@
+Trial #926 | Metric Score: 11.2277
+Parameters:
+  w_G: 324
+  g_lambda: 36
+  g_eta: 34
+  u_ratio_finger: -6
+  u_ratio_cube: -200
+  admm_iter: 5
+  tracking_N: 6
+----------------------------------------
+Trial #988 | Metric Score: 5.0902
+Parameters:
+  w_G: 456
+  g_lambda: 26
+  g_eta: 80
+  u_ratio_finger: -85
+  u_ratio_cube: -121
+  admm_iter: 5
+  tracking_N: 6
+----------------------------------------
+Trial #1000 | Metric Score: 5.3261
+Parameters:
+  w_G: 483
+  g_lambda: 35
+  g_eta: 49
+  u_ratio_finger: -7
+  u_ratio_cube: -165
+  admm_iter: 5
+  tracking_N: 5
+----------------------------------------
+Trial #1131 | Metric Score: 5.67116
+Parameters:
+  w_G: 444
+  g_lambda: 36
+  g_eta: 89
+  u_ratio_finger: -9
+  u_ratio_cube: -42
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #1219 | Metric Score: 10.3637
+Parameters:
+  w_G: 461
+  g_lambda: 23
+  g_eta: 87
+  u_ratio_finger: -117
+  u_ratio_cube: -185
+  admm_iter: 7
+  tracking_N: 5
+----------------------------------------
+Trial #1402 | Metric Score: 2.72744
+Parameters:
+  w_G: 467
+  g_lambda: 26
+  g_eta: 94
+  u_ratio_finger: -96
+  u_ratio_cube: -65
+  admm_iter: 7
+  tracking_N: 4
+----------------------------------------
+Trial #1550 | Metric Score: 8.55488
+Parameters:
+  w_G: 426
+  g_lambda: 43
+  g_eta: 79
+  u_ratio_finger: -9
+  u_ratio_cube: -180
+  admm_iter: 7
+  tracking_N: 5
+----------------------------------------
+Trial #1610 | Metric Score: 9.93291
+Parameters:
+  w_G: 482
+  g_lambda: 32
+  g_eta: 67
+  u_ratio_finger: -7
+  u_ratio_cube: -135
+  admm_iter: 5
+  tracking_N: 5
+----------------------------------------
+Trial #1707 | Metric Score: 8.54762
+Parameters:
+  w_G: 497
+  g_lambda: 42
+  g_eta: 70
+  u_ratio_finger: -7
+  u_ratio_cube: -198
+  admm_iter: 5
+  tracking_N: 5
+----------------------------------------
+Trial #1794 | Metric Score: 13.9877
+Parameters:
+  w_G: 480
+  g_lambda: 44
+  g_eta: 75
+  u_ratio_finger: -7
+  u_ratio_cube: -112
+  admm_iter: 4
+  tracking_N: 5
+----------------------------------------
+Trial #1812 | Metric Score: 13.6852
+Parameters:
+  w_G: 178
+  g_lambda: 20
+  g_eta: 46
+  u_ratio_finger: -18
+  u_ratio_cube: -177
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #1825 | Metric Score: 13.6112
+Parameters:
+  w_G: 482
+  g_lambda: 39
+  g_eta: 80
+  u_ratio_finger: -7
+  u_ratio_cube: -70
+  admm_iter: 4
+  tracking_N: 5
+----------------------------------------
+Trial #1964 | Metric Score: 14.9973
+Parameters:
+  w_G: 485
+  g_lambda: 30
+  g_eta: 63
+  u_ratio_finger: -7
+  u_ratio_cube: -199
+  admm_iter: 6
+  tracking_N: 4
+----------------------------------------
+Trial #2128 | Metric Score: 12.4142
+Parameters:
+  w_G: 354
+  g_lambda: 44
+  g_eta: 60
+  u_ratio_finger: -2
+  u_ratio_cube: -60
+  admm_iter: 5
+  tracking_N: 5
+----------------------------------------
+Trial #2256 | Metric Score: 14.2264
+Parameters:
+  w_G: 460
+  g_lambda: 25
+  g_eta: 71
+  u_ratio_finger: -6
+  u_ratio_cube: -47
+  admm_iter: 4
+  tracking_N: 5
+----------------------------------------
+Trial #2405 | Metric Score: 3.96813
+Parameters:
+  w_G: 495
+  g_lambda: 32
+  g_eta: 75
+  u_ratio_finger: -10
+  u_ratio_cube: -113
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #2409 | Metric Score: 11.6215
+Parameters:
+  w_G: 383
+  g_lambda: 43
+  g_eta: 83
+  u_ratio_finger: -5
+  u_ratio_cube: -19
+  admm_iter: 6
+  tracking_N: 5
+----------------------------------------
+Trial #2459 | Metric Score: 4.08806
+Parameters:
+  w_G: 413
+  g_lambda: 35
+  g_eta: 79
+  u_ratio_finger: -24
+  u_ratio_cube: -38
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #2533 | Metric Score: 14.9798
+Parameters:
+  w_G: 311
+  g_lambda: 40
+  g_eta: 92
+  u_ratio_finger: -7
+  u_ratio_cube: -31
+  admm_iter: 6
+  tracking_N: 5
+----------------------------------------
+Trial #2608 | Metric Score: 1.19719
+Parameters:
+  w_G: 488
+  g_lambda: 41
+  g_eta: 97
+  u_ratio_finger: -10
+  u_ratio_cube: -175
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #2719 | Metric Score: 5.97309
+Parameters:
+  w_G: 500
+  g_lambda: 44
+  g_eta: 100
+  u_ratio_finger: -27
+  u_ratio_cube: -70
+  admm_iter: 6
+  tracking_N: 5
+----------------------------------------
+Trial #2813 | Metric Score: 3.32361
+Parameters:
+  w_G: 430
+  g_lambda: 42
+  g_eta: 96
+  u_ratio_finger: -23
+  u_ratio_cube: -41
+  admm_iter: 7
+  tracking_N: 5
+----------------------------------------
+Trial #2903 | Metric Score: 12.4124
+Parameters:
+  w_G: 485
+  g_lambda: 54
+  g_eta: 70
+  u_ratio_finger: -6
+  u_ratio_cube: -150
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3025 | Metric Score: 13.1879
+Parameters:
+  w_G: 499
+  g_lambda: 60
+  g_eta: 99
+  u_ratio_finger: -11
+  u_ratio_cube: -72
+  admm_iter: 7
+  tracking_N: 5
+----------------------------------------
+Trial #3031 | Metric Score: 12.0287
+Parameters:
+  w_G: 464
+  g_lambda: 43
+  g_eta: 69
+  u_ratio_finger: -7
+  u_ratio_cube: -129
+  admm_iter: 6
+  tracking_N: 5
+----------------------------------------
+Trial #3096 | Metric Score: 1.69197
+Parameters:
+  w_G: 480
+  g_lambda: 39
+  g_eta: 96
+  u_ratio_finger: -49
+  u_ratio_cube: -189
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3122 | Metric Score: 8.33792
+Parameters:
+  w_G: 470
+  g_lambda: 37
+  g_eta: 75
+  u_ratio_finger: -45
+  u_ratio_cube: -101
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3123 | Metric Score: 9.06735
+Parameters:
+  w_G: 442
+  g_lambda: 28
+  g_eta: 88
+  u_ratio_finger: -51
+  u_ratio_cube: -175
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3128 | Metric Score: 3.11754
+Parameters:
+  w_G: 493
+  g_lambda: 44
+  g_eta: 86
+  u_ratio_finger: -33
+  u_ratio_cube: -72
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3144 | Metric Score: 4.73303
+Parameters:
+  w_G: 383
+  g_lambda: 44
+  g_eta: 82
+  u_ratio_finger: -8
+  u_ratio_cube: -188
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3182 | Metric Score: 2.34983
+Parameters:
+  w_G: 393
+  g_lambda: 50
+  g_eta: 72
+  u_ratio_finger: -6
+  u_ratio_cube: -117
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3211 | Metric Score: 8.58629
+Parameters:
+  w_G: 322
+  g_lambda: 77
+  g_eta: 79
+  u_ratio_finger: -7
+  u_ratio_cube: -111
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3270 | Metric Score: 11.1929
+Parameters:
+  w_G: 491
+  g_lambda: 45
+  g_eta: 98
+  u_ratio_finger: -9
+  u_ratio_cube: -182
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3312 | Metric Score: 13.8219
+Parameters:
+  w_G: 492
+  g_lambda: 43
+  g_eta: 97
+  u_ratio_finger: -57
+  u_ratio_cube: -170
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3318 | Metric Score: 12.4372
+Parameters:
+  w_G: 477
+  g_lambda: 26
+  g_eta: 70
+  u_ratio_finger: -9
+  u_ratio_cube: -92
+  admm_iter: 6
+  tracking_N: 5
+----------------------------------------
+Trial #3327 | Metric Score: 5.58183
+Parameters:
+  w_G: 360
+  g_lambda: 72
+  g_eta: 85
+  u_ratio_finger: -6
+  u_ratio_cube: -129
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3326 | Metric Score: 14.7305
+Parameters:
+  w_G: 319
+  g_lambda: 76
+  g_eta: 79
+  u_ratio_finger: 0
+  u_ratio_cube: -50
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3351 | Metric Score: 3.50159
+Parameters:
+  w_G: 422
+  g_lambda: 82
+  g_eta: 94
+  u_ratio_finger: -18
+  u_ratio_cube: -93
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3477 | Metric Score: 9.89788
+Parameters:
+  w_G: 442
+  g_lambda: 31
+  g_eta: 80
+  u_ratio_finger: -8
+  u_ratio_cube: -46
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3502 | Metric Score: 12.9679
+Parameters:
+  w_G: 469
+  g_lambda: 34
+  g_eta: 99
+  u_ratio_finger: -10
+  u_ratio_cube: -75
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3545 | Metric Score: 7.46747
+Parameters:
+  w_G: 397
+  g_lambda: 73
+  g_eta: 100
+  u_ratio_finger: -5
+  u_ratio_cube: -72
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3612 | Metric Score: 4.59804
+Parameters:
+  w_G: 499
+  g_lambda: 42
+  g_eta: 97
+  u_ratio_finger: -45
+  u_ratio_cube: -111
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3618 | Metric Score: 14.3306
+Parameters:
+  w_G: 445
+  g_lambda: 30
+  g_eta: 80
+  u_ratio_finger: -23
+  u_ratio_cube: -105
+  admm_iter: 6
+  tracking_N: 5
+----------------------------------------
+Trial #3627 | Metric Score: 2.31537
+Parameters:
+  w_G: 425
+  g_lambda: 38
+  g_eta: 99
+  u_ratio_finger: -57
+  u_ratio_cube: -107
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3681 | Metric Score: 5.6212
+Parameters:
+  w_G: 417
+  g_lambda: 36
+  g_eta: 79
+  u_ratio_finger: -9
+  u_ratio_cube: -38
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3726 | Metric Score: 6.06108
+Parameters:
+  w_G: 479
+  g_lambda: 36
+  g_eta: 100
+  u_ratio_finger: -68
+  u_ratio_cube: -132
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3788 | Metric Score: 3.97442
+Parameters:
+  w_G: 418
+  g_lambda: 37
+  g_eta: 85
+  u_ratio_finger: -20
+  u_ratio_cube: -113
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3784 | Metric Score: 10.3787
+Parameters:
+  w_G: 461
+  g_lambda: 34
+  g_eta: 100
+  u_ratio_finger: -3
+  u_ratio_cube: -159
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #3904 | Metric Score: 13.9471
+Parameters:
+  w_G: 256
+  g_lambda: 44
+  g_eta: 80
+  u_ratio_finger: -6
+  u_ratio_cube: -178
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #3961 | Metric Score: 6.39125
+Parameters:
+  w_G: 485
+  g_lambda: 28
+  g_eta: 96
+  u_ratio_finger: -13
+  u_ratio_cube: -128
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #4010 | Metric Score: 2.89385
+Parameters:
+  w_G: 419
+  g_lambda: 45
+  g_eta: 86
+  u_ratio_finger: -5
+  u_ratio_cube: -129
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #4027 | Metric Score: 10.8143
+Parameters:
+  w_G: 484
+  g_lambda: 41
+  g_eta: 97
+  u_ratio_finger: -14
+  u_ratio_cube: -121
+  admm_iter: 5
+  tracking_N: 6
+----------------------------------------
+Trial #4046 | Metric Score: 11.967
+Parameters:
+  w_G: 472
+  g_lambda: 28
+  g_eta: 95
+  u_ratio_finger: -8
+  u_ratio_cube: -72
+  admm_iter: 7
+  tracking_N: 5
+----------------------------------------
+Trial #4052 | Metric Score: 5.70366
+Parameters:
+  w_G: 493
+  g_lambda: 38
+  g_eta: 91
+  u_ratio_finger: -9
+  u_ratio_cube: -31
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------
+Trial #4138 | Metric Score: 5.02289
+Parameters:
+  w_G: 347
+  g_lambda: 59
+  g_eta: 80
+  u_ratio_finger: -9
+  u_ratio_cube: -140
+  admm_iter: 6
+  tracking_N: 6
+----------------------------------------
+Trial #4211 | Metric Score: 11.7579
+Parameters:
+  w_G: 416
+  g_lambda: 41
+  g_eta: 74
+  u_ratio_finger: -10
+  u_ratio_cube: -79
+  admm_iter: 7
+  tracking_N: 6
+----------------------------------------

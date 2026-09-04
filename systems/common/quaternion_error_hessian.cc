@@ -150,6 +150,36 @@ MatrixXd hessian_of_squared_quaternion_angle_difference(
     return hessian;
 }
 
+VectorXd gradient_of_squared_quaternion_angle_difference(
+    const VectorXd& quat, const VectorXd& quat_desired)
+{
+    DRAKE_DEMAND(quat.size() == 4);
+    DRAKE_DEMAND(quat_desired.size() == 4);
+    DRAKE_DEMAND(quat.norm() > 0.0);
+    DRAKE_DEMAND(quat_desired.norm() > 0.0);
+
+    const Eigen::Vector4d q = quat.normalized();
+    Eigen::Vector4d r = quat_desired.normalized();
+
+    // Ensure we take the shortest path on SO(3)
+    if (q.dot(r) < 0.0) {
+        r = -r;
+    }
+
+    double s = std::clamp(q.dot(r), -1.0, 1.0);
+    double sin_half_theta = std::sqrt(std::max(0.0, 1.0 - s * s));
+    double theta = 2.0 * std::atan2(sin_half_theta, s);
+
+    // Small angle limit to avoid division by zero
+    if (sin_half_theta < 1e-4) {
+        return 8.0 * (q - r);
+    }
+
+    // Gradient on S^3: d/dq [theta^2] = 4 * (theta / sin(theta/2)) * (s * q - r)
+    Eigen::Vector4d grad = 4.0 * (theta / sin_half_theta) * (s * q - r);
+    return grad;
+}
+
 } // namespace common
 } // namespace systems
 } // namespace c3
